@@ -110,7 +110,7 @@ class _SignupScreenState extends State<SignupScreen> {
                       letterSpacing: 8,
                       foreground: Paint()
                         ..shader = const LinearGradient(
-                          colors: [AuraColors.accent, AuraColors.accentLight],
+                          colors: [AuraTheme.accent, AuraTheme.accentLight],
                         ).createShader(const Rect.fromLTWH(0, 0, 200, 70)),
                     ),
                   ),
@@ -219,15 +219,73 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 const SizedBox(height: 32),
 
-                ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  child: _loading
-                      ? const SizedBox(
-                          height: 20, width: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : Text(_usePhone ? 'Send OTP' : 'Create Account'),
+                SizedBox(
+                  width: double.infinity,
+                  height: 52,
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AuraColors.accent,
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(14)),
+                    ),
+                    onPressed: _loading ? null : _submit,
+                    child: _loading
+                        ? const SizedBox(
+                            height: 20, width: 20,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : Text(_usePhone ? 'Send OTP' : 'Create Account',
+                            style: const TextStyle(
+                                fontSize: 16, fontWeight: FontWeight.w700)),
+                  ),
                 ).animate().fadeIn(delay: 500.ms),
+
+                const SizedBox(height: 20),
+
+                // ── Social divider ────────────────────────────────────────
+                Row(children: [
+                  const Expanded(child: Divider(color: AuraColors.divider)),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: Text('or sign up with',
+                        style: TextStyle(
+                            color: AuraColors.textSecondary, fontSize: 12)),
+                  ),
+                  const Expanded(child: Divider(color: AuraColors.divider)),
+                ]).animate().fadeIn(delay: 530.ms),
+
+                const SizedBox(height: 14),
+
+                Row(children: [
+                  Expanded(
+                    child: _SocialBtn(
+                      label: 'Google',
+                      isApple: false,
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Google sign-up coming soon!'),
+                          backgroundColor: AuraColors.accent,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _SocialBtn(
+                      label: 'Apple',
+                      isApple: true,
+                      onTap: () => ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Apple sign-up coming soon!'),
+                          backgroundColor: AuraColors.accent,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      ),
+                    ),
+                  ),
+                ]).animate().fadeIn(delay: 560.ms),
 
                 const SizedBox(height: 20),
 
@@ -254,6 +312,42 @@ class _SignupScreenState extends State<SignupScreen> {
       ),
     );
   }
+}
+
+class _SocialBtn extends StatelessWidget {
+  final String label;
+  final bool isApple;
+  final VoidCallback onTap;
+  const _SocialBtn(
+      {required this.label, required this.isApple, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: AuraColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AuraColors.divider),
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            isApple
+                ? const Icon(Icons.apple,
+                    size: 22, color: AuraTheme.textPrimary)
+                : const Text('G',
+                    style: TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.w800,
+                        color: Color(0xFF4285F4))),
+            const SizedBox(width: 8),
+            Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AuraTheme.textPrimary)),
+          ]),
+        ),
+      );
 }
 
 class _ToggleChip extends StatelessWidget {

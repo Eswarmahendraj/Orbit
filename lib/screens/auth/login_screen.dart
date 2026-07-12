@@ -7,7 +7,8 @@ import 'signup_screen.dart';
 import 'otp_screen.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final VoidCallback? onLoggedIn;
+  const LoginScreen({super.key, this.onLoggedIn});
   @override
   State<LoginScreen> createState() => _LoginScreenState();
 }
@@ -52,6 +53,7 @@ class _LoginScreenState extends State<LoginScreen> {
           email: _emailCtrl.text.trim(),
           password: _passwordCtrl.text.trim(),
         );
+        if (mounted) widget.onLoggedIn?.call();
       }
     } catch (_) {
       _err('Invalid credentials. Please try again.');
@@ -62,6 +64,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _err(String msg) => ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
+
+  void _socialSnack(String provider) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$provider sign-in coming soon!'),
+        backgroundColor: AuraTheme.accent,
+        behavior: SnackBarBehavior.floating,
+      ));
 
   @override
   Widget build(BuildContext context) {
@@ -199,6 +208,42 @@ class _LoginScreenState extends State<LoginScreen> {
                     onTap: _loading ? null : _submit,
                   ).animate().fadeIn(delay: 650.ms),
 
+                  const SizedBox(height: 20),
+
+                  // ── Divider ───────────────────────────────────────────────
+                  Row(children: [
+                    const Expanded(child: Divider(color: AuraColors.divider)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 12),
+                      child: Text('or continue with',
+                          style: TextStyle(
+                              color: AuraColors.textSecondary, fontSize: 12)),
+                    ),
+                    const Expanded(child: Divider(color: AuraColors.divider)),
+                  ]).animate().fadeIn(delay: 680.ms),
+
+                  const SizedBox(height: 16),
+
+                  // ── Social auth buttons ───────────────────────────────────
+                  Row(children: [
+                    Expanded(
+                      child: _SocialButton(
+                        icon: '🇬',
+                        label: 'Google',
+                        onTap: () => _socialSnack('Google'),
+                      ),
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: _SocialButton(
+                        icon: '',
+                        label: 'Apple',
+                        onTap: () => _socialSnack('Apple'),
+                        useAppleIcon: true,
+                      ),
+                    ),
+                  ]).animate().fadeIn(delay: 710.ms),
+
                   const SizedBox(height: 24),
 
                   Row(mainAxisAlignment: MainAxisAlignment.center, children: [
@@ -218,7 +263,22 @@ class _LoginScreenState extends State<LoginScreen> {
                                 fontWeight: FontWeight.w700)),
                       ),
                     ),
-                  ]).animate().fadeIn(delay: 700.ms),
+                  ]).animate().fadeIn(delay: 740.ms),
+
+                  const SizedBox(height: 16),
+
+                  // Demo mode skip (dev convenience)
+                  Center(
+                    child: TextButton(
+                      onPressed: () {
+                        widget.onLoggedIn?.call();
+                      },
+                      child: const Text('Skip for now (demo mode)',
+                          style: TextStyle(
+                              color: AuraColors.textSecondary,
+                              fontSize: 12)),
+                    ),
+                  ).animate().fadeIn(delay: 780.ms),
 
                   const SizedBox(height: 40),
                 ],
@@ -278,6 +338,43 @@ class _GradientButton extends StatelessWidget {
       ),
     );
   }
+}
+
+// ── Social button ─────────────────────────────────────────────────────────────
+class _SocialButton extends StatelessWidget {
+  final String icon;
+  final String label;
+  final VoidCallback onTap;
+  final bool useAppleIcon;
+  const _SocialButton(
+      {required this.icon,
+      required this.label,
+      required this.onTap,
+      this.useAppleIcon = false});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+        onTap: onTap,
+        child: Container(
+          height: 50,
+          decoration: BoxDecoration(
+            color: AuraColors.surface,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: AuraColors.divider),
+          ),
+          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+            useAppleIcon
+                ? const Icon(Icons.apple, size: 22, color: AuraTheme.textPrimary)
+                : Text(icon, style: const TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Text(label,
+                style: const TextStyle(
+                    fontWeight: FontWeight.w600,
+                    fontSize: 14,
+                    color: AuraTheme.textPrimary)),
+          ]),
+        ),
+      );
 }
 
 // ── Tab chip ──────────────────────────────────────────────────────────────────

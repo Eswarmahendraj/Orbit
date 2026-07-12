@@ -1,17 +1,37 @@
 import 'package:flutter/material.dart';
 
+// Convenience alias used by login / signup screens
+class AuraColors {
+  static const Color accent = AuraTheme.accent;
+  static const Color textSecondary = AuraTheme.textSecondary;
+  static const Color surface = AuraTheme.surface;
+  static const Color divider = Color(0xFFE0DBD0);
+
+  static const LinearGradient backgroundGradient = LinearGradient(
+    colors: [Color(0xFFF4F0E8), Color(0xFFFFEDDA)],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+
+  static const LinearGradient brandGradient = LinearGradient(
+    colors: [AuraTheme.accent, AuraTheme.accentLight],
+    begin: Alignment.topLeft,
+    end: Alignment.bottomRight,
+  );
+}
+
 class AuraTheme {
   // Core palette
   static const Color background = Color(0xFFF4F0E8); // cream
   static const Color card = Color(0xFFFFFFFF);
   static const Color surface = Color(0xFFF0EBE0);
-  static const Color accent = Color(0xFFFF4500); // orange-red
-  static const Color accentLight = Color(0xFFFF7A50); // light orange
+  static const Color accent = Color(0xFFFF8C42); // soft orange
+  static const Color accentLight = Color(0xFFFFAD75); // peach orange
 
   // Aliases (all orange now — no lime)
   static const Color orange = accent;
   static const Color pink = accentLight;
-  static const Color cyan = Color(0xFFFF6030);
+  static const Color cyan = Color(0xFFFF9D5C);
 
   // Text
   static const Color textPrimary = Color(0xFF1A1A1A);

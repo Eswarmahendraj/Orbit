@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:firebase_core/firebase_core.dart';
 import 'models/orbit_state.dart';
 import 'theme/aura_theme.dart';
-import 'screens/home/home_screen.dart';
+import 'screens/auth/login_screen.dart';
+import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/privacy/app_disguise_screen.dart';
+import 'widgets/web_scaffold.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  try {
-    await Firebase.initializeApp();
-  } catch (_) {}
+  await OrbitState().load();
+  OrbitState().checkStreak();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -28,7 +28,40 @@ class OrbitApp extends StatelessWidget {
       title: disguise ? 'Calculator' : 'Orbit',
       debugShowCheckedModeBanner: false,
       theme: AuraTheme.dark,
-      home: disguise ? const AppDisguiseScreen() : const HomeScreen(),
+      home: disguise ? const AppDisguiseScreen() : const OrbitRoot(),
     );
+  }
+}
+
+class OrbitRoot extends StatefulWidget {
+  const OrbitRoot({super.key});
+  @override
+  State<OrbitRoot> createState() => _OrbitRootState();
+}
+
+class _OrbitRootState extends State<OrbitRoot> {
+  bool _onboarded = false;
+  bool _loggedIn = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _onboarded = OrbitState().hasOnboarded;
+    // Treat having onboarded as being logged in (existing users skip auth)
+    _loggedIn = _onboarded;
+  }
+
+  void _completeOnboarding() => setState(() => _onboarded = true);
+  void _completeLogin() => setState(() => _loggedIn = true);
+
+  @override
+  Widget build(BuildContext context) {
+    if (!_loggedIn) {
+      return LoginScreen(onLoggedIn: _completeLogin);
+    }
+    if (!_onboarded) {
+      return OnboardingScreen(onDone: _completeOnboarding);
+    }
+    return const ResponsiveRoot();
   }
 }
