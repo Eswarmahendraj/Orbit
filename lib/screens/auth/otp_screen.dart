@@ -103,7 +103,7 @@ class _OtpScreenState extends State<OtpScreen> {
                       height: 20, width: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2, color: Colors.white))
-                  : const Text('Verify & Enter Vybe'),
+                  : const Text('Verify & Enter Orbit'),
             ).animate().fadeIn(delay: 300.ms),
 
             const SizedBox(height: 20),

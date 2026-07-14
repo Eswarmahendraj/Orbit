@@ -4,7 +4,19 @@ import 'package:flutter/material.dart';
 class AuraColors {
   static const Color accent = AuraTheme.accent;
   static const Color textSecondary = AuraTheme.textSecondary;
+  static const Color textPrimary = AuraTheme.textPrimary;
   static const Color surface = AuraTheme.surface;
+  static const Color background = AuraTheme.background;
+  static const Color card = AuraTheme.card;
+  static const Color cyan = AuraTheme.cyan;
+  static const Color pink = AuraTheme.pink;
+  // Mood colors
+  static const Color moodCalm   = Color(0xFF4FC3F7); // soft blue
+  static const Color moodHappy  = Color(0xFFFFD54F); // warm yellow
+  static const Color moodEnergy = Color(0xFFFF6B6B); // vibrant red-pink
+  static const Color moodFocus  = Color(0xFF81C784); // forest green
+  static const Color moodSad    = Color(0xFF7986CB); // muted indigo
+
   static const Color divider = Color(0xFFE0DBD0);
 
   static const LinearGradient backgroundGradient = LinearGradient(

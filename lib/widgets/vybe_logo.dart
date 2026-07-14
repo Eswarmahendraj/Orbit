@@ -2,7 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import '../theme/aura_theme.dart';
 
-/// Animated Vybe logo — glowing V with a pulse wave inside.
+/// Animated Orbit logo — glowing O ring with orbiting dot and pulse wave.
 class VybeLogo extends StatefulWidget {
   final double size;
   final bool pulse;
@@ -23,7 +23,7 @@ class _VybeLogoState extends State<VybeLogo>
       vsync: this,
       duration: const Duration(seconds: 3),
     );
-    if (widget.pulse) _ctrl.repeat(reverse: true);
+    if (widget.pulse) _ctrl.repeat();
   }
 
   @override
@@ -38,15 +38,15 @@ class _VybeLogoState extends State<VybeLogo>
       animation: _ctrl,
       builder: (_, __) => CustomPaint(
         size: Size(widget.size, widget.size),
-        painter: _VybeLogoPainter(_ctrl.value),
+        painter: _OrbitLogoPainter(_ctrl.value),
       ),
     );
   }
 }
 
-class _VybeLogoPainter extends CustomPainter {
-  final double t; // 0..1 pulse value
-  _VybeLogoPainter(this.t);
+class _OrbitLogoPainter extends CustomPainter {
+  final double t; // 0..1 loop value
+  _OrbitLogoPainter(this.t);
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -55,119 +55,103 @@ class _VybeLogoPainter extends CustomPainter {
     final cx = w / 2;
     final cy = h / 2;
 
-    // ── Outer glow ring ───────────────────────────────────────────────────────
-    final glowAlpha = 0.08 + 0.12 * t;
+    // ── Outer glow ────────────────────────────────────────────────────────────
     for (int i = 3; i >= 1; i--) {
       canvas.drawCircle(
         Offset(cx, cy),
-        w * 0.46 + i * 4.0 * t,
+        w * 0.46 + i * 3.0 * math.sin(t * math.pi * 2).abs(),
         Paint()
-          ..color = AuraColors.accent.withOpacity(glowAlpha / i)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+          ..color = AuraColors.accent.withOpacity(0.06 / i)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14),
       );
     }
 
-    // ── Circle background ──────────────────────────────────────────────────────
-    final bgPaint = Paint()
-      ..shader = const RadialGradient(
-        colors: [Color(0xFF1A1040), Color(0xFF0A0720)],
-        radius: 0.8,
-      ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: w * 0.45));
-    canvas.drawCircle(Offset(cx, cy), w * 0.46, bgPaint);
-
-    // Border ring
+    // ── Dark circle background ────────────────────────────────────────────────
     canvas.drawCircle(
       Offset(cx, cy),
       w * 0.46,
       Paint()
-        ..color = AuraColors.accent.withOpacity(0.4 + 0.3 * t)
+        ..shader = const RadialGradient(
+          colors: [Color(0xFF1A1040), Color(0xFF0A0720)],
+          radius: 0.8,
+        ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: w * 0.45)),
+    );
+
+    // ── "O" ring ──────────────────────────────────────────────────────────────
+    final ringR = w * 0.30;
+
+    // Glow ring
+    canvas.drawCircle(
+      Offset(cx, cy),
+      ringR,
+      Paint()
+        ..shader = AuraColors.brandGradient.createShader(
+            Rect.fromCircle(center: Offset(cx, cy), radius: ringR))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 9.0
+        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 10 + 6 * math.sin(t * math.pi * 2).abs()),
+    );
+
+    // Crisp ring on top
+    canvas.drawCircle(
+      Offset(cx, cy),
+      ringR,
+      Paint()
+        ..shader = AuraColors.brandGradient.createShader(
+            Rect.fromCircle(center: Offset(cx, cy), radius: ringR))
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 5.0,
+    );
+
+    // ── Orbiting dot ──────────────────────────────────────────────────────────
+    final angle = t * math.pi * 2 - math.pi / 2;
+    final dotX = cx + ringR * math.cos(angle);
+    final dotY = cy + ringR * math.sin(angle);
+
+    // Dot glow trail
+    for (int i = 1; i <= 5; i++) {
+      final trailAngle = angle - i * 0.18;
+      final tx = cx + ringR * math.cos(trailAngle);
+      final ty = cy + ringR * math.sin(trailAngle);
+      canvas.drawCircle(
+        Offset(tx, ty),
+        4.0 - i * 0.5,
+        Paint()
+          ..color = AuraColors.accent.withOpacity(0.15 * (6 - i) / 5)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4),
+      );
+    }
+
+    // Dot itself
+    canvas.drawCircle(
+      Offset(dotX, dotY),
+      6.5,
+      Paint()
+        ..color = AuraColors.accent.withOpacity(0.4)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 8),
+    );
+    canvas.drawCircle(
+      Offset(dotX, dotY),
+      4.5,
+      Paint()..color = Colors.white,
+    );
+
+    // ── Outer border ring of the logo circle ──────────────────────────────────
+    canvas.drawCircle(
+      Offset(cx, cy),
+      w * 0.46,
+      Paint()
+        ..color = AuraColors.accent.withOpacity(0.25 + 0.15 * math.sin(t * math.pi * 2).abs())
         ..style = PaintingStyle.stroke
         ..strokeWidth = 1.5,
-    );
-
-    // ── "V" shape ──────────────────────────────────────────────────────────────
-    final vLeft  = Offset(w * 0.18, h * 0.28);
-    final vTip   = Offset(cx, h * 0.72);
-    final vRight = Offset(w * 0.82, h * 0.28);
-
-    final vGlowPaint = Paint()
-      ..shader = AuraColors.brandGradient.createShader(
-          Rect.fromPoints(vLeft, vRight))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 7.0
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 8 + 6 * t);
-
-    final vPath = Path()
-      ..moveTo(vLeft.dx, vLeft.dy)
-      ..lineTo(vTip.dx, vTip.dy)
-      ..lineTo(vRight.dx, vRight.dy);
-
-    canvas.drawPath(vPath, vGlowPaint);
-
-    // Crisp V on top
-    final vPaint = Paint()
-      ..shader = AuraColors.brandGradient.createShader(
-          Rect.fromPoints(vLeft, vRight))
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 4.5
-      ..strokeCap = StrokeCap.round
-      ..strokeJoin = StrokeJoin.round;
-
-    canvas.drawPath(vPath, vPaint);
-
-    // ── Pulse wave inside V ────────────────────────────────────────────────────
-    // Draw a small waveform along the bottom half of the V center
-    final wavePaint = Paint()
-      ..color = AuraColors.cyan.withOpacity(0.7 + 0.3 * t)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = 1.8
-      ..strokeCap = StrokeCap.round
-      ..maskFilter = MaskFilter.blur(BlurStyle.normal, 2);
-
-    final wavePath = Path();
-    const steps = 40;
-    final waveW = w * 0.36;
-    final waveX0 = cx - waveW / 2;
-    final waveY = h * 0.52;
-    const amp = 6.0;
-
-    for (int i = 0; i <= steps; i++) {
-      final dx = waveX0 + (waveW * i / steps);
-      final progress = i / steps;
-      // Sine wave with envelope (fades at edges)
-      final envelope = math.sin(progress * math.pi);
-      final dy = waveY -
-          amp * envelope * math.sin((progress * 4 + t * 2) * math.pi * 2);
-      if (i == 0) {
-        wavePath.moveTo(dx, dy);
-      } else {
-        wavePath.lineTo(dx, dy);
-      }
-    }
-    canvas.drawPath(wavePath, wavePaint);
-
-    // ── Center dot ────────────────────────────────────────────────────────────
-    canvas.drawCircle(
-      vTip,
-      3.5 + 2 * t,
-      Paint()
-        ..color = AuraColors.pink.withOpacity(0.9)
-        ..maskFilter = MaskFilter.blur(BlurStyle.normal, 6 * t + 2),
-    );
-    canvas.drawCircle(
-      vTip,
-      2.5,
-      Paint()..color = Colors.white,
     );
   }
 
   @override
-  bool shouldRepaint(_VybeLogoPainter old) => old.t != t;
+  bool shouldRepaint(_OrbitLogoPainter old) => old.t != t;
 }
 
-/// Static text logo — "VYBE" with gradient
+/// Static text logo — "ORBIT" with gradient
 class VybeTextLogo extends StatelessWidget {
   final double fontSize;
   const VybeTextLogo({super.key, this.fontSize = 48});
@@ -178,12 +162,12 @@ class VybeTextLogo extends StatelessWidget {
       shaderCallback: (bounds) =>
           AuraColors.brandGradient.createShader(bounds),
       child: Text(
-        'VYBE',
+        'ORBIT',
         style: TextStyle(
           fontSize: fontSize,
           fontWeight: FontWeight.w900,
           letterSpacing: fontSize * 0.18,
-          color: Colors.white, // masked by shader
+          color: Colors.white,
         ),
       ),
     );

@@ -110,7 +110,7 @@ const List<VybeFilter> kVybeFilters = [
   ]),
 
   // ── 12. Vybe — the signature brand filter ─────────────────────────────
-  VybeFilter('Vybe', '💜', [
+  VybeFilter('Orbit', '🔮', [
     1.10, 0,    0.22, 0, 12,
     0,    0.78, 0,    0,  0,
     0.22, 0,    1.25, 0, 15,

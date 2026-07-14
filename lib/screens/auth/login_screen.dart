@@ -46,7 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         name: '',
                         phone: '+91${_phoneCtrl.text.trim()}',
                       ))),
-          onError: (e) => _err(e.message ?? 'Error'),
+          onError: (e) => _err(e.toString()),
         );
       } else {
         await _auth.signInWithEmail(
@@ -125,7 +125,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       .animate()
                       .fadeIn(delay: 400.ms),
                   const SizedBox(height: 6),
-                  const Text('Sign in to your Vybe',
+                  const Text('Sign in to your Orbit',
                       style: TextStyle(
                           color: AuraColors.textSecondary, fontSize: 14))
                       .animate()
@@ -297,44 +297,51 @@ class _GradientButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
   const _GradientButton(
-      {required this.loading, required this.label, this.onTap});
+      {required this.loading, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: onTap,
-      child: Container(
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
         width: double.infinity,
-        height: 54,
+        height: 52,
         decoration: BoxDecoration(
-          gradient: onTap != null
-              ? AuraColors.brandGradient
-              : const LinearGradient(
-                  colors: [Color(0xFF4A3880), Color(0xFF7A2A50)]),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: onTap != null
-              ? [
+          gradient: onTap == null
+              ? null
+              : AuraColors.brandGradient,
+          color: onTap == null ? AuraColors.surface : null,
+          borderRadius: BorderRadius.circular(14),
+          boxShadow: onTap == null
+              ? null
+              : [
                   BoxShadow(
-                    color: AuraColors.accent.withOpacity(0.4),
-                    blurRadius: 20,
+                    color: AuraColors.accent.withOpacity(0.35),
+                    blurRadius: 16,
                     offset: const Offset(0, 6),
                   )
-                ]
-              : [],
+                ],
         ),
         alignment: Alignment.center,
         child: loading
             ? const SizedBox(
-                height: 20,
-                width: 20,
+                height: 22,
+                width: 22,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: Colors.white))
-            : Text(label,
-                style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.5)),
+                    strokeWidth: 2.5, color: Colors.white),
+              )
+            : Text(
+                label,
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: onTap == null
+                      ? AuraColors.textSecondary
+                      : Colors.white,
+                  letterSpacing: 0.4,
+                ),
+              ),
       ),
     );
   }
@@ -353,61 +360,65 @@ class _SocialButton extends StatelessWidget {
       this.useAppleIcon = false});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: Container(
-          height: 50,
-          decoration: BoxDecoration(
-            color: AuraColors.surface,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AuraColors.divider),
-          ),
-          child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-            useAppleIcon
-                ? const Icon(Icons.apple, size: 22, color: AuraTheme.textPrimary)
-                : Text(icon, style: const TextStyle(fontSize: 18)),
-            const SizedBox(width: 8),
-            Text(label,
-                style: const TextStyle(
-                    fontWeight: FontWeight.w600,
-                    fontSize: 14,
-                    color: AuraTheme.textPrimary)),
-          ]),
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        height: 50,
+        decoration: BoxDecoration(
+          color: AuraColors.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AuraColors.divider),
         ),
-      );
+        child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+          useAppleIcon
+              ? const Icon(Icons.apple,
+                  size: 22, color: AuraTheme.textPrimary)
+              : Text(icon,
+                  style: const TextStyle(
+                      fontSize: 18, fontWeight: FontWeight.w800,
+                      color: Color(0xFF4285F4))),
+          const SizedBox(width: 8),
+          Text(label,
+              style: const TextStyle(
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                  color: AuraTheme.textPrimary)),
+        ]),
+      ),
+    );
+  }
 }
 
-// ── Tab chip ──────────────────────────────────────────────────────────────────
+// ── Toggle chip ───────────────────────────────────────────────────────────────
 class _Chip extends StatelessWidget {
   final String label;
   final bool selected;
   final VoidCallback onTap;
-  const _Chip(
-      {required this.label, required this.selected, required this.onTap});
+  const _Chip({required this.label, required this.selected, required this.onTap});
 
   @override
-  Widget build(BuildContext context) => GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding:
-              const EdgeInsets.symmetric(horizontal: 22, vertical: 10),
-          decoration: BoxDecoration(
-            gradient: selected ? AuraColors.brandGradient : null,
-            color: selected ? null : AuraColors.surface,
-            borderRadius: BorderRadius.circular(24),
-            border: Border.all(
-              color: selected
-                  ? Colors.transparent
-                  : AuraColors.divider,
-            ),
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+        decoration: BoxDecoration(
+          color: selected ? AuraColors.accent : AuraColors.surface,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(
+            color: selected ? AuraColors.accent : AuraColors.divider,
           ),
-          child: Text(label,
-              style: TextStyle(
-                color: selected ? Colors.white : AuraColors.textSecondary,
-                fontWeight:
-                    selected ? FontWeight.w700 : FontWeight.normal,
-              )),
         ),
-      );
+        child: Text(
+          label,
+          style: TextStyle(
+            color: selected ? Colors.white : AuraColors.textSecondary,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
+          ),
+        ),
+      ),
+    );
+  }
 }

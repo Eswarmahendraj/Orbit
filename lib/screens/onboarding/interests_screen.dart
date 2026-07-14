@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import '../../theme/aura_theme.dart';
 import '../home/home_screen.dart';
 
@@ -31,10 +29,8 @@ class _InterestsScreenState extends State<InterestsScreen> {
       return;
     }
     setState(() => _saving = true);
-    final uid = FirebaseAuth.instance.currentUser!.uid;
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'interests': _selected.toList(),
-    });
+    // TODO: save interests to backend
+    await Future.delayed(const Duration(milliseconds: 300));
     if (mounted) {
       Navigator.pushAndRemoveUntil(context,
         MaterialPageRoute(builder: (_) => const HomeScreen()),
@@ -60,7 +56,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
                             style: TextStyle(fontSize: 28, fontWeight: FontWeight.w800))
                             .animate().fadeIn().slideY(begin: -0.2),
                         const SizedBox(height: 8),
-                        const Text('Pick at least 3 — Vybe uses these to find your Campfire rooms.',
+                        const Text('Pick at least 3 — Orbit uses these to find your Campfire rooms.',
                             style: TextStyle(color: AuraColors.textSecondary, fontSize: 14))
                             .animate().fadeIn(delay: 100.ms),
                         const SizedBox(height: 8),
@@ -140,7 +136,7 @@ class _InterestsScreenState extends State<InterestsScreen> {
               child: _saving
                   ? const SizedBox(height: 20, width: 20,
                       child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                  : const Text('Enter Vybe  →'),
+                  : const Text('Enter Orbit  →'),
             ),
           ),
         ],

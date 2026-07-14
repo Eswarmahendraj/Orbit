@@ -24,7 +24,7 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
   ];
 
   final _visOptions = [
-    (PostVisibility.public,      '🌍', 'Public',       'Everyone on Vybe'),
+    (PostVisibility.public,      '🌍', 'Public',       'Everyone on Orbit'),
     (PostVisibility.closeCircle, '🔒', 'Close Circle', 'Your trusted people'),
     (PostVisibility.private,     '👁️', 'Only Me',      'Saved privately'),
   ];

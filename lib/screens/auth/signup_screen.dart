@@ -57,7 +57,7 @@ class _SignupScreenState extends State<SignupScreen> {
             ));
           },
           onError: (e) {
-            _showError(e.message ?? 'Error sending OTP');
+            _showError(e.toString());
           },
         );
       } else {
@@ -100,10 +100,10 @@ class _SignupScreenState extends State<SignupScreen> {
               children: [
                 const SizedBox(height: 40),
 
-                // Vybe logo
+                // Orbit logo text
                 Center(
                   child: Text(
-                    'Vybe',
+                    'Orbit',
                     style: TextStyle(
                       fontSize: 42,
                       fontWeight: FontWeight.w800,
@@ -243,7 +243,6 @@ class _SignupScreenState extends State<SignupScreen> {
 
                 const SizedBox(height: 20),
 
-                // ── Social divider ────────────────────────────────────────
                 Row(children: [
                   const Expanded(child: Divider(color: AuraColors.divider)),
                   const Padding(

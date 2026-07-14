@@ -1,44 +1,13 @@
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:audioplayers/audioplayers.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 /// Handles AURA's sound-only notification system.
 /// No banners, no pop-ups, no badges — just the AURA tone.
+/// Note: Firebase Messaging stub — add firebase_messaging to pubspec to enable.
 class NotificationService {
   static final _player = AudioPlayer();
-  static final _fcm = FirebaseMessaging.instance;
 
   static Future<void> init() async {
-    // Request permission (Android 13+)
-    await _fcm.requestPermission(
-      alert: false,   // No visual alerts
-      badge: false,   // No badge count
-      sound: true,    // Sound only
-    );
-
-    // Get FCM token and save to Firestore
-    final token = await _fcm.getToken();
-    if (token != null) await _saveToken(token);
-
-    // Refresh token
-    _fcm.onTokenRefresh.listen(_saveToken);
-
-    // Handle foreground messages — play sound only, no notification UI
-    FirebaseMessaging.onMessage.listen((msg) async {
-      await _playAuraSound(msg.data['soundType'] ?? 'default');
-    });
-
-    // Background/terminated handled by FCM natively
-    // We configure it to be silent-push (no visual) in AndroidManifest
-  }
-
-  static Future<void> _saveToken(String token) async {
-    final uid = FirebaseAuth.instance.currentUser?.uid;
-    if (uid == null) return;
-    await FirebaseFirestore.instance.collection('users').doc(uid).update({
-      'fcmToken': token,
-    });
+    // TODO: initialize firebase_messaging when added to pubspec
   }
 
   /// Play the AURA ambient notification tone.
@@ -60,19 +29,11 @@ class NotificationService {
     await _playAuraSound('default');
   }
 
-  /// Send a push notification to a user (server-side call via Cloud Functions)
-  /// This method documents the payload structure for your backend.
-  ///
-  /// FCM payload:
+  /// FCM payload structure for backend reference:
   /// {
   ///   "to": "<fcm_token>",
-  ///   "data": {
-  ///     "soundType": "pulse" | "birthday" | "nudge" | "milestone" | "default"
-  ///   },
-  ///   "android": {
-  ///     "priority": "normal",
-  ///     "notification": null   // No visual notification
-  ///   }
+  ///   "data": { "soundType": "pulse" | "birthday" | "nudge" | "milestone" | "default" },
+  ///   "android": { "priority": "normal" }
   /// }
   static Map<String, dynamic> buildPayload({
     required String fcmToken,
@@ -85,6 +46,5 @@ class NotificationService {
       ...?extraData,
     },
     'android': {'priority': 'normal'},
-    // No 'notification' key = silent push, sound handled in-app
   };
 }

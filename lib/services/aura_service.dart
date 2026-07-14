@@ -1,11 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 
 class AuraService {
   final _db = FirebaseFirestore.instance;
-  final _auth = FirebaseAuth.instance;
 
-  String? get _uid => _auth.currentUser?.uid;
+  // TODO: replace with real auth uid once firebase_auth is added to pubspec
+  String? get _uid => null;
 
   // ── Update current mood ────────────────────────────────────
   Future<void> updateMood(String mood) async {
