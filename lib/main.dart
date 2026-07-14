@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'models/orbit_state.dart';
 import 'theme/aura_theme.dart';
 import 'screens/auth/login_screen.dart';
@@ -9,6 +11,9 @@ import 'widgets/web_scaffold.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   await OrbitState().load();
   OrbitState().checkStreak();
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
