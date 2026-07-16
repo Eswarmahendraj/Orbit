@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';

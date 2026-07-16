@@ -67,6 +67,13 @@ class _LoginScreenState extends State<LoginScreen> {
   void _err(String msg) => ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
 
+  void _socialSnack(String provider) =>
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('$provider sign-in coming soon!'),
+        backgroundColor: AuraTheme.accent,
+        behavior: SnackBarBehavior.floating,
+      ));
+
   Future<void> _signInWithGoogle() async {
     setState(() => _loading = true);
     try {
@@ -237,7 +244,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: _SocialButton(
                         icon: '🇬',
                         label: 'Google',
-                        onTap: _loading ? null : _signInWithGoogle,
+                        onTap: _loading ? null : () => _signInWithGoogle(),
                       ),
                     ),
                     const SizedBox(width: 12),
