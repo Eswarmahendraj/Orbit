@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
@@ -47,6 +48,7 @@ class _SongSearchScreenState extends State<SongSearchScreen> {
   String? _playingUrl;
   bool _isPlaying = false;
   String? _errorMsg;
+  Timer? _debounce;
 
   // Suggested search chips shown before search
   static const _suggestions = [
@@ -73,13 +75,23 @@ class _SongSearchScreenState extends State<SongSearchScreen> {
     _ctrl.dispose();
     _player.dispose();
     _focusNode.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onChanged(String q) {
+    setState(() {}); // update clear button
+    _debounce?.cancel();
+    if (q.trim().isEmpty) {
+      setState(() { _results = []; _errorMsg = null; });
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 450), () => _search(q));
   }
 
   Future<void> _search(String q) async {
     final query = q.trim();
     if (query.isEmpty) return;
-    _focusNode.unfocus();
     setState(() { _loading = true; _results = []; _errorMsg = null; });
     try {
       final uri = Uri.parse(
@@ -191,7 +203,7 @@ class _SongSearchScreenState extends State<SongSearchScreen> {
                   border: InputBorder.none,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
                 ),
-                onChanged: (_) => setState(() {}),
+                onChanged: _onChanged,
                 onSubmitted: _search,
                 textInputAction: TextInputAction.search,
               ),

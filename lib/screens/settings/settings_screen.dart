@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../main.dart' show themeNotifier;
 import '../../models/orbit_state.dart';
 import '../../theme/aura_theme.dart';
 import '../home/vibe_picker_sheet.dart';
@@ -212,12 +213,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             value: _s.stealthView,
             onChanged: (v) => _s.stealthView = v,
           ),
-          _switch(
-            title: 'Anti-creep shield',
-            subtitle: 'Block screenshot notifications for your profile',
-            value: _s.antiCreepShield,
-            onChanged: (v) => _s.antiCreepShield = v,
-          ),
           _tile(
             title: 'Last seen',
             subtitle: _s.lastSeenMode == 'friends'
@@ -315,22 +310,49 @@ class _SettingsScreenState extends State<SettingsScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _section('appearance'),
-          _tile(
-            title: 'Theme',
-            subtitle: 'Cream (light) — dark mode coming soon',
-            trailing: Container(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+          ListTile(
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+            leading: Container(
+              width: 36,
+              height: 36,
               decoration: BoxDecoration(
-                  color: AuraTheme.accent.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(8)),
-              child: const Text('Light',
-                  style: TextStyle(
-                      color: AuraTheme.accent,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12)),
+                color: AuraTheme.isDark
+                    ? const Color(0xFF1C1C1E)
+                    : AuraTheme.surface,
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(
+                AuraTheme.isDark
+                    ? Icons.dark_mode_rounded
+                    : Icons.light_mode_rounded,
+                color: AuraTheme.accent,
+                size: 20,
+              ),
             ),
-            onTap: () {},
+            title: const Text('Dark mode',
+                style: TextStyle(
+                    fontWeight: FontWeight.w600, fontSize: 15)),
+            subtitle: Text(
+              AuraTheme.isDark
+                  ? 'Night owl mode — dark theme'
+                  : 'Morning person — light theme',
+              style: const TextStyle(
+                  fontSize: 12, color: AuraTheme.textMuted),
+            ),
+            trailing: Switch.adaptive(
+              value: _s.darkMode,
+              onChanged: (v) {
+                setState(() {
+                  _s.darkMode = v;
+                  AuraTheme.isDark = v;
+                  themeNotifier.value =
+                      v ? ThemeMode.dark : ThemeMode.light;
+                  _s.save();
+                });
+              },
+              activeColor: AuraTheme.accent,
+            ),
           ),
           _tile(
             title: 'Language',
@@ -628,11 +650,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AuraTheme.background,
+      backgroundColor: AuraTheme.themeBg,
       appBar: AppBar(
         title: const Text('settings',
             style: TextStyle(fontWeight: FontWeight.w800, fontSize: 20)),
-        backgroundColor: AuraTheme.background,
+        backgroundColor: AuraTheme.themeBg,
         elevation: 0,
       ),
       body: ListView(

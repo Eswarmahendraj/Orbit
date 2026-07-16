@@ -18,6 +18,7 @@ class CampfireGroup {
   final bool isSecret;
   final Color bgColor;
   final bool isOwn;
+  final String? pin;
 
   const CampfireGroup({
     required this.id,
@@ -31,6 +32,7 @@ class CampfireGroup {
     this.isSecret = false,
     required this.bgColor,
     this.isOwn = false,
+    this.pin,
   });
 }
 
@@ -89,6 +91,7 @@ class _CampfireScreenState extends State<CampfireScreen> {
       isSecret: c['pin'] != null,
       bgColor: AuraTheme.accent,
       isOwn: true,
+      pin: c['pin'] as String?,
     )).toList();
 
     return [...userCampfires, ..._defaultGroups];

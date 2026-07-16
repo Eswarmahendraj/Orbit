@@ -8,7 +8,6 @@ import '../../models/orbit_state.dart';
 import '../../theme/aura_theme.dart';
 import '../campfire/song_battle_screen.dart';
 import '../profile/other_profile_screen.dart';
-import '../social/vibe_check_screen.dart';
 import '../social/vybe_map_screen.dart';
 import 'create_vybe_screen.dart';
 import 'dm_screen.dart';
@@ -67,84 +66,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _maybeVibeCheck());
-  }
-
-  void _maybeVibeCheck() {
-    if (!OrbitState().vibeCheckDoneToday) {
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        builder: (_) => const _VibeCheckBanner(),
-      );
-    }
-  }
-
-  @override
   Widget build(BuildContext context) => const _FeedTab();
-}
-
-// ── Vibe Check Banner ──────────────────────────────────────────
-
-class _VibeCheckBanner extends StatelessWidget {
-  const _VibeCheckBanner();
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-          color: AuraTheme.card, borderRadius: BorderRadius.circular(24)),
-      padding: const EdgeInsets.all(24),
-      child: Column(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-            width: 36,
-            height: 4,
-            decoration: BoxDecoration(
-                color: AuraTheme.textMuted.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(2))),
-        const SizedBox(height: 18),
-        const Text('🌡️', style: TextStyle(fontSize: 40)),
-        const SizedBox(height: 10),
-        const Text('morning vibe check',
-            style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
-        const Text("see who's feeling the same as you today",
-            textAlign: TextAlign.center,
-            style: TextStyle(color: AuraTheme.textMuted, fontSize: 14)),
-        const SizedBox(height: 20),
-        Row(children: [
-          Expanded(
-            child: OutlinedButton(
-              onPressed: () => Navigator.pop(context),
-              style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: AuraTheme.textMuted.withOpacity(0.3)),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14))),
-              child: const Text('later',
-                  style: TextStyle(color: AuraTheme.textMuted)),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: ElevatedButton(
-              onPressed: () {
-                Navigator.pop(context);
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const VibeCheckScreen()));
-              },
-              style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14))),
-              child: const Text('check now'),
-            ),
-          ),
-        ]),
-        const SizedBox(height: 6),
-      ]),
-    );
-  }
 }
 
 // ── Feed Tab ───────────────────────────────────────────────────
@@ -397,7 +319,7 @@ class _FeedTabState extends State<_FeedTab>
               ),
               IconButton(
                 icon: const Icon(Icons.notifications_none_rounded),
-                onPressed: () {},
+                onPressed: _showNotifications,
               ),
             ],
           ),
@@ -615,7 +537,8 @@ class _FeedTabState extends State<_FeedTab>
           ...posts.map((p) => _PostCard(
               post: p,
               userMood: state.mood,
-              onUpdated: () => setState(() {}))),
+              onUpdated: () => setState(() {}),
+              onHashtagTap: (tag) => setState(() => _moodFilter = tag))),
           if (posts.isEmpty) _emptyFeed(),
         ],
       ),
@@ -637,7 +560,8 @@ class _FeedTabState extends State<_FeedTab>
           ...posts.map((p) => _PostCard(
               post: p,
               userMood: OrbitState().mood,
-              onUpdated: () => setState(() {}))),
+              onUpdated: () => setState(() {}),
+              onHashtagTap: (tag) => setState(() => _moodFilter = tag))),
           if (posts.isEmpty) _emptyFeed(),
         ],
       ),
@@ -1024,6 +948,79 @@ class _FeedTabState extends State<_FeedTab>
   }
 }
 
+// ── Notifications ──────────────────────────────────────────────
+
+extension _NotifHelper on _FeedTabState {
+  void _showNotifications() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AuraTheme.card,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.92,
+        expand: false,
+        builder: (_, ctrl) => Column(children: [
+          Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                  color: AuraTheme.textMuted.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2))),
+          const Padding(
+            padding: EdgeInsets.fromLTRB(20, 0, 20, 12),
+            child: Row(children: [
+              Text('notifications',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
+            ]),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: ListView(
+              controller: ctrl,
+              padding: const EdgeInsets.all(16),
+              children: [
+                _notifTile('🔥', '@maya.k reacted to your vybe', '2m ago', const Color(0xFFFF8C42)),
+                _notifTile('🎵', '@zara.w shared a song with you', '14m ago', const Color(0xFF6C63FF)),
+                _notifTile('⚡', '@dev.s wants to sync', '1h ago', const Color(0xFFFF7A50)),
+                _notifTile('💫', 'Your vybe got 12 fire reactions', '2h ago', AuraTheme.accent),
+                _notifTile('🌙', '@rina.p joined late night sessions', '3h ago', const Color(0xFF00B894)),
+              ],
+            ),
+          ),
+        ]),
+      ),
+    );
+  }
+
+  Widget _notifTile(String emoji, String text, String time, Color color) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+          color: AuraTheme.surface, borderRadius: BorderRadius.circular(14)),
+      child: Row(children: [
+        Container(
+          width: 40, height: 40,
+          decoration: BoxDecoration(color: color.withOpacity(0.15), shape: BoxShape.circle),
+          child: Center(child: Text(emoji, style: const TextStyle(fontSize: 18))),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(text, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+            const SizedBox(height: 2),
+            Text(time, style: const TextStyle(fontSize: 11, color: AuraTheme.textMuted)),
+          ]),
+        ),
+      ]),
+    );
+  }
+}
+
 // ── Animated Now-Playing Bars ──────────────────────────────────
 
 class _NowPlayingBars extends StatefulWidget {
@@ -1090,10 +1087,12 @@ class _PostCard extends StatefulWidget {
   final _Post post;
   final String userMood;
   final VoidCallback onUpdated;
+  final ValueChanged<String>? onHashtagTap;
   const _PostCard(
       {required this.post,
       required this.userMood,
-      required this.onUpdated});
+      required this.onUpdated,
+      this.onHashtagTap});
   @override
   State<_PostCard> createState() => _PostCardState();
 }
@@ -1175,7 +1174,7 @@ class _PostCardState extends State<_PostCard>
         p.fires--;
       }
     });
-    if (p.fireReacted && !p.isOwn) _openDM();
+    // fire reaction stays local — no auto-navigation
   }
 
   String _timeLeft(DateTime? exp) {
@@ -1197,6 +1196,42 @@ class _PostCardState extends State<_PostCard>
         ),
       ),
     );
+  }
+
+  Widget _buildCaption(String caption) {
+    final words = caption.split(' ');
+    final spans = <InlineSpan>[];
+    for (int i = 0; i < words.length; i++) {
+      final word = words[i];
+      if (word.startsWith('#')) {
+        spans.add(WidgetSpan(
+          child: GestureDetector(
+            onTap: () => widget.onHashtagTap?.call(word),
+            child: Text(
+              word,
+              style: const TextStyle(
+                  color: AuraTheme.accent,
+                  fontWeight: FontWeight.w700,
+                  fontSize: 13,
+                  fontStyle: FontStyle.italic),
+            ),
+          ),
+        ));
+      } else {
+        spans.add(TextSpan(
+          text: word,
+          style: const TextStyle(
+              fontSize: 13,
+              color: AuraTheme.textSecondary,
+              fontStyle: FontStyle.italic,
+              height: 1.4),
+        ));
+      }
+      if (i < words.length - 1) {
+        spans.add(const TextSpan(text: ' '));
+      }
+    }
+    return RichText(text: TextSpan(children: spans));
   }
 
   void _showMenu() {
@@ -1407,17 +1442,20 @@ class _PostCardState extends State<_PostCard>
               ),
               if (p.moodTag != null) ...[
                 const SizedBox(width: 6),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 8, vertical: 3),
-                  decoration: BoxDecoration(
-                      color: tagColor.withOpacity(0.12),
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Text(p.moodTag!,
-                      style: TextStyle(
-                          color: tagColor,
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700)),
+                GestureDetector(
+                  onTap: () => widget.onHashtagTap?.call(p.moodTag!),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: tagColor.withOpacity(0.12),
+                        borderRadius: BorderRadius.circular(10)),
+                    child: Text(p.moodTag!,
+                        style: TextStyle(
+                            color: tagColor,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w700)),
+                  ),
                 ),
                 const SizedBox(width: 6),
               ],
@@ -1442,19 +1480,12 @@ class _PostCardState extends State<_PostCard>
             ]),
           ),
 
-          // ── Caption ──
+          // ── Caption (with tappable hashtags) ──
           if (p.caption != null && p.caption!.isNotEmpty) ...[
             const SizedBox(height: 8),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Text(
-                '"${p.caption}"',
-                style: const TextStyle(
-                    fontSize: 13,
-                    color: AuraTheme.textSecondary,
-                    fontStyle: FontStyle.italic,
-                    height: 1.4),
-              ),
+              child: _buildCaption(p.caption!),
             ),
           ],
           const SizedBox(height: 10),

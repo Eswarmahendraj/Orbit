@@ -8,6 +8,7 @@ import '../screens/profile/profile_screen.dart';
 import '../screens/messages/messages_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/home/vibe_picker_sheet.dart';
+import '../screens/reels/pulse_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Top-level responsive wrapper
@@ -49,6 +50,7 @@ class _MobileNavState extends State<MobileNav> {
       body: IndexedStack(index: _tab, children: const [
         HomeScreen(),
         CampfireScreen(),
+        PulseScreen(),
         FindScreen(),
         ProfileScreen(),
       ]),
@@ -66,6 +68,11 @@ class _MobileNavState extends State<MobileNav> {
               selectedIcon: Icon(Icons.local_fire_department_rounded,
                   color: AuraTheme.accent),
               label: 'campfire'),
+          NavigationDestination(
+              icon: Icon(Icons.play_circle_outline_rounded),
+              selectedIcon:
+                  Icon(Icons.play_circle_rounded, color: AuraTheme.accent),
+              label: 'pulse'),
           NavigationDestination(
               icon: Icon(Icons.auto_awesome_outlined),
               selectedIcon:
@@ -99,6 +106,8 @@ class _WebShellState extends State<WebShell> {
     _NavItem(Icons.graphic_eq_rounded, Icons.graphic_eq_rounded, 'Home'),
     _NavItem(Icons.local_fire_department_outlined,
         Icons.local_fire_department_rounded, 'Campfire'),
+    _NavItem(Icons.play_circle_outline_rounded,
+        Icons.play_circle_rounded, 'Pulse'),
     _NavItem(Icons.auto_awesome_outlined, Icons.auto_awesome_rounded, 'Find'),
     _NavItem(Icons.chat_bubble_outline_rounded,
         Icons.chat_bubble_rounded, 'Messages'),
@@ -143,7 +152,7 @@ class _WebShellState extends State<WebShell> {
             const SizedBox(height: 8),
             // Avatar
             GestureDetector(
-              onTap: () => setState(() => _tab = 4),
+              onTap: () => setState(() => _tab = 5),
               child: Container(
                 width: 34,
                 height: 34,
@@ -175,6 +184,7 @@ class _WebShellState extends State<WebShell> {
           child: IndexedStack(index: _tab, children: const [
             HomeScreen(),
             CampfireScreen(),
+            PulseScreen(),
             FindScreen(),
             MessagesScreen(),
             ProfileScreen(),

@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter/material.dart' show ThemeMode;
+import '../theme/aura_theme.dart';
 
 class OrbitState {
   static final OrbitState _i = OrbitState._();
@@ -23,6 +25,9 @@ class OrbitState {
   bool moodMaskEnabled = false;
   String moodMaskPublic = 'focused';
   String moodMaskPublicEmoji = '🎧';
+
+  // Appearance
+  bool darkMode = false;
 
   // Privacy
   bool ghostMode = false;
@@ -155,6 +160,8 @@ class OrbitState {
     pfpFilter = p.getString('pfpFilter') ?? 'none';
     mood = p.getString('mood') ?? 'chill';
     moodEmoji = p.getString('moodEmoji') ?? '☀️';
+    darkMode = p.getBool('darkMode') ?? false;
+    AuraTheme.isDark = darkMode;
     ghostMode = p.getBool('ghostMode') ?? false;
     stealthView = p.getBool('stealthView') ?? false;
     antiCreepShield = p.getBool('antiCreepShield') ?? true;
@@ -215,6 +222,7 @@ class OrbitState {
     await p.setString('pfpFilter', pfpFilter);
     await p.setString('mood', mood);
     await p.setString('moodEmoji', moodEmoji);
+    await p.setBool('darkMode', darkMode);
     await p.setBool('ghostMode', ghostMode);
     await p.setBool('stealthView', stealthView);
     await p.setBool('antiCreepShield', antiCreepShield);

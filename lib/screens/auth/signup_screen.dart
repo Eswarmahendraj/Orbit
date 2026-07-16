@@ -41,11 +41,14 @@ class _SignupScreenState extends State<SignupScreen> {
         await _auth.sendOtp(
           phone: '+91${_phoneCtrl.text.trim()}',
           onAutoVerified: (cred) async {
-            await _auth.verifyOtp(
-              verificationId: '',
-              otp: '',
-              name: _nameCtrl.text.trim(),
-            );
+            // Auto-verified by Firebase — no manual OTP entry needed
+            if (mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const InterestsScreen()),
+                (_) => false,
+              );
+            }
           },
           onCodeSent: (verificationId, _) {
             Navigator.push(context, MaterialPageRoute(

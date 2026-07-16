@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
@@ -25,17 +27,74 @@ class _CreateVybeScreenState extends State<CreateVybeScreen> {
   bool _searching = false;
   // 24h is now the DEFAULT — always on, user can opt out
   bool _disappearing = true;
+  Timer? _debounce;
+
+  // Song crop
+  double _clipStart = 0.0;
+  double _clipEnd = 15.0; // seconds (iTunes preview is 30s max)
+
+  // Hashtag support
+  List<String> _hashtagSuggestions = [];
+  bool _showHashtagSuggestions = false;
 
   static const _tags = [
     '#chill', '#hype', '#heartbreak', '#2am',
     '#nostalgia', '#focused', '#euphoric', '#cozy',
   ];
 
+  static const _allHashtags = [
+    '#chill', '#hype', '#heartbreak', '#2am', '#nostalgia',
+    '#focused', '#euphoric', '#cozy', '#vibing', '#latenight',
+    '#sadsongs', '#mainfits', '#aesthetic', '#darkacademia',
+    '#dreamy', '#romanticera', '#goodvibes', '#trendingsong',
+  ];
+
   @override
   void dispose() {
     _searchCtrl.dispose();
     _captionCtrl.dispose();
+    _debounce?.cancel();
     super.dispose();
+  }
+
+  void _onSearchChanged(String q) {
+    _debounce?.cancel();
+    if (q.trim().isEmpty) {
+      setState(() => _results = []);
+      return;
+    }
+    _debounce = Timer(const Duration(milliseconds: 450), () => _search(q));
+  }
+
+  void _onCaptionChanged(String text) {
+    // Detect hashtag typing — show suggestions
+    final words = text.split(' ');
+    final last = words.isNotEmpty ? words.last : '';
+    if (last.startsWith('#') && last.length > 1) {
+      final query = last.toLowerCase();
+      final matches = _allHashtags
+          .where((h) => h.toLowerCase().startsWith(query))
+          .take(6)
+          .toList();
+      setState(() {
+        _hashtagSuggestions = matches;
+        _showHashtagSuggestions = matches.isNotEmpty;
+      });
+    } else {
+      setState(() => _showHashtagSuggestions = false);
+    }
+  }
+
+  void _insertHashtag(String tag) {
+    final text = _captionCtrl.text;
+    final words = text.split(' ');
+    words[words.length - 1] = tag;
+    final updated = '${words.join(' ')} ';
+    _captionCtrl.value = TextEditingValue(
+      text: updated,
+      selection: TextSelection.collapsed(offset: updated.length),
+    );
+    setState(() => _showHashtagSuggestions = false);
   }
 
   // ── Photo picker ───────────────────────────────────────────────
@@ -102,6 +161,29 @@ class _CreateVybeScreenState extends State<CreateVybeScreen> {
     } catch (_) {
       setState(() => _searching = false);
     }
+  }
+
+  // ── Song crop sheet ────────────────────────────────────────────
+
+  void _showCropSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: AuraTheme.card,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) => _SongCropSheet(
+        songTitle: _selected!['trackName'] ?? '',
+        start: _clipStart,
+        end: _clipEnd,
+        onChanged: (s, e) {
+          setState(() {
+            _clipStart = s;
+            _clipEnd = e;
+          });
+        },
+      ),
+    );
   }
 
   // ── Post ───────────────────────────────────────────────────────
@@ -183,6 +265,7 @@ class _CreateVybeScreenState extends State<CreateVybeScreen> {
                           )
                         : null,
                   ),
+                  onChanged: _onSearchChanged,
                   onSubmitted: _search,
                   textInputAction: TextInputAction.search,
                 ),
@@ -197,13 +280,42 @@ class _CreateVybeScreenState extends State<CreateVybeScreen> {
                   _selectedCard(),
                   const SizedBox(height: 14),
 
-                  // Caption
+                  // Caption with hashtag suggestions
                   TextField(
                     controller: _captionCtrl,
                     decoration: const InputDecoration(
-                        hintText: 'Add a caption... (optional)'),
+                        hintText: 'Add a caption... type # for hashtags'),
                     maxLines: 2,
+                    onChanged: _onCaptionChanged,
                   ),
+                  if (_showHashtagSuggestions) ...[
+                    const SizedBox(height: 6),
+                    SizedBox(
+                      height: 36,
+                      child: ListView(
+                        scrollDirection: Axis.horizontal,
+                        children: _hashtagSuggestions.map((tag) =>
+                          GestureDetector(
+                            onTap: () => _insertHashtag(tag),
+                            child: Container(
+                              margin: const EdgeInsets.only(right: 8),
+                              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                              decoration: BoxDecoration(
+                                color: AuraTheme.accent.withOpacity(0.12),
+                                borderRadius: BorderRadius.circular(16),
+                                border: Border.all(color: AuraTheme.accent.withOpacity(0.3)),
+                              ),
+                              child: Text(tag, style: const TextStyle(
+                                color: AuraTheme.accent,
+                                fontWeight: FontWeight.w600,
+                                fontSize: 13,
+                              )),
+                            ),
+                          )
+                        ).toList(),
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 14),
 
                   // Mood tags
@@ -485,25 +597,252 @@ class _CreateVybeScreenState extends State<CreateVybeScreen> {
                     color: AuraTheme.textSecondary, fontSize: 12)),
           ]),
         ),
-        // Change song
-        GestureDetector(
-          onTap: () => setState(() {
-            _selected = null;
-            _searchCtrl.text = '';
-          }),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-            decoration: BoxDecoration(
-                color: AuraTheme.surface,
-                borderRadius: BorderRadius.circular(8)),
-            child: const Text('change',
-                style: TextStyle(
-                    color: AuraTheme.accent,
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700)),
+        // Crop + Change column
+        Column(children: [
+          // Crop button
+          GestureDetector(
+            onTap: _showCropSheet,
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                  color: AuraTheme.accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(8)),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                const Icon(Icons.content_cut_rounded,
+                    color: AuraTheme.accent, size: 11),
+                const SizedBox(width: 3),
+                const Text('crop',
+                    style: TextStyle(
+                        color: AuraTheme.accent,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700)),
+              ]),
+            ),
           ),
-        ),
+          const SizedBox(height: 5),
+          // Change song
+          GestureDetector(
+            onTap: () => setState(() {
+              _selected = null;
+              _searchCtrl.text = '';
+              _clipStart = 0;
+              _clipEnd = 15;
+            }),
+            child: Container(
+              padding: const EdgeInsets.symmetric(
+                  horizontal: 9, vertical: 5),
+              decoration: BoxDecoration(
+                  color: AuraTheme.surface,
+                  borderRadius: BorderRadius.circular(8)),
+              child: const Text('change',
+                  style: TextStyle(
+                      color: AuraTheme.accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700)),
+            ),
+          ),
+        ]),
       ]),
     );
   }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// _SongCropSheet — waveform RangeSlider for cropping a song preview
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SongCropSheet extends StatefulWidget {
+  final String songTitle;
+  final double start;
+  final double end;
+  final void Function(double start, double end) onChanged;
+
+  const _SongCropSheet({
+    required this.songTitle,
+    required this.start,
+    required this.end,
+    required this.onChanged,
+  });
+
+  @override
+  State<_SongCropSheet> createState() => _SongCropSheetState();
+}
+
+class _SongCropSheetState extends State<_SongCropSheet> {
+  static const _maxPreview = 30.0; // iTunes preview length
+  static const _maxClip = 15.0;
+  late RangeValues _range;
+  late List<double> _wave;
+
+  @override
+  void initState() {
+    super.initState();
+    _range = RangeValues(widget.start, widget.end);
+    // Deterministic waveform from song title
+    final rng = math.Random(widget.songTitle.hashCode.abs());
+    _wave = List.generate(48, (_) => 4.0 + rng.nextDouble() * 26.0);
+  }
+
+  String _fmtSecs(double s) {
+    final min = (s ~/ 60).toString();
+    final sec = (s.toInt() % 60).toString().padLeft(2, '0');
+    return '$min:$sec';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final clipLen = _range.end - _range.start;
+    final tooLong = clipLen > _maxClip;
+
+    return Padding(
+      padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Handle
+          Container(
+              width: 36,
+              height: 4,
+              decoration: BoxDecoration(
+                  color: AuraTheme.textMuted.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+
+          Row(children: [
+            const Icon(Icons.content_cut_rounded,
+                color: AuraTheme.accent, size: 18),
+            const SizedBox(width: 8),
+            const Text('crop song clip',
+                style: TextStyle(
+                    fontSize: 17, fontWeight: FontWeight.w800)),
+            const Spacer(),
+            Text('max ${_maxClip.toInt()}s',
+                style: const TextStyle(
+                    color: AuraTheme.textMuted, fontSize: 12)),
+          ]),
+          const SizedBox(height: 20),
+
+          // Waveform visualizer
+          SizedBox(
+            height: 56,
+            child: CustomPaint(
+              size: const Size(double.infinity, 56),
+              painter: _WaveformPainter(
+                wave: _wave,
+                startFrac: _range.start / _maxPreview,
+                endFrac: _range.end / _maxPreview,
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+
+          // Range slider
+          RangeSlider(
+            values: _range,
+            min: 0,
+            max: _maxPreview,
+            divisions: 120,
+            activeColor: tooLong ? Colors.redAccent : AuraTheme.accent,
+            inactiveColor: AuraTheme.surface,
+            onChanged: (v) {
+              if (v.end - v.start <= _maxClip) {
+                setState(() => _range = v);
+              } else {
+                // Clamp: keep start, push end
+                setState(() => _range =
+                    RangeValues(v.start, v.start + _maxClip));
+              }
+            },
+          ),
+
+          // Time labels
+          Row(children: [
+            Text(_fmtSecs(_range.start),
+                style: const TextStyle(
+                    color: AuraTheme.textMuted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600)),
+            const Spacer(),
+            Text(
+              '${_fmtSecs(_range.end)}  (${clipLen.toStringAsFixed(0)}s)',
+              style: TextStyle(
+                  color: tooLong ? Colors.redAccent : AuraTheme.textMuted,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600),
+            ),
+          ]),
+
+          if (tooLong)
+            const Padding(
+              padding: EdgeInsets.only(top: 6),
+              child: Text('Max clip is 15 seconds',
+                  style: TextStyle(
+                      color: Colors.redAccent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600)),
+            ),
+
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AuraTheme.accent,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+              ),
+              onPressed: tooLong
+                  ? null
+                  : () {
+                      widget.onChanged(_range.start, _range.end);
+                      Navigator.pop(context);
+                    },
+              child: const Text('Save crop',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w800, fontSize: 15)),
+            ),
+          ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
+}
+
+class _WaveformPainter extends CustomPainter {
+  final List<double> wave;
+  final double startFrac;
+  final double endFrac;
+  const _WaveformPainter(
+      {required this.wave,
+      required this.startFrac,
+      required this.endFrac});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final barW = size.width / wave.length;
+    final midY = size.height / 2;
+    for (int i = 0; i < wave.length; i++) {
+      final x = i * barW + barW / 2;
+      final h = wave[i];
+      final frac = i / wave.length;
+      final inRange = frac >= startFrac && frac <= endFrac;
+      final paint = Paint()
+        ..color = inRange
+            ? AuraTheme.accent
+            : AuraTheme.textMuted.withOpacity(0.3)
+        ..strokeWidth = barW * 0.6
+        ..strokeCap = StrokeCap.round;
+      canvas.drawLine(
+          Offset(x, midY - h / 2), Offset(x, midY + h / 2), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_WaveformPainter old) =>
+      old.startFrac != startFrac || old.endFrac != endFrac;
 }

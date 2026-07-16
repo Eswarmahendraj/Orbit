@@ -274,12 +274,12 @@ class _VibePickerSheetState extends State<_VibePickerSheet>
                         ]),
                       ),
                     GridView.count(
-                      crossAxisCount: 2,
+                      crossAxisCount: 3,
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      crossAxisSpacing: 10,
-                      mainAxisSpacing: 10,
-                      childAspectRatio: 2.8,
+                      crossAxisSpacing: 8,
+                      mainAxisSpacing: 8,
+                      childAspectRatio: 2.4,
                       children: vibes.map((v) {
                         final isTodayActive =
                             todayMode && state.mood == v.label;

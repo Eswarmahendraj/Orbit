@@ -160,6 +160,23 @@ class _DMScreenState extends State<DMScreen> {
     }
   }
 
+  void _startCall({required bool video}) {
+    Navigator.push(
+      context,
+      PageRouteBuilder(
+        opaque: false,
+        barrierColor: Colors.black.withOpacity(0.85),
+        pageBuilder: (_, __, ___) => _CallScreen(
+          displayName: widget.displayName,
+          username: widget.username,
+          isVideo: video,
+        ),
+        transitionsBuilder: (_, anim, __, child) =>
+            FadeTransition(opacity: anim, child: child),
+      ),
+    );
+  }
+
   Map<String, dynamic>? get _clipStreak =>
       OrbitState().clipStreaks[widget.username];
 
@@ -211,6 +228,18 @@ class _DMScreenState extends State<DMScreen> {
           ]),
         ]),
         actions: [
+          // Voice call
+          IconButton(
+            icon: const Icon(Icons.call_rounded, color: AuraTheme.accent, size: 22),
+            tooltip: 'Voice call',
+            onPressed: () => _startCall(video: false),
+          ),
+          // Video call
+          IconButton(
+            icon: const Icon(Icons.videocam_rounded, color: AuraTheme.accent, size: 24),
+            tooltip: 'Video call',
+            onPressed: () => _startCall(video: true),
+          ),
           // Streak history icon
           IconButton(
             icon: Stack(alignment: Alignment.center, children: [
@@ -700,6 +729,263 @@ class _ClipBubbleState extends State<_ClipBubble> {
           borderRadius: BorderRadius.circular(7)),
       child: const Icon(Icons.music_note_rounded,
           color: AuraTheme.accent, size: 18),
+    );
+  }
+}
+
+// ── Call Screen ────────────────────────────────────────────────────────────────
+
+enum _CallState { connecting, ringing, connected }
+
+class _CallScreen extends StatefulWidget {
+  final String displayName;
+  final String username;
+  final bool isVideo;
+
+  const _CallScreen({
+    required this.displayName,
+    required this.username,
+    required this.isVideo,
+  });
+
+  @override
+  State<_CallScreen> createState() => _CallScreenState();
+}
+
+class _CallScreenState extends State<_CallScreen>
+    with SingleTickerProviderStateMixin {
+  _CallState _state = _CallState.connecting;
+  bool _muted = false;
+  bool _speakerOn = true;
+  bool _cameraOff = false;
+  int _seconds = 0;
+  Timer? _connectTimer;
+  Timer? _durationTimer;
+  late final AnimationController _pulseCtrl;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _pulseCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat(reverse: true);
+    _pulse = Tween(begin: 0.9, end: 1.1).animate(
+        CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
+
+    // Connecting → Ringing after 1.2s → Connected after 3s
+    _connectTimer = Timer(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      setState(() => _state = _CallState.ringing);
+      _connectTimer = Timer(const Duration(milliseconds: 2400), () {
+        if (!mounted) return;
+        setState(() => _state = _CallState.connected);
+        _durationTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+          if (mounted) setState(() => _seconds++);
+        });
+      });
+    });
+  }
+
+  @override
+  void dispose() {
+    _connectTimer?.cancel();
+    _durationTimer?.cancel();
+    _pulseCtrl.dispose();
+    super.dispose();
+  }
+
+  String get _statusLabel {
+    switch (_state) {
+      case _CallState.connecting:
+        return 'Connecting...';
+      case _CallState.ringing:
+        return 'Ringing...';
+      case _CallState.connected:
+        final m = _seconds ~/ 60;
+        final s = (_seconds % 60).toString().padLeft(2, '0');
+        return '$m:$s';
+    }
+  }
+
+  void _endCall() => Navigator.pop(context);
+
+  @override
+  Widget build(BuildContext context) {
+    final initial = widget.displayName.isNotEmpty
+        ? widget.displayName[0].toUpperCase()
+        : '?';
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      body: Container(
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topCenter,
+            end: Alignment.bottomCenter,
+            colors: [Color(0xFF1A1A2E), Color(0xFF16213E), Color(0xFF0F3460)],
+          ),
+        ),
+        child: SafeArea(
+          child: Column(children: [
+            const Spacer(flex: 1),
+
+            // ── Call type label ──
+            Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+              Icon(
+                widget.isVideo ? Icons.videocam_rounded : Icons.call_rounded,
+                color: Colors.white54,
+                size: 16,
+              ),
+              const SizedBox(width: 6),
+              Text(
+                widget.isVideo ? 'Video call' : 'Voice call',
+                style: const TextStyle(color: Colors.white54, fontSize: 13),
+              ),
+            ]),
+
+            const SizedBox(height: 32),
+
+            // ── Avatar with pulse ──
+            AnimatedBuilder(
+              animation: _state == _CallState.connected ? _pulseCtrl : _pulseCtrl,
+              builder: (_, __) => Transform.scale(
+                scale: _state == _CallState.ringing ? _pulse.value : 1.0,
+                child: Container(
+                  width: 110,
+                  height: 110,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: AuraTheme.accent.withOpacity(0.2),
+                    border: Border.all(
+                        color: AuraTheme.accent.withOpacity(
+                            _state == _CallState.ringing ? 0.8 : 0.4),
+                        width: 3),
+                  ),
+                  child: Center(
+                    child: Text(initial,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 48,
+                            fontWeight: FontWeight.w800)),
+                  ),
+                ),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // ── Name ──
+            Text(widget.displayName,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 26,
+                    fontWeight: FontWeight.w700)),
+            const SizedBox(height: 6),
+            Text(widget.username,
+                style: const TextStyle(color: Colors.white54, fontSize: 14)),
+            const SizedBox(height: 12),
+
+            // ── Status / timer ──
+            AnimatedSwitcher(
+              duration: const Duration(milliseconds: 300),
+              child: Text(
+                _statusLabel,
+                key: ValueKey(_statusLabel),
+                style: TextStyle(
+                    color: _state == _CallState.connected
+                        ? const Color(0xFF00B894)
+                        : Colors.white54,
+                    fontSize: 16,
+                    fontWeight: FontWeight.w600),
+              ),
+            ),
+
+            const Spacer(flex: 2),
+
+            // ── Control buttons ──
+            if (_state == _CallState.connected) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40),
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: [
+                  _controlBtn(
+                    icon: _muted ? Icons.mic_off_rounded : Icons.mic_rounded,
+                    label: _muted ? 'Unmute' : 'Mute',
+                    active: _muted,
+                    onTap: () => setState(() => _muted = !_muted),
+                  ),
+                  _controlBtn(
+                    icon: _speakerOn
+                        ? Icons.volume_up_rounded
+                        : Icons.volume_off_rounded,
+                    label: _speakerOn ? 'Speaker' : 'Earpiece',
+                    active: _speakerOn,
+                    onTap: () => setState(() => _speakerOn = !_speakerOn),
+                  ),
+                  if (widget.isVideo)
+                    _controlBtn(
+                      icon: _cameraOff
+                          ? Icons.videocam_off_rounded
+                          : Icons.videocam_rounded,
+                      label: _cameraOff ? 'Camera off' : 'Camera on',
+                      active: !_cameraOff,
+                      onTap: () => setState(() => _cameraOff = !_cameraOff),
+                    ),
+                ]),
+              ),
+              const SizedBox(height: 32),
+            ],
+
+            // ── End call button ──
+            GestureDetector(
+              onTap: _endCall,
+              child: Container(
+                width: 68,
+                height: 68,
+                decoration: const BoxDecoration(
+                    color: Color(0xFFE74C3C), shape: BoxShape.circle),
+                child: const Icon(Icons.call_end_rounded,
+                    color: Colors.white, size: 30),
+              ),
+            ),
+            const SizedBox(height: 8),
+            const Text('End call',
+                style: TextStyle(color: Colors.white54, fontSize: 12)),
+
+            const Spacer(flex: 1),
+          ]),
+        ),
+      ),
+    );
+  }
+
+  Widget _controlBtn({
+    required IconData icon,
+    required String label,
+    required bool active,
+    required VoidCallback onTap,
+  }) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(mainAxisSize: MainAxisSize.min, children: [
+        Container(
+          width: 56,
+          height: 56,
+          decoration: BoxDecoration(
+            color: active
+                ? Colors.white.withOpacity(0.2)
+                : Colors.white.withOpacity(0.08),
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon,
+              color: active ? Colors.white : Colors.white38, size: 24),
+        ),
+        const SizedBox(height: 6),
+        Text(label,
+            style: const TextStyle(color: Colors.white54, fontSize: 11)),
+      ]),
     );
   }
 }

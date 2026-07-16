@@ -34,7 +34,6 @@ class _OtpScreenState extends State<OtpScreen> {
       await _auth.verifyOtp(
         verificationId: widget.verificationId,
         otp: _otp,
-        name: widget.name,
       );
       if (mounted) {
         Navigator.pushAndRemoveUntil(

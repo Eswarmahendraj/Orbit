@@ -176,9 +176,9 @@ class _CampfireChatScreenState extends State<CampfireChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // Passcode gate
-    final code = OrbitState().dmPasscode;
-    if (code != null && !_passcodeUnlocked) {
+    // Only secret campfires with a pin need a passcode gate
+    final code = widget.group.pin;
+    if (code != null && code.isNotEmpty && !_passcodeUnlocked) {
       return _buildPasscodeGate(code);
     }
     return _buildChat();

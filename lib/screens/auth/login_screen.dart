@@ -38,7 +38,9 @@ class _LoginScreenState extends State<LoginScreen> {
       if (_usePhone) {
         await _auth.sendOtp(
           phone: '+91${_phoneCtrl.text.trim()}',
-          onAutoVerified: (_) {},
+          onAutoVerified: (_) {
+            if (mounted) widget.onLoggedIn?.call();
+          },
           onCodeSent: (vId, _) => Navigator.push(context,
               MaterialPageRoute(
                   builder: (_) => OtpScreen(
@@ -46,7 +48,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         name: '',
                         phone: '+91${_phoneCtrl.text.trim()}',
                       ))),
-          onError: (e) => _err(e.toString()),
+          onError: (e) => _err(e.message ?? e.toString()),
         );
       } else {
         await _auth.signInWithEmail(
@@ -65,12 +67,17 @@ class _LoginScreenState extends State<LoginScreen> {
   void _err(String msg) => ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(msg), backgroundColor: Colors.redAccent));
 
-  void _socialSnack(String provider) =>
-      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text('$provider sign-in coming soon!'),
-        backgroundColor: AuraTheme.accent,
-        behavior: SnackBarBehavior.floating,
-      ));
+  Future<void> _signInWithGoogle() async {
+    setState(() => _loading = true);
+    try {
+      final cred = await _auth.signInWithGoogle();
+      if (cred != null && mounted) widget.onLoggedIn?.call();
+    } catch (e) {
+      _err('Google sign-in failed. Please try again.');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -230,7 +237,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       child: _SocialButton(
                         icon: '🇬',
                         label: 'Google',
-                        onTap: () => _socialSnack('Google'),
+                        onTap: _loading ? null : _signInWithGoogle,
                       ),
                     ),
                     const SizedBox(width: 12),

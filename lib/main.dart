@@ -9,6 +9,9 @@ import 'screens/onboarding/onboarding_screen.dart';
 import 'screens/privacy/app_disguise_screen.dart';
 import 'widgets/web_scaffold.dart';
 
+/// Global theme notifier — toggled from SettingsScreen.
+final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.light);
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp(
@@ -16,6 +19,12 @@ void main() async {
   );
   await OrbitState().load();
   OrbitState().checkStreak();
+
+  // Restore dark-mode preference
+  final isDark = OrbitState().darkMode;
+  AuraTheme.isDark = isDark;
+  themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.dark,
@@ -29,11 +38,16 @@ class OrbitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disguise = OrbitState().appDisguiseEnabled;
-    return MaterialApp(
-      title: disguise ? 'Calculator' : 'Orbit',
-      debugShowCheckedModeBanner: false,
-      theme: AuraTheme.dark,
-      home: disguise ? const AppDisguiseScreen() : const OrbitRoot(),
+    return ValueListenableBuilder<ThemeMode>(
+      valueListenable: themeNotifier,
+      builder: (_, mode, __) => MaterialApp(
+        title: disguise ? 'Calculator' : 'Orbit',
+        debugShowCheckedModeBanner: false,
+        theme: AuraTheme.dark,
+        darkTheme: AuraTheme.darkTheme,
+        themeMode: mode,
+        home: disguise ? const AppDisguiseScreen() : const OrbitRoot(),
+      ),
     );
   }
 }

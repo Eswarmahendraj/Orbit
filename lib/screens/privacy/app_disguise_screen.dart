@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import '../home/home_screen.dart';
+import '../../models/orbit_state.dart';
 
 /// Fake iOS-style calculator. Long-press "=" for 3s → unlocks Orbit.
 class AppDisguiseScreen extends StatefulWidget {
@@ -61,6 +62,17 @@ class _AppDisguiseScreenState extends State<AppDisguiseScreen> {
   }
 
   void _unlock() {
+    final pin = OrbitState().dmPasscode;
+    if (pin != null && pin.isNotEmpty) {
+      // PIN is set — require correct entry in calculator display
+      if (_display != pin) {
+        setState(() => _display = 'Error');
+        Future.delayed(const Duration(milliseconds: 900), () {
+          if (mounted) setState(() => _display = '0');
+        });
+        return;
+      }
+    }
     Navigator.pushReplacement(
         context, MaterialPageRoute(builder: (_) => const HomeScreen()));
   }
