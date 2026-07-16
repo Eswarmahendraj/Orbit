@@ -1,4 +1,4 @@
-import 'package:audioplayers/audioplayers.dart';
+import 'package:just_audio/just_audio.dart';
 
 /// Handles AURA's sound-only notification system.
 /// No banners, no pop-ups, no badges — just the AURA tone.
@@ -14,14 +14,15 @@ class NotificationService {
   /// soundType: 'default' | 'birthday' | 'pulse' | 'nudge' | 'milestone'
   static Future<void> _playAuraSound(String soundType) async {
     final soundMap = {
-      'default':   'sounds/aura_tone.mp3',
-      'birthday':  'sounds/aura_birthday.mp3',
-      'pulse':     'sounds/aura_pulse.mp3',
-      'nudge':     'sounds/aura_nudge.mp3',
-      'milestone': 'sounds/aura_milestone.mp3',
+      'default':   'assets/sounds/aura_tone.mp3',
+      'birthday':  'assets/sounds/aura_birthday.mp3',
+      'pulse':     'assets/sounds/aura_pulse.mp3',
+      'nudge':     'assets/sounds/aura_nudge.mp3',
+      'milestone': 'assets/sounds/aura_milestone.mp3',
     };
     final sound = soundMap[soundType] ?? soundMap['default']!;
-    await _player.play(AssetSource(sound));
+    await _player.setAsset(sound);
+    await _player.play();
   }
 
   /// Manually trigger a test sound (for settings preview)

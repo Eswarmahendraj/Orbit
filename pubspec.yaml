@@ -13,6 +13,8 @@ dependencies:
   # Firebase
   firebase_core: ^2.27.0
   cloud_firestore: ^4.14.0
+  firebase_auth: ^4.17.0
+  google_sign_in: ^6.2.1
 
   # UI & Animation
   cupertino_icons: ^1.0.6
@@ -24,8 +26,7 @@ dependencies:
   # State Management
   provider: ^6.1.1
 
-  # Audio (sound-only notifications)
-  audioplayers: ^5.2.1
+  # Audio
   just_audio: ^0.9.36
 
   # Utils
@@ -41,6 +42,9 @@ dependencies:
   video_thumbnail: ^0.5.3
   path_provider: ^2.1.2
   http: ^1.1.0
+
+  # QR code generation
+  qr_flutter: ^4.1.0
 
 dev_dependencies:
   flutter_test:
