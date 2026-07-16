@@ -365,7 +365,7 @@ class _GradientButton extends StatelessWidget {
 class _SocialButton extends StatelessWidget {
   final String icon;
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final bool useAppleIcon;
   const _SocialButton(
       {required this.icon,
