@@ -697,9 +697,7 @@ class _PulseCardWidgetState extends State<_PulseCardWidget>
                 label: 'Share',
                 onTap: () {
                   HapticFeedback.lightImpact();
-                  SharePlus.instance.share(ShareParams(
-                    text: '🎵 ${card.song} — ${card.artist}\n\n${card.caption.isNotEmpty ? "${card.caption}\n\n" : ""}Vibing on Orbit 🌙 orbit.app',
-                  ));
+                  Share.share('🎵 ${card.song} — ${card.artist}\n\n${card.caption.isNotEmpty ? "${card.caption}\n\n" : ""}Vibing on Orbit 🌙 orbit.app');
                 },
               ),
               const SizedBox(height: 20),

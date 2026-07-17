@@ -2636,7 +2636,7 @@ class _MomentDetailSheetState extends State<_MomentDetailSheet> {
               final shareText = hasPoll
                   ? '${text.isNotEmpty ? "$text\n\n" : ""}Poll on Orbit: "$opt1" vs "$opt2" — which side are you on? 🎵 orbit.app'
                   : '${text.isNotEmpty ? text : "Check this out"} 🎵 orbit.app';
-              SharePlus.instance.share(ShareParams(text: shareText));
+              Share.share(shareText);
             },
             child: const Icon(Icons.ios_share_rounded,
                 size: 20, color: AuraTheme.textMuted),
