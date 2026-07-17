@@ -1,6 +1,8 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:just_audio/just_audio.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
@@ -352,6 +354,15 @@ class _PulseScreenState extends State<PulseScreen> {
     _playCard(index);
   }
 
+  void _showSearchSheet() {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) => const _PulseSearchSheet(),
+    );
+  }
+
   void _toggleFire(int index) => setState(() {
         if (_fired.contains(index)) _fired.remove(index);
         else _fired.add(index);
@@ -374,7 +385,7 @@ class _PulseScreenState extends State<PulseScreen> {
         ]),
         actions: [
           IconButton(icon: const Icon(Icons.search_rounded, color: Colors.white),
-              onPressed: () {}),
+              onPressed: _showSearchSheet),
         ],
         leading: Padding(
           padding: const EdgeInsets.only(left: 12),
@@ -683,13 +694,21 @@ class _PulseCardWidgetState extends State<_PulseCardWidget>
               const SizedBox(height: 20),
               _ActionBtn(
                 child: const Icon(Icons.near_me_outlined, color: Colors.white, size: 28),
-                label: 'Share', onTap: () {},
+                label: 'Share',
+                onTap: () {
+                  HapticFeedback.lightImpact();
+                  SharePlus.instance.share(ShareParams(
+                    text: '🎵 ${card.song} — ${card.artist}\n\n${card.caption.isNotEmpty ? "${card.caption}\n\n" : ""}Vibing on Orbit 🌙 orbit.app',
+                  ));
+                },
               ),
               const SizedBox(height: 20),
               _ActionBtn(
                 child: const Icon(Icons.add_circle_outline_rounded,
                     color: Colors.white, size: 28),
-                label: 'Add', onTap: () {},
+                label: 'Add',
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const CreatePulseScreen())),
               ),
               const SizedBox(height: 20),
               // Animated vinyl disc
@@ -753,13 +772,28 @@ class _PulseCardWidgetState extends State<_PulseCardWidget>
                 ),
                 const SizedBox(height: 8),
                 GestureDetector(
-                  onTap: () => setState(() => _captionExpanded = !_captionExpanded),
-                  child: Text(card.caption,
-                      style: const TextStyle(color: Colors.white, fontSize: 14,
-                          height: 1.4, fontWeight: FontWeight.w500),
-                      maxLines: _captionExpanded ? 5 : 2,
-                      overflow: _captionExpanded
-                          ? TextOverflow.visible : TextOverflow.ellipsis),
+                  onTap: card.type == PulseType.collective && card.others.isNotEmpty
+                      ? () => _showObsessedNames(context, card)
+                      : () => setState(() => _captionExpanded = !_captionExpanded),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Text(card.caption,
+                            style: const TextStyle(color: Colors.white, fontSize: 14,
+                                height: 1.4, fontWeight: FontWeight.w500),
+                            maxLines: _captionExpanded ? 5 : 2,
+                            overflow: _captionExpanded
+                                ? TextOverflow.visible : TextOverflow.ellipsis),
+                      ),
+                      if (card.type == PulseType.collective && card.others.isNotEmpty)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 4, top: 2),
+                          child: Icon(Icons.keyboard_arrow_right_rounded,
+                              color: Colors.white54, size: 16),
+                        ),
+                    ],
+                  ),
                 ),
                 const SizedBox(height: 10),
                 // Song strip with animated EQ bars
@@ -798,6 +832,14 @@ class _PulseCardWidgetState extends State<_PulseCardWidget>
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => _CommentsSheet(card: card),
+    );
+  }
+
+  void _showObsessedNames(BuildContext context, PulseCard card) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => _ObsessedNamesSheet(card: card),
     );
   }
 }
@@ -1511,6 +1553,236 @@ class _CommentsSheetState extends State<_CommentsSheet> {
           ]),
         ),
       ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Obsessed Names Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ObsessedNamesSheet extends StatelessWidget {
+  final PulseCard card;
+  const _ObsessedNamesSheet({required this.card});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: const BoxDecoration(
+        color: Color(0xFF111111),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      padding: const EdgeInsets.all(20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 16),
+          Text('people obsessed in your orbit',
+              style: const TextStyle(color: Colors.white,
+                  fontWeight: FontWeight.w800, fontSize: 16)),
+          const SizedBox(height: 4),
+          Text('${card.song} · ${card.artist}',
+              style: TextStyle(color: Colors.white54, fontSize: 12)),
+          const SizedBox(height: 20),
+          ...card.others.map((o) => Container(
+            margin: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.07),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Row(children: [
+              Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AuraTheme.accent.withOpacity(0.15),
+                ),
+                child: Center(child: Text(o['emoji'] ?? '🎵',
+                    style: const TextStyle(fontSize: 18))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                  Text('@${o['name']}',
+                      style: const TextStyle(color: AuraTheme.accent,
+                          fontWeight: FontWeight.w700, fontSize: 13)),
+                  if (o['quote'] != null) ...[
+                    const SizedBox(height: 2),
+                    Text('"${o['quote']}"',
+                        style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 12),
+                        maxLines: 2, overflow: TextOverflow.ellipsis),
+                  ],
+                ]),
+              ),
+            ]),
+          )),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pulse Search Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PulseSearchSheet extends StatefulWidget {
+  const _PulseSearchSheet();
+  @override
+  State<_PulseSearchSheet> createState() => _PulseSearchSheetState();
+}
+
+class _PulseSearchSheetState extends State<_PulseSearchSheet> {
+  final _ctrl = TextEditingController();
+  String _query = '';
+
+  List<PulseCard> get _results {
+    if (_query.isEmpty) return _seedCards;
+    final q = _query.toLowerCase();
+    return _seedCards.where((c) =>
+        c.song.toLowerCase().contains(q) ||
+        c.artist.toLowerCase().contains(q) ||
+        c.username.toLowerCase().contains(q) ||
+        c.mood.toLowerCase().contains(q) ||
+        c.caption.toLowerCase().contains(q)).toList();
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.85,
+      minChildSize: 0.5,
+      maxChildSize: 0.95,
+      expand: false,
+      builder: (_, sc) => Container(
+        decoration: const BoxDecoration(
+          color: Color(0xFF111111),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        child: Column(
+          children: [
+            const SizedBox(height: 12),
+            Container(width: 36, height: 4,
+                decoration: BoxDecoration(color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2))),
+            const SizedBox(height: 16),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              child: TextField(
+                controller: _ctrl,
+                autofocus: true,
+                style: const TextStyle(color: Colors.white),
+                decoration: InputDecoration(
+                  hintText: 'search pulse — songs, artists, vibes...',
+                  hintStyle: const TextStyle(color: Colors.white38, fontSize: 13),
+                  prefixIcon: const Icon(Icons.search_rounded, color: Colors.white38),
+                  suffixIcon: _query.isNotEmpty
+                      ? IconButton(
+                          icon: const Icon(Icons.clear, color: Colors.white38),
+                          onPressed: () {
+                            _ctrl.clear();
+                            setState(() => _query = '');
+                          })
+                      : null,
+                  filled: true,
+                  fillColor: Colors.white10,
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide.none),
+                ),
+                onChanged: (v) => setState(() => _query = v),
+              ),
+            ),
+            const SizedBox(height: 8),
+            if (_query.isEmpty) ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(children: [
+                  const Text('trending in orbit',
+                      style: TextStyle(color: Colors.white54, fontSize: 12,
+                          fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                ]),
+              ),
+            ] else ...[
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                child: Row(children: [
+                  Text('${_results.length} results',
+                      style: const TextStyle(color: Colors.white54, fontSize: 12)),
+                ]),
+              ),
+            ],
+            Expanded(
+              child: _results.isEmpty
+                  ? const Center(
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        Text('🔍', style: TextStyle(fontSize: 40)),
+                        SizedBox(height: 12),
+                        Text('no results found',
+                            style: TextStyle(color: Colors.white54, fontSize: 14)),
+                      ]),
+                    )
+                  : ListView.builder(
+                      controller: sc,
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      itemCount: _results.length,
+                      itemBuilder: (_, i) {
+                        final c = _results[i];
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.05),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(color: Colors.white.withOpacity(0.08)),
+                          ),
+                          child: ListTile(
+                            contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 14, vertical: 8),
+                            leading: Container(
+                              width: 44, height: 44,
+                              decoration: BoxDecoration(
+                                gradient: LinearGradient(
+                                    colors: c.gradient.take(2).toList()),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Center(child: Text(c.avatarEmoji,
+                                  style: const TextStyle(fontSize: 20))),
+                            ),
+                            title: Text(c.song,
+                                style: const TextStyle(color: Colors.white,
+                                    fontWeight: FontWeight.w700, fontSize: 14),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            subtitle: Text('${c.artist} · ${c.username}',
+                                style: const TextStyle(color: Colors.white54, fontSize: 12),
+                                maxLines: 1, overflow: TextOverflow.ellipsis),
+                            trailing: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: Colors.white10,
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Text('${c.moodEmoji} ${c.mood}',
+                                  style: const TextStyle(color: Colors.white70,
+                                      fontSize: 10)),
+                            ),
+                            onTap: () => Navigator.pop(context),
+                          ),
+                        );
+                      },
+                    ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

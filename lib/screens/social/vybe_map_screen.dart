@@ -128,14 +128,17 @@ class _VybeMapScreenState extends State<VybeMapScreen>
         ],
       ),
       body: Column(children: [
-        // ── Legend chip ────────────────────────────────────────────
+        // ── Legend chips ───────────────────────────────────────────
         Padding(
-          padding:
-              const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
           child: Row(children: [
-            _chip('🎵 ${_friends.length} friends vibing'),
+            GestureDetector(
+              onTap: _showFriendsVibingSheet,
+              child: _chip('🎵 ${_friends.length} friends vibing', tappable: true),
+            ),
             const SizedBox(width: 8),
-            _chip('📍 tap to explore'),
+            _chip('🌍 pinch to zoom · drag to explore'),
+            const Spacer(),
           ]),
         ),
 
@@ -165,6 +168,20 @@ class _VybeMapScreenState extends State<VybeMapScreen>
                           painter: _WorldMapPainter(
                               scanProgress: _scanLine.value),
                         ),
+
+                        // Arc overlay (you → selected friend)
+                        if (_selected != null)
+                          CustomPaint(
+                            size: Size(w, h),
+                            painter: _ArcPainter(
+                              fromX: _latLonToXY(_youLat, _youLon, w, h).$1,
+                              fromY: _latLonToXY(_youLat, _youLon, w, h).$2,
+                              toX: _latLonToXY(_selected!.lat, _selected!.lon, w, h).$1,
+                              toY: _latLonToXY(_selected!.lat, _selected!.lon, w, h).$2,
+                              color: _selected!.color,
+                              progress: _pulse.value,
+                            ),
+                          ),
 
                         // Friend pins
                         ..._friends.map((f) {
@@ -201,37 +218,45 @@ class _VybeMapScreenState extends State<VybeMapScreen>
                                                 0.2)),
                                       ),
                                       // Avatar bubble
-                                      AnimatedContainer(
-                                        duration: const Duration(
-                                            milliseconds: 200),
-                                        width: isSelected ? 36 : 30,
-                                        height: isSelected ? 36 : 30,
-                                        decoration: BoxDecoration(
-                                          shape: BoxShape.circle,
-                                          color: isSelected
-                                              ? f.color
-                                              : f.color.withOpacity(0.85),
-                                          border: isSelected
-                                              ? Border.all(
-                                                  color: Colors.white,
-                                                  width: 2.5)
-                                              : null,
-                                          boxShadow: [
-                                            BoxShadow(
-                                              color: f.color
-                                                  .withOpacity(0.5),
-                                              blurRadius: 8,
-                                            )
-                                          ],
-                                        ),
-                                        child: Center(
-                                          child: Text(f.emoji,
-                                              style: TextStyle(
-                                                  fontSize:
-                                                      isSelected
-                                                          ? 16
-                                                          : 13)),
-                                        ),
+                                      Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          AnimatedContainer(
+                                            duration: const Duration(milliseconds: 200),
+                                            width: isSelected ? 36 : 30,
+                                            height: isSelected ? 36 : 30,
+                                            decoration: BoxDecoration(
+                                              shape: BoxShape.circle,
+                                              color: isSelected
+                                                  ? f.color
+                                                  : f.color.withOpacity(0.85),
+                                              border: isSelected
+                                                  ? Border.all(color: Colors.white, width: 2.5)
+                                                  : null,
+                                              boxShadow: [BoxShadow(
+                                                color: f.color.withOpacity(0.5),
+                                                blurRadius: 8,
+                                              )],
+                                            ),
+                                            child: Center(
+                                              child: Text(f.emoji,
+                                                  style: TextStyle(fontSize: isSelected ? 16 : 13)),
+                                            ),
+                                          ),
+                                          if (isSelected)
+                                            Container(
+                                              margin: const EdgeInsets.only(top: 2),
+                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                                              decoration: BoxDecoration(
+                                                color: f.color.withOpacity(0.9),
+                                                borderRadius: BorderRadius.circular(6),
+                                              ),
+                                              child: Text(
+                                                f.handle.substring(1),
+                                                style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
+                                              ),
+                                            ),
+                                        ],
                                       ),
                                     ]),
                               ),
@@ -313,20 +338,107 @@ class _VybeMapScreenState extends State<VybeMapScreen>
     );
   }
 
-  Widget _chip(String text) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+  Widget _chip(String text, {bool tappable = false}) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
-          color: AuraTheme.accent.withOpacity(0.12),
+          color: tappable
+              ? AuraTheme.accent.withOpacity(0.18)
+              : AuraTheme.accent.withOpacity(0.08),
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: AuraTheme.accent.withOpacity(0.3)),
+          border: Border.all(color: AuraTheme.accent.withOpacity(tappable ? 0.5 : 0.2)),
         ),
-        child: Text(text,
-            style: const TextStyle(
-                color: AuraTheme.accent,
-                fontSize: 11,
-                fontWeight: FontWeight.w600)),
+        child: Row(mainAxisSize: MainAxisSize.min, children: [
+          Text(text,
+              style: const TextStyle(
+                  color: AuraTheme.accent, fontSize: 11, fontWeight: FontWeight.w600)),
+          if (tappable) ...[
+            const SizedBox(width: 4),
+            const Icon(Icons.keyboard_arrow_right_rounded,
+                color: AuraTheme.accent, size: 13),
+          ],
+        ]),
       );
+
+  void _showFriendsVibingSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => DraggableScrollableSheet(
+        initialChildSize: 0.6,
+        minChildSize: 0.4,
+        maxChildSize: 0.85,
+        expand: false,
+        builder: (_, sc) => Container(
+          decoration: const BoxDecoration(
+            color: Color(0xFF0D1030),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(width: 36, height: 4,
+                  decoration: BoxDecoration(color: Colors.white24,
+                      borderRadius: BorderRadius.circular(2))),
+              const SizedBox(height: 16),
+              Text('${_friends.length} friends vibing globally 🌍',
+                  style: const TextStyle(color: Colors.white,
+                      fontWeight: FontWeight.w800, fontSize: 16)),
+              const SizedBox(height: 4),
+              const Text('tap a friend to see their pin',
+                  style: TextStyle(color: Colors.white38, fontSize: 12)),
+              const SizedBox(height: 16),
+              Expanded(
+                child: ListView.builder(
+                  controller: sc,
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: _friends.length,
+                  itemBuilder: (_, i) {
+                    final f = _friends[i];
+                    return ListTile(
+                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      leading: Container(
+                        width: 44, height: 44,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: f.color.withOpacity(0.2),
+                          border: Border.all(color: f.color.withOpacity(0.5)),
+                        ),
+                        child: Center(child: Text(f.emoji,
+                            style: const TextStyle(fontSize: 20))),
+                      ),
+                      title: Text(f.handle,
+                          style: const TextStyle(color: Colors.white,
+                              fontWeight: FontWeight.w700, fontSize: 13)),
+                      subtitle: Row(children: [
+                        const Icon(Icons.music_note_rounded,
+                            color: AuraTheme.accent, size: 11),
+                        const SizedBox(width: 3),
+                        Expanded(child: Text(f.song,
+                            style: const TextStyle(color: Colors.white54, fontSize: 11),
+                            overflow: TextOverflow.ellipsis)),
+                      ]),
+                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                        const Icon(Icons.location_on_rounded,
+                            color: Colors.white38, size: 13),
+                        const SizedBox(width: 2),
+                        Text(f.city,
+                            style: const TextStyle(color: Colors.white38, fontSize: 11)),
+                      ]),
+                      onTap: () {
+                        Navigator.pop(context);
+                        setState(() => _selected = f);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 
   Widget _infoCard(_Friend f) => Container(
         key: ValueKey(f.handle),
@@ -677,4 +789,91 @@ class _WorldMapPainter extends CustomPainter {
   @override
   bool shouldRepaint(_WorldMapPainter old) =>
       old.scanProgress != scanProgress;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Arc Painter — animated great-circle-style arc from you → selected friend
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ArcPainter extends CustomPainter {
+  final double fromX, fromY, toX, toY;
+  final Color color;
+  final double progress; // 0→1 animation tick
+
+  const _ArcPainter({
+    required this.fromX, required this.fromY,
+    required this.toX, required this.toY,
+    required this.color, required this.progress,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = (fromX + toX) / 2;
+    final cy = (fromY + toY) / 2;
+    // Arc control point rises above the midpoint
+    final dx = toX - fromX;
+    final dy = toY - fromY;
+    final dist = math.sqrt(dx * dx + dy * dy);
+    final lift = dist * 0.35;
+    // Perpendicular up-left direction for control point
+    final cpx = cx - dy / dist * lift;
+    final cpy = cy + dx / dist * lift - lift * 0.5;
+
+    final path = Path();
+    path.moveTo(fromX, fromY);
+    path.quadraticBezierTo(cpx, cpy, toX, toY);
+
+    // Dashed / animated progress: draw only part of the path
+    final metrics = path.computeMetrics().first;
+    final totalLen = metrics.length;
+
+    // Trailing glow — full arc faint
+    canvas.drawPath(
+      path,
+      Paint()
+        ..color = color.withOpacity(0.15)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 1.5
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // Animated moving segment
+    final head = (progress * 1.4).clamp(0.0, 1.0);
+    final tail = (progress * 1.4 - 0.35).clamp(0.0, 1.0);
+    if (head > tail) {
+      final segment = metrics.extractPath(totalLen * tail, totalLen * head);
+      canvas.drawPath(
+        segment,
+        Paint()
+          ..color = color.withOpacity(0.9)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 2.5
+          ..strokeCap = StrokeCap.round,
+      );
+    }
+
+    // Dot at current head position
+    if (head < 1.0) {
+      final tangent = metrics.getTangentForOffset(totalLen * head);
+      if (tangent != null) {
+        canvas.drawCircle(
+          tangent.position,
+          4,
+          Paint()..color = color,
+        );
+        canvas.drawCircle(
+          tangent.position,
+          7,
+          Paint()
+            ..color = color.withOpacity(0.3)
+            ..style = PaintingStyle.stroke
+            ..strokeWidth = 1.5,
+        );
+      }
+    }
+  }
+
+  @override
+  bool shouldRepaint(_ArcPainter old) =>
+      old.progress != progress || old.toX != toX || old.toY != toY;
 }

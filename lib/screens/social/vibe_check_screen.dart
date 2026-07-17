@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/orbit_state.dart';
 import '../../theme/aura_theme.dart';
 
@@ -20,6 +21,20 @@ class _VibeCheckScreenState extends State<VibeCheckScreen> {
     {'label': 'focused', 'emoji': '🎧'},
     {'label': 'sad', 'emoji': '🌧️'},
     {'label': 'romantic', 'emoji': '💫'},
+    {'label': 'anxious', 'emoji': '🌀'},
+    {'label': 'bored', 'emoji': '😶'},
+    {'label': 'grateful', 'emoji': '🌸'},
+    {'label': 'creative', 'emoji': '🎨'},
+    {'label': 'angry', 'emoji': '🔥'},
+    {'label': 'dreamy', 'emoji': '✨'},
+    {'label': 'goofy', 'emoji': '🤪'},
+    {'label': 'confident', 'emoji': '👑'},
+    {'label': 'lonely', 'emoji': '🫧'},
+    {'label': 'motivated', 'emoji': '💪'},
+    {'label': 'overwhelmed', 'emoji': '💥'},
+    {'label': 'peaceful', 'emoji': '🍃'},
+    {'label': 'flirty', 'emoji': '😏'},
+    {'label': 'lowkey', 'emoji': '🌫️'},
   ];
 
   static const _matches = <String, List<String>>{
@@ -29,6 +44,20 @@ class _VibeCheckScreenState extends State<VibeCheckScreen> {
     'focused': ['@leo.k 🎧', '@sam.w 🎧'],
     'sad': ['@zara.w 🌧️'],
     'romantic': ['@rina.p 💫', '@jay.r 💫'],
+    'anxious': ['@dev.s 🌀'],
+    'bored': ['@leo.k 😶', '@jay.r 😶'],
+    'grateful': ['@maya.k 🌸', '@rina.p 🌸'],
+    'creative': ['@sam.w 🎨', '@zara.w 🎨'],
+    'angry': ['@dev.s 🔥'],
+    'dreamy': ['@rina.p ✨', '@maya.k ✨'],
+    'goofy': ['@jay.r 🤪', '@zara.w 🤪', '@dev.s 🤪'],
+    'confident': ['@leo.k 👑', '@rina.p 👑'],
+    'lonely': ['@sam.w 🫧'],
+    'motivated': ['@zara.w 💪', '@leo.k 💪'],
+    'overwhelmed': ['@maya.k 💥', '@sam.w 💥'],
+    'peaceful': ['@jay.r 🍃', '@maya.k 🍃'],
+    'flirty': ['@rina.p 😏', '@zara.w 😏'],
+    'lowkey': ['@sam.w 🌫️', '@leo.k 🌫️'],
   };
 
   @override
@@ -67,7 +96,10 @@ class _VibeCheckScreenState extends State<VibeCheckScreen> {
               children: _moods.map((m) {
                 final sel = _selected == m['label'];
                 return GestureDetector(
-                  onTap: () => setState(() => _selected = m['label']),
+                  onTap: () {
+                    HapticFeedback.lightImpact();
+                    setState(() => _selected = m['label']);
+                  },
                   child: AnimatedContainer(
                     duration: const Duration(milliseconds: 200),
                     decoration: BoxDecoration(
@@ -107,6 +139,7 @@ class _VibeCheckScreenState extends State<VibeCheckScreen> {
               onPressed: _selected == null
                   ? null
                   : () {
+                      HapticFeedback.heavyImpact();
                       _s.vibeCheckDoneToday = true;
                       setState(() => _done = true);
                     },

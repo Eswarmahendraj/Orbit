@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'firebase_options.dart';
 import 'models/orbit_state.dart';
+import 'services/spotify_service.dart';
+import 'services/apple_music_service.dart';
+import 'services/social_service.dart';
 import 'theme/aura_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -18,6 +22,9 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   await OrbitState().load();
+  await SpotifyService().load(); // restore saved Spotify tokens
+  await AppleMusicService().load(); // check saved Apple Music auth (iOS only)
+  SocialService().upsertProfile(); // publish profile to Firestore (fire & forget)
   OrbitState().checkStreak();
 
   // Restore dark-mode preference
@@ -66,8 +73,8 @@ class _OrbitRootState extends State<OrbitRoot> {
   void initState() {
     super.initState();
     _onboarded = OrbitState().hasOnboarded;
-    // Treat having onboarded as being logged in (existing users skip auth)
-    _loggedIn = _onboarded;
+    // Stay logged in if Firebase already has a current user OR user has onboarded
+    _loggedIn = _onboarded || FirebaseAuth.instance.currentUser != null;
   }
 
   void _completeOnboarding() => setState(() => _onboarded = true);

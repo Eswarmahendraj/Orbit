@@ -111,10 +111,11 @@ class _PfpEditorScreenState extends State<PfpEditorScreen> {
             onPressed: () => Navigator.pop(context, false)),
         actions: [
           TextButton(
-            onPressed: () {
+            onPressed: () async {
               _state.pfpFile = _file;
               _state.pfpFilter = _filterId;
-              Navigator.pop(context, true);
+              await _state.save();
+              if (context.mounted) Navigator.pop(context, true);
             },
             child: const Text('save',
                 style: TextStyle(

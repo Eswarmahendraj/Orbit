@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/user_model.dart';
-import 'chat_screen.dart';
+import '../../services/chat_service.dart';
+import '../home/dm_screen.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -58,23 +61,8 @@ class _MessagesScreenState extends State<MessagesScreen>
     body: TabBarView(
       controller: _tab,
       children: [
-        // Direct messages
-        ListView.separated(
-          padding: const EdgeInsets.all(20),
-          itemCount: _dms.length,
-          separatorBuilder: (_, __) => const Divider(height: 1),
-          itemBuilder: (_, i) => _DMTile(
-            data: _dms[i],
-            onTap: () => Navigator.push(context, MaterialPageRoute(
-              builder: (_) => ChatScreen(
-                peerAuraName: _dms[i].name,
-                peerId: 'peer_$i',
-                peerColor: _dms[i].color,
-                tenureEmoji: _dms[i].emoji,
-              ),
-            )),
-          ).animate(delay: (i * 50).ms).fadeIn().slideX(begin: 0.05),
-        ),
+        // Direct messages — Firestore + local
+        _FirestoreConvList(localDms: _dms),
 
         // Circle threads
         ListView.separated(
@@ -104,6 +92,130 @@ class _MessagesScreenState extends State<MessagesScreen>
       ],
     ),
   );
+}
+
+// ── Firestore conversation list (real users) + local fallback ─────────────────
+
+class _FirestoreConvList extends StatelessWidget {
+  final List<_DMData> localDms;
+  const _FirestoreConvList({required this.localDms});
+
+  @override
+  Widget build(BuildContext context) {
+    final uid = FirebaseAuth.instance.currentUser?.uid;
+    if (uid == null) {
+      // Not logged in — show local only
+      return _LocalDmList(dms: localDms);
+    }
+
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('chats')
+          .where('participants', arrayContains: uid)
+          .orderBy('lastMessageAt', descending: true)
+          .snapshots(),
+      builder: (ctx, snap) {
+        final firestoreChats = snap.data?.docs ?? [];
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            // Real Firestore conversations
+            if (firestoreChats.isNotEmpty) ...[
+              const Text('recent',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.8,
+                      color: AuraColors.textSecondary)),
+              const SizedBox(height: 8),
+              ...firestoreChats.map((doc) {
+                final data = doc.data() as Map<String, dynamic>;
+                final participants = List<String>.from(data['participants'] ?? []);
+                final otherUid = participants.firstWhere(
+                    (p) => p != uid, orElse: () => '');
+                final names =
+                    Map<String, dynamic>.from(data['participantNames'] ?? {});
+                final otherName = names[otherUid]?.toString() ?? 'User';
+                final lastMsg = data['lastMessage']?.toString() ?? '';
+                return ListTile(
+                  contentPadding: const EdgeInsets.symmetric(vertical: 6),
+                  leading: CircleAvatar(
+                    radius: 24,
+                    backgroundColor: AuraColors.accent.withOpacity(0.15),
+                    child: Text(
+                      otherName.isNotEmpty ? otherName[0].toUpperCase() : 'U',
+                      style: const TextStyle(
+                          color: AuraColors.accent,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 18),
+                    ),
+                  ),
+                  title: Text(otherName,
+                      style: const TextStyle(fontWeight: FontWeight.w600)),
+                  subtitle: Text(lastMsg,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          color: AuraColors.textSecondary, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right,
+                      color: AuraColors.textSecondary, size: 18),
+                  onTap: () => Navigator.push(ctx, MaterialPageRoute(
+                    builder: (_) => DMScreen(
+                      username: '@${otherName.toLowerCase().replaceAll(' ', '.')}',
+                      displayName: otherName,
+                      targetUid: otherUid,
+                    ),
+                  )),
+                );
+              }),
+              const Divider(height: 24),
+            ],
+            // Local/demo conversations
+            ..._buildLocalDms(context),
+          ],
+        );
+      },
+    );
+  }
+
+  List<Widget> _buildLocalDms(BuildContext context) {
+    return localDms.asMap().entries.map((e) {
+      final i = e.key;
+      final d = e.value;
+      return _DMTile(
+        data: d,
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => DMScreen(
+            username: '@${d.name.toLowerCase().replaceAll(' ', '.')}',
+            displayName: d.name,
+          ),
+        )),
+      ).animate(delay: (i * 50).ms).fadeIn().slideX(begin: 0.05);
+    }).toList();
+  }
+}
+
+class _LocalDmList extends StatelessWidget {
+  final List<_DMData> dms;
+  const _LocalDmList({required this.dms});
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      padding: const EdgeInsets.all(20),
+      itemCount: dms.length,
+      separatorBuilder: (_, __) => const Divider(height: 1),
+      itemBuilder: (_, i) => _DMTile(
+        data: dms[i],
+        onTap: () => Navigator.push(context, MaterialPageRoute(
+          builder: (_) => DMScreen(
+            username: '@${dms[i].name.toLowerCase().replaceAll(' ', '.')}',
+            displayName: dms[i].name,
+          ),
+        )),
+      ).animate(delay: (i * 50).ms).fadeIn().slideX(begin: 0.05),
+    );
+  }
 }
 
 class _DMData {

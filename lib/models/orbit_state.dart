@@ -113,6 +113,26 @@ class OrbitState {
   // Clip streaks — per friendship (keyed by handle)
   Map<String, Map<String, dynamic>> clipStreaks = {};
 
+  // Moments — daily streak posts
+  int momentStreak = 0;
+  String lastMomentDate = '';
+  List<Map<String, dynamic>> myMoments = [];
+
+  // Pinned song of the moment
+  String pinnedSong = '';
+  String pinnedArtist = '';
+  String pinnedPreviewUrl = '';
+
+  // Real-time vibe status
+  String vibeStatus = '';
+  String vibeStatusEmoji = '';
+
+  // Anonymous orbit confessions (user-posted)
+  List<Map<String, dynamic>> orbitConfessions = [];
+
+  bool get postedMomentToday =>
+      lastMomentDate == _dateStr(DateTime.now());
+
   // ── Streak logic ──────────────────────────────────────────────
   void checkStreak() {
     final today = _dateStr(DateTime.now());
@@ -136,6 +156,31 @@ class OrbitState {
 
   String _dateStr(DateTime d) =>
       '${d.year}-${d.month.toString().padLeft(2, '0')}-${d.day.toString().padLeft(2, '0')}';
+
+  // ── Moment streak logic ───────────────────────────────────────
+  void checkMomentStreak() {
+    final today = _dateStr(DateTime.now());
+    if (lastMomentDate == today) return; // already posted today
+    if (lastMomentDate.isEmpty) {
+      momentStreak = 1;
+    } else {
+      final last = DateTime.tryParse(lastMomentDate);
+      if (last != null) {
+        final diff = DateTime.now().difference(last).inDays;
+        momentStreak = diff == 1 ? momentStreak + 1 : 1;
+      } else {
+        momentStreak = 1;
+      }
+    }
+    lastMomentDate = today;
+    save();
+  }
+
+  void addMoment(Map<String, dynamic> moment) {
+    myMoments.insert(0, moment);
+    checkMomentStreak();
+    save();
+  }
 
   void reactSotd() {
     final today = _dateStr(DateTime.now());
@@ -211,6 +256,21 @@ class OrbitState {
       identityTags = List<String>.from(jsonDecode(tagsRaw));
     }
     identityTagsPublic = p.getBool('identityTagsPublic') ?? false;
+    momentStreak = p.getInt('momentStreak') ?? 0;
+    lastMomentDate = p.getString('lastMomentDate') ?? '';
+    pinnedSong = p.getString('pinnedSong') ?? '';
+    pinnedArtist = p.getString('pinnedArtist') ?? '';
+    pinnedPreviewUrl = p.getString('pinnedPreviewUrl') ?? '';
+    vibeStatus = p.getString('vibeStatus') ?? '';
+    vibeStatusEmoji = p.getString('vibeStatusEmoji') ?? '';
+    final confessionsRaw = p.getString('orbitConfessions');
+    if (confessionsRaw != null) {
+      orbitConfessions = List<Map<String, dynamic>>.from(jsonDecode(confessionsRaw));
+    }
+    final momentsRaw = p.getString('myMoments');
+    if (momentsRaw != null) {
+      myMoments = List<Map<String, dynamic>>.from(jsonDecode(momentsRaw));
+    }
   }
 
   Future<void> save() async {
@@ -248,6 +308,15 @@ class OrbitState {
     await p.setString('alwaysVibes', jsonEncode(alwaysVibes));
     await p.setString('identityTags', jsonEncode(identityTags));
     await p.setBool('identityTagsPublic', identityTagsPublic);
+    await p.setInt('momentStreak', momentStreak);
+    await p.setString('lastMomentDate', lastMomentDate);
+    await p.setString('pinnedSong', pinnedSong);
+    await p.setString('pinnedArtist', pinnedArtist);
+    await p.setString('pinnedPreviewUrl', pinnedPreviewUrl);
+    await p.setString('vibeStatus', vibeStatus);
+    await p.setString('vibeStatusEmoji', vibeStatusEmoji);
+    await p.setString('orbitConfessions', jsonEncode(orbitConfessions));
+    await p.setString('myMoments', jsonEncode(myMoments));
   }
 
   void addPost(Map<String, dynamic> post) {
@@ -324,13 +393,12 @@ class OrbitState {
     if (data['lastReceivedDate'] != today) return;
 
     final mutual = List<String>.from(data['mutualDates'] ?? []);
-    if (mutual.contains(today)) return; // already counted today
+    if (mutual.contains(today)) return;
 
     mutual.add(today);
     mutual.sort();
     data['mutualDates'] = mutual;
 
-    // Count consecutive days from the end
     int streak = 1;
     for (int i = mutual.length - 1; i > 0; i--) {
       final a = DateTime.parse(mutual[i]);
@@ -353,6 +421,11 @@ class OrbitState {
       'text': text,
       'isMe': isMe,
       'time': DateTime.now().toIso8601String(),
+    });
+    save();
+  }
+}
+': DateTime.now().toIso8601String(),
     });
     save();
   }

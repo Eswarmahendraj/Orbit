@@ -10,6 +10,10 @@ class DefaultFirebaseOptions {
     switch (defaultTargetPlatform) {
       case TargetPlatform.android:
         return android;
+      case TargetPlatform.iOS:
+        return ios;
+      case TargetPlatform.macOS:
+        return ios; // reuse iOS config for macOS (same bundle)
       default:
         throw UnsupportedError(
           'DefaultFirebaseOptions are not supported for this platform.',
@@ -32,5 +36,15 @@ class DefaultFirebaseOptions {
     messagingSenderId: '500091326393',
     projectId: 'aura-4e337',
     storageBucket: 'aura-4e337.appspot.com',
+  );
+
+  // ── iOS ──────────────────────────────────────────────────────────────────
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyDq33tHMpg-Bi-Ertbw9MG3XZNB-Q7fd4I',
+    appId: '1:500091326393:ios:20cc2452f27936008eb068',
+    messagingSenderId: '500091326393',
+    projectId: 'aura-4e337',
+    storageBucket: 'aura-4e337.appspot.com',
+    iosBundleId: 'com.orbit.app',
   );
 }

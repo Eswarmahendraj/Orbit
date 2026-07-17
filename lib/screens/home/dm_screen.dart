@@ -1,8 +1,12 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../../models/orbit_state.dart';
+import '../../models/message_model.dart';
+import '../../services/chat_service.dart';
 import '../../theme/aura_theme.dart';
 import 'clip_streaks_screen.dart';
 import 'song_clip_screen.dart';
@@ -11,12 +15,15 @@ class DMScreen extends StatefulWidget {
   final String username;
   final String displayName;
   final String? songContext;
+  /// If provided, DMs are stored in Firestore (real user). Otherwise, local only.
+  final String? targetUid;
 
   const DMScreen({
     super.key,
     required this.username,
     required this.displayName,
     this.songContext,
+    this.targetUid,
   });
 
   @override
@@ -68,37 +75,54 @@ class _DMScreenState extends State<DMScreen> {
     super.dispose();
   }
 
+  bool get _isFirestoreChat => widget.targetUid != null;
+
   void _send() {
     final text = _ctrl.text.trim();
     if (text.isEmpty) return;
-    OrbitState().sendDM(widget.username, text, isMe: true);
-    setState(() {
-      _messages = List.from(OrbitState().dmThreads[widget.username] ?? []);
-      _ctrl.clear();
-    });
-    _scrollToBottom();
-    // Simulate a text reply after 1.5s
-    Future.delayed(const Duration(milliseconds: 1500), () {
-      if (!mounted) return;
-      final replies = [
-        'lol true 😂',
-        'no way!!',
-        'ok this is my new fav song',
-        'i needed this rn ngl',
-        '🔥🔥🔥',
-        'sending you one back rn',
-        'ok but have you heard the bridge???',
-      ];
-      final r = replies[math.Random().nextInt(replies.length)];
-      OrbitState().dmThreads[widget.username]!
-          .add({'text': r, 'isMe': false, 'time': DateTime.now().toIso8601String()});
-      OrbitState().save();
-      if (mounted) {
-        setState(() => _messages =
-            List.from(OrbitState().dmThreads[widget.username] ?? []));
-        _scrollToBottom();
-      }
-    });
+    HapticFeedback.lightImpact();
+    _ctrl.clear();
+
+    if (_isFirestoreChat) {
+      // Real Firestore DM
+      final myName = OrbitState().displayName;
+      ChatService().sendMessage(
+        senderId: FirebaseAuth.instance.currentUser?.uid ?? '',
+        senderAuraName: myName,
+        receiverId: widget.targetUid!,
+        content: text,
+      );
+      _scrollToBottom();
+    } else {
+      // Local fallback
+      OrbitState().sendDM(widget.username, text, isMe: true);
+      setState(() {
+        _messages = List.from(OrbitState().dmThreads[widget.username] ?? []);
+      });
+      _scrollToBottom();
+      // Simulate a text reply after 1.5s
+      Future.delayed(const Duration(milliseconds: 1500), () {
+        if (!mounted) return;
+        final replies = [
+          'lol true 😂',
+          'no way!!',
+          'ok this is my new fav song',
+          'i needed this rn ngl',
+          '🔥🔥🔥',
+          'sending you one back rn',
+          'ok but have you heard the bridge???',
+        ];
+        final r = replies[math.Random().nextInt(replies.length)];
+        OrbitState().dmThreads[widget.username]!
+            .add({'text': r, 'isMe': false, 'time': DateTime.now().toIso8601String()});
+        OrbitState().save();
+        if (mounted) {
+          setState(() => _messages =
+              List.from(OrbitState().dmThreads[widget.username] ?? []));
+          _scrollToBottom();
+        }
+      });
+    }
   }
 
   void _scrollToBottom() {
@@ -278,23 +302,49 @@ class _DMScreenState extends State<DMScreen> {
 
           // ── Messages ──
           Expanded(
-            child: _messages.isEmpty
-                ? _emptyState()
-                : ListView.builder(
-                    controller: _scroll,
-                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-                    itemCount: _messages.length,
-                    itemBuilder: (_, i) {
-                      final msg = _messages[i];
-                      if (msg['type'] == 'clip') {
-                        return _ClipBubble(
-                          msg: msg,
-                          displayName: widget.displayName,
-                        );
+            child: _isFirestoreChat
+                ? StreamBuilder<List<Message>>(
+                    stream: ChatService().getMessages(
+                      FirebaseAuth.instance.currentUser?.uid ?? '',
+                      widget.targetUid!,
+                    ),
+                    builder: (_, snap) {
+                      if (snap.connectionState == ConnectionState.waiting) {
+                        return const Center(
+                            child: CircularProgressIndicator(color: AuraTheme.accent));
                       }
-                      return _bubble(msg);
+                      final msgs = snap.data ?? [];
+                      if (msgs.isEmpty) return _emptyState();
+                      WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+                      return ListView.builder(
+                        controller: _scroll,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        itemCount: msgs.length,
+                        itemBuilder: (_, i) {
+                          final m = msgs[i];
+                          final isMe = m.senderId == FirebaseAuth.instance.currentUser?.uid;
+                          return _bubble({'text': m.content, 'isMe': isMe});
+                        },
+                      );
                     },
-                  ),
+                  )
+                : _messages.isEmpty
+                    ? _emptyState()
+                    : ListView.builder(
+                        controller: _scroll,
+                        padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+                        itemCount: _messages.length,
+                        itemBuilder: (_, i) {
+                          final msg = _messages[i];
+                          if (msg['type'] == 'clip') {
+                            return _ClipBubble(
+                              msg: msg,
+                              displayName: widget.displayName,
+                            );
+                          }
+                          return _bubble(msg);
+                        },
+                      ),
           ),
 
           _inputBar(),

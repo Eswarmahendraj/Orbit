@@ -11,6 +11,8 @@ import '../profile/other_profile_screen.dart';
 import '../social/vybe_map_screen.dart';
 import 'create_vybe_screen.dart';
 import 'dm_screen.dart';
+import 'activity_feed_screen.dart';
+import '../social/confessions_screen.dart';
 
 // ── Data models ────────────────────────────────────────────────
 
@@ -317,9 +319,23 @@ class _FeedTabState extends State<_FeedTab>
                     MaterialPageRoute(
                         builder: (_) => const SongBattleScreen())),
               ),
-              IconButton(
-                icon: const Icon(Icons.notifications_none_rounded),
-                onPressed: _showNotifications,
+              Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.notifications_none_rounded),
+                    onPressed: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const ActivityFeedScreen())),
+                  ),
+                  // New-activity badge
+                  Positioned(
+                    top: 8, right: 8,
+                    child: Container(
+                      width: 8, height: 8,
+                      decoration: const BoxDecoration(
+                          color: AuraTheme.accent, shape: BoxShape.circle),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
@@ -531,6 +547,7 @@ class _FeedTabState extends State<_FeedTab>
         children: [
           _moodChips(),
           _sotdCard(state),
+          _confessionsTeaser(),
           if (hot.isNotEmpty) _hotRightNow(hot),
           if (match != null) _matchCard(match),
           if (state.streakCount > 0 && !_postedToday()) _streakCard(state),
@@ -763,6 +780,67 @@ class _FeedTabState extends State<_FeedTab>
           ),
         ]),
       ]),
+    );
+  }
+
+  // ── Confessions Teaser ────────────────────────────────────────
+
+  Widget _confessionsTeaser() {
+    // Pick 2 seed previews
+    const previews = [
+      ('someone in your orbit is feeling 😭 can\'t stop crying'),
+      ('someone in your orbit is feeling 💘 falling for someone they shouldn\'t'),
+    ];
+    return GestureDetector(
+      onTap: () => Navigator.push(context,
+          MaterialPageRoute(builder: (_) => const ConfessionsScreen())),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AuraTheme.card,
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(
+              color: const Color(0xFF7C5CBF).withOpacity(0.35), width: 1.2),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Text('🫧', style: TextStyle(fontSize: 14)),
+            const SizedBox(width: 6),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+              decoration: BoxDecoration(
+                color: const Color(0xFF7C5CBF).withOpacity(0.15),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Text('ORBIT CONFESSIONS',
+                  style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF9B7ED4))),
+            ),
+            const Spacer(),
+            const Icon(Icons.chevron_right,
+                color: AuraTheme.textMuted, size: 18),
+          ]),
+          const SizedBox(height: 10),
+          for (final p in previews) ...[
+            Text(p,
+                style: const TextStyle(
+                    color: AuraTheme.textSecondary,
+                    fontSize: 13,
+                    height: 1.4),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis),
+            const SizedBox(height: 4),
+          ],
+          const Text('tap to read + confess anonymously',
+              style: TextStyle(
+                  color: AuraTheme.textMuted,
+                  fontSize: 11,
+                  fontWeight: FontWeight.w500)),
+        ]),
+      ),
     );
   }
 

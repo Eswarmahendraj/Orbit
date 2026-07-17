@@ -13,7 +13,7 @@ dependencies:
   # Firebase
   firebase_core: ^2.27.0
   cloud_firestore: ^4.14.0
-  firebase_auth: ^4.17.0
+  firebase_auth: ^4.16.0
   google_sign_in: ^6.2.1
 
   # UI & Animation
@@ -45,6 +45,16 @@ dependencies:
 
   # QR code generation
   qr_flutter: ^4.1.0
+
+  # External sharing
+  share_plus: ^10.0.0
+
+  # Spotify OAuth + crypto
+  flutter_web_auth_2: ^4.0.0
+  crypto: ^3.0.3
+
+  # Apple Music (iOS only — gracefully no-ops on Android)
+  music_kit: ^1.1.1
 
 dev_dependencies:
   flutter_test:

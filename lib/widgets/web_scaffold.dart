@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../theme/aura_theme.dart';
 import '../models/orbit_state.dart';
 import '../screens/home/home_screen.dart';
@@ -56,7 +57,10 @@ class _MobileNavState extends State<MobileNav> {
       ]),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _tab,
-        onDestinationSelected: (i) => setState(() => _tab = i),
+        onDestinationSelected: (i) {
+          HapticFeedback.lightImpact();
+          setState(() => _tab = i);
+        },
         destinations: const [
           NavigationDestination(
               icon: Icon(Icons.graphic_eq),
@@ -473,14 +477,16 @@ class _RightPanelState extends State<_RightPanel> {
                 ]),
               ),
               GestureDetector(
-                onTap: () =>
+                onTap: () {
+                    HapticFeedback.mediumImpact();
                     setState(() {
                       if (_synced.contains(sug.$1)) {
                         _synced.remove(sug.$1);
                       } else {
                         _synced.add(sug.$1);
                       }
-                    }),
+                    });
+                  },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 180),
                   padding: const EdgeInsets.symmetric(

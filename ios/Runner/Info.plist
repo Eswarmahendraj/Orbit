@@ -36,6 +36,8 @@
 	<string>Orbit saves photos to your library.</string>
 	<key>NSContactsUsageDescription</key>
 	<string>Orbit can suggest friends from your contacts.</string>
+	<key>NSAppleMusicUsageDescription</key>
+	<string>Orbit shows your Apple Music now playing and lets you pin songs to your profile.</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

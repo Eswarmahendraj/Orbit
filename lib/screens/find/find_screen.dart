@@ -1,8 +1,11 @@
 import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
 import '../../theme/aura_theme.dart';
+import '../../services/social_service.dart';
 import '../profile/other_profile_screen.dart';
 
 // ─── Models ───────────────────────────────────────────────────────────────────
@@ -77,7 +80,13 @@ class _FindScreenState extends State<FindScreen>
   String? _playingUrl;
 
   // Default suggested content
-  final List<_PersonResult> _suggestedPeople = const [
+  // Firestore-backed people (replaces static list)
+  List<Map<String, dynamic>> _firestoreUsers = [];
+  List<Map<String, dynamic>> _searchedUsers = [];
+  bool _loadingUsers = false;
+
+  // Fallback static people (shown when Firestore returns nothing)
+  static const List<_PersonResult> _fallbackPeople = [
     _PersonResult(
         name: 'Maya Patel',
         handle: '@mayasounds',
@@ -142,6 +151,25 @@ class _FindScreenState extends State<FindScreen>
         _isSearching = _searchController.text.trim().isNotEmpty;
       });
     });
+    // Publish current user to Firestore + load suggested users
+    SocialService().upsertProfile();
+    _loadSuggestedUsers();
+  }
+
+  Future<void> _loadSuggestedUsers() async {
+    setState(() => _loadingUsers = true);
+    final users = await SocialService().getSuggested(limit: 10);
+    if (mounted) setState(() { _firestoreUsers = users; _loadingUsers = false; });
+  }
+
+  Future<void> _searchPeople(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() => _searchedUsers = []);
+      return;
+    }
+    setState(() => _loadingUsers = true);
+    final users = await SocialService().searchUsers(query);
+    if (mounted) setState(() { _searchedUsers = users; _loadingUsers = false; });
   }
 
   @override
@@ -221,7 +249,9 @@ class _FindScreenState extends State<FindScreen>
               ),
               onSubmitted: (q) {
                 _searchSongs(q);
+                _searchPeople(q);
               },
+              onChanged: (q) => _searchPeople(q),
             ),
           ),
 
@@ -241,13 +271,18 @@ class _FindScreenState extends State<FindScreen>
               child: TabBarView(
                 controller: _tabController,
                 children: [
-                  // People tab
-                  ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: _suggestedPeople
-                        .map((p) => _PersonTile(person: p))
-                        .toList(),
-                  ),
+                  // People tab — real Firestore users, fallback to static
+                  _loadingUsers
+                      ? const Center(child: CircularProgressIndicator(color: AuraTheme.accent))
+                      : ListView(
+                          padding: const EdgeInsets.all(16),
+                          children: (_searchedUsers.isNotEmpty ? _searchedUsers : _firestoreUsers)
+                              .map((u) => _FirestorePersonTile(data: u))
+                              .toList()
+                            ..addAll(_firestoreUsers.isEmpty && _searchedUsers.isEmpty
+                                ? _fallbackPeople.map((p) => _PersonTile(person: p)).toList()
+                                : []),
+                        ),
                   // Songs tab
                   _loadingSongs
                       ? const Center(
@@ -335,7 +370,15 @@ class _FindScreenState extends State<FindScreen>
                       style: TextStyle(
                           fontWeight: FontWeight.w700, fontSize: 16)),
                   const SizedBox(height: 12),
-                  ..._suggestedPeople.map((p) => _PersonTile(person: p)),
+                  if (_loadingUsers)
+                    const Center(child: Padding(
+                      padding: EdgeInsets.all(16),
+                      child: CircularProgressIndicator(color: AuraTheme.accent, strokeWidth: 2),
+                    ))
+                  else if (_firestoreUsers.isNotEmpty)
+                    ..._firestoreUsers.map((u) => _FirestorePersonTile(data: u))
+                  else
+                    ..._fallbackPeople.map((p) => _PersonTile(person: p)),
                   const SizedBox(height: 24),
                   // Open campfires
                   const Text('open campfires',
@@ -349,6 +392,125 @@ class _FindScreenState extends State<FindScreen>
           ],
         ],
       ),
+    );
+  }
+}
+
+// ─── Firestore Person Tile (real users) ──────────────────────────────────────
+
+class _FirestorePersonTile extends StatefulWidget {
+  final Map<String, dynamic> data;
+  const _FirestorePersonTile({required this.data});
+
+  @override
+  State<_FirestorePersonTile> createState() => _FirestorePersonTileState();
+}
+
+class _FirestorePersonTileState extends State<_FirestorePersonTile> {
+  bool _following = false;
+  bool _loading = true;
+
+  static const _avatarColors = [
+    Color(0xFFFF6B6B), Color(0xFF6C63FF), Color(0xFFFF7A50),
+    Color(0xFF4CAF50), Color(0xFF00BCD4), Color(0xFFFF4500),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _checkFollow();
+  }
+
+  Future<void> _checkFollow() async {
+    final uid = widget.data['uid'] as String? ?? '';
+    if (uid.isEmpty) { setState(() => _loading = false); return; }
+    final following = await SocialService().isFollowing(uid);
+    if (mounted) setState(() { _following = following; _loading = false; });
+  }
+
+  Future<void> _toggle() async {
+    HapticFeedback.mediumImpact();
+    final uid = widget.data['uid'] as String? ?? '';
+    if (uid.isEmpty) return;
+    setState(() => _following = !_following);
+    if (_following) {
+      await SocialService().follow(uid);
+    } else {
+      await SocialService().unfollow(uid);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final name = widget.data['displayName'] as String? ?? 'User';
+    final handle = widget.data['username'] as String? ?? '@user';
+    final mood = widget.data['mood'] as String? ?? 'chill';
+    final moodEmoji = widget.data['moodEmoji'] as String? ?? '☀️';
+    final initial = name.isNotEmpty ? name[0].toUpperCase() : 'U';
+    final colorIdx = name.hashCode.abs() % _avatarColors.length;
+    final color = _avatarColors[colorIdx];
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AuraTheme.card,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Row(children: [
+        GestureDetector(
+          onTap: () => Navigator.push(context, MaterialPageRoute(
+            builder: (_) => OtherProfileScreen(
+              name: name, handle: handle,
+              userColor: color, initial: initial,
+              mood: mood, moodEmoji: moodEmoji,
+              songTitle: widget.data['pinnedSong'] as String? ?? '',
+              artistName: widget.data['pinnedArtist'] as String? ?? '',
+            ),
+          )),
+          child: CircleAvatar(
+            radius: 22,
+            backgroundColor: color.withOpacity(0.15),
+            child: Text(initial,
+                style: TextStyle(
+                    color: color,
+                    fontWeight: FontWeight.w700,
+                    fontSize: 16)),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            Text('$moodEmoji $mood',
+                style: const TextStyle(color: AuraTheme.textMuted, fontSize: 12)),
+          ]),
+        ),
+        _loading
+            ? const SizedBox(width: 16, height: 16,
+                child: CircularProgressIndicator(strokeWidth: 2, color: AuraTheme.accent))
+            : GestureDetector(
+                onTap: _toggle,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 180),
+                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: _following ? AuraTheme.surface : AuraTheme.accent,
+                    borderRadius: BorderRadius.circular(20),
+                    border: _following
+                        ? Border.all(color: AuraTheme.textMuted.withOpacity(0.3))
+                        : null,
+                  ),
+                  child: Text(
+                    _following ? 'following' : 'follow',
+                    style: TextStyle(
+                        color: _following ? AuraTheme.textMuted : Colors.white,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 12),
+                  ),
+                ),
+              ),
+      ]),
     );
   }
 }
