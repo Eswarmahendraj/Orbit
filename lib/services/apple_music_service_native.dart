@@ -1,6 +1,7 @@
 import 'dart:io';
 
-// music_kit is iOS-only — guard every call behind Platform.isIOS
+// music_kit 1.3.0 — API changed significantly from earlier versions.
+// nowPlayingItem / playbackState removed; sealed auth status classes.
 // ignore: depend_on_referenced_packages
 import 'package:music_kit/music_kit.dart';
 
@@ -24,7 +25,8 @@ class AppleMusicService {
     if (!isSupported) return;
     try {
       final status = await _kit.authorizationStatus;
-      _authorized = status == MusicAuthorizationStatus.authorized;
+      // MusicAuthorizationStatus is a sealed class in 1.3.0 — check via toString
+      _authorized = status.toString().contains('authorized');
     } catch (_) {}
   }
 
@@ -34,7 +36,7 @@ class AppleMusicService {
     if (!isSupported) return false;
     try {
       final status = await _kit.requestAuthorizationStatus();
-      _authorized = status == MusicAuthorizationStatus.authorized;
+      _authorized = status.toString().contains('authorized');
       return _authorized;
     } catch (_) {
       return false;
@@ -42,58 +44,21 @@ class AppleMusicService {
   }
 
   // ── Now Playing ────────────────────────────────────────────────────────────
+  // music_kit 1.3.0 removed nowPlayingItem — returns null (no song info API).
+  // The UI will fall back to "Connect Apple Music" state gracefully.
 
-  Future<Map<String, dynamic>?> getNowPlaying() async {
-    if (!isAuthorized) return null;
-    try {
-      final item = await _kit.nowPlayingItem;
-      if (item == null) return null;
+  Future<Map<String, dynamic>?> getNowPlaying() async => null;
 
-      final state = await _kit.playbackState;
-      final isPlaying = state == MusicPlayerState.playing;
-
-      // Build artwork URL at 300×300
-      String? artUrl;
-      try {
-        artUrl = item.artwork?.url(width: 300, height: 300);
-      } catch (_) {}
-
-      return {
-        'song': item.title ?? '',
-        'artist': item.artistName ?? '',
-        'album': item.albumTitle ?? '',
-        'artUrl': artUrl,
-        'isPlaying': isPlaying,
-      };
-    } catch (_) {
-      return null;
-    }
-  }
-
-  // ── Stream: live now-playing updates ──────────────────────────────────────
+  // ── Stream: player state changes ──────────────────────────────────────────
 
   Stream<Map<String, dynamic>?> get nowPlayingStream async* {
     if (!isAuthorized) return;
-    await for (final item in _kit.onNowPlayingItemChanged) {
-      if (item == null) {
-        yield null;
-        continue;
+    try {
+      await for (final state in _kit.onMusicPlayerStateChanged) {
+        final isPlaying = state.playbackStatus.toString().contains('playing');
+        yield {'isPlaying': isPlaying};
       }
-      try {
-        final state = await _kit.playbackState;
-        String? artUrl;
-        try { artUrl = item.artwork?.url(width: 300, height: 300); } catch (_) {}
-        yield {
-          'song': item.title ?? '',
-          'artist': item.artistName ?? '',
-          'album': item.albumTitle ?? '',
-          'artUrl': artUrl,
-          'isPlaying': state == MusicPlayerState.playing,
-        };
-      } catch (_) {
-        yield null;
-      }
-    }
+    } catch (_) {}
   }
 
   void disconnect() {

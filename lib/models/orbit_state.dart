@@ -425,8 +425,3 @@ class OrbitState {
     save();
   }
 }
-': DateTime.now().toIso8601String(),
-    });
-    save();
-  }
-}

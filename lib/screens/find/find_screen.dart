@@ -276,12 +276,12 @@ class _FindScreenState extends State<FindScreen>
                       ? const Center(child: CircularProgressIndicator(color: AuraTheme.accent))
                       : ListView(
                           padding: const EdgeInsets.all(16),
-                          children: (_searchedUsers.isNotEmpty ? _searchedUsers : _firestoreUsers)
-                              .map((u) => _FirestorePersonTile(data: u))
-                              .toList()
-                            ..addAll(_firestoreUsers.isEmpty && _searchedUsers.isEmpty
-                                ? _fallbackPeople.map((p) => _PersonTile(person: p)).toList()
-                                : []),
+                          children: [
+                            ...(_searchedUsers.isNotEmpty ? _searchedUsers : _firestoreUsers)
+                                .map((u) => _FirestorePersonTile(data: u)),
+                            if (_firestoreUsers.isEmpty && _searchedUsers.isEmpty)
+                              ..._fallbackPeople.map((p) => _PersonTile(person: p)),
+                          ],
                         ),
                   // Songs tab
                   _loadingSongs

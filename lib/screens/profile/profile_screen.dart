@@ -2453,7 +2453,6 @@ class _PinSongSheetState extends State<_PinSongSheet> {
                 final r = _results[i];
                 final artUrl = r['artUrl'] as String?;
                 return ListTile(
-                return ListTile(
                   contentPadding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
                   leading: ClipRRect(
                     borderRadius: BorderRadius.circular(8),
