@@ -35,6 +35,7 @@ class SocialService {
         'vibeStatusEmoji': s.vibeStatusEmoji,
         'pinnedSong': s.pinnedSong,
         'pinnedArtist': s.pinnedArtist,
+        if (s.pfpUrl != null) 'pfpUrl': s.pfpUrl,
         'updatedAt': FieldValue.serverTimestamp(),
       }, SetOptions(merge: true));
     } catch (_) {}

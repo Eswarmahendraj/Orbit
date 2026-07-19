@@ -1,0 +1,8 @@
+# ── Android Release Signing ────────────────────────────────────────────────────
+# Copy this file to android/key.properties (NEVER commit key.properties to git)
+# Fill in the values after running GENERATE_KEYSTORE.bat
+
+storePassword=YOUR_KEYSTORE_PASSWORD
+keyPassword=YOUR_KEY_PASSWORD
+keyAlias=upload
+storeFile=../upload-keystore.jks

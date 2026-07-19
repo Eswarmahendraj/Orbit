@@ -7,6 +7,7 @@ import 'models/orbit_state.dart';
 import 'services/spotify_service.dart';
 import 'services/apple_music_service.dart';
 import 'services/social_service.dart';
+import 'services/notification_service.dart';
 import 'theme/aura_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -26,6 +27,7 @@ void main() async {
   await AppleMusicService().load(); // check saved Apple Music auth (iOS only)
   SocialService().upsertProfile(); // publish profile to Firestore (fire & forget)
   OrbitState().checkStreak();
+  await NotificationService().init(); // FCM push notifications
 
   // Restore dark-mode preference
   final isDark = OrbitState().darkMode;
@@ -53,6 +55,7 @@ class OrbitApp extends StatelessWidget {
         theme: AuraTheme.dark,
         darkTheme: AuraTheme.darkTheme,
         themeMode: mode,
+        navigatorKey: navigatorKey,
         home: disguise ? const AppDisguiseScreen() : const OrbitRoot(),
       ),
     );

@@ -7,6 +7,9 @@ import 'package:just_audio/just_audio.dart';
 import '../../theme/aura_theme.dart';
 import '../../services/social_service.dart';
 import '../profile/other_profile_screen.dart';
+import 'package:cached_network_image/cached_network_image.dart';
+import '../../widgets/orb_skeleton.dart';
+import '../../widgets/orb_empty_state.dart';
 
 // ─── Models ───────────────────────────────────────────────────────────────────
 
@@ -273,26 +276,27 @@ class _FindScreenState extends State<FindScreen>
                 children: [
                   // People tab — real Firestore users, fallback to static
                   _loadingUsers
-                      ? const Center(child: CircularProgressIndicator(color: AuraTheme.accent))
-                      : ListView(
-                          padding: const EdgeInsets.all(16),
-                          children: [
-                            ...(_searchedUsers.isNotEmpty ? _searchedUsers : _firestoreUsers)
-                                .map((u) => _FirestorePersonTile(data: u)),
-                            if (_firestoreUsers.isEmpty && _searchedUsers.isEmpty)
-                              ..._fallbackPeople.map((p) => _PersonTile(person: p)),
-                          ],
-                        ),
+                      ? const SkeletonList(skeleton: PersonTileSkeleton())
+                      : (_firestoreUsers.isEmpty && _searchedUsers.isEmpty && _fallbackPeople.isEmpty)
+                          ? EmptyPeopleState(onExplore: () => _tabController.animateTo(1))
+                          : ListView(
+                              padding: const EdgeInsets.all(16),
+                              children: [
+                                ...(_searchedUsers.isNotEmpty ? _searchedUsers : _firestoreUsers)
+                                    .map((u) => _FirestorePersonTile(data: u)),
+                                if (_firestoreUsers.isEmpty && _searchedUsers.isEmpty)
+                                  ..._fallbackPeople.map((p) => _PersonTile(person: p)),
+                              ],
+                            ),
                   // Songs tab
                   _loadingSongs
-                      ? const Center(
-                          child: CircularProgressIndicator(
-                              color: AuraTheme.accent))
+                      ? const SkeletonList(skeleton: SongTileSkeleton())
                       : _songResults.isEmpty
-                          ? const Center(
-                              child: Text('search for a song',
-                                  style:
-                                      TextStyle(color: AuraTheme.textMuted)))
+                          ? const OrbEmptyState(
+                              emoji: '🎵',
+                              title: 'Search for a song',
+                              subtitle: 'Type a song, artist, or mood above to discover music.',
+                            )
                           : ListView.builder(
                               padding: const EdgeInsets.all(16),
                               itemCount: _songResults.length,
@@ -466,16 +470,22 @@ class _FirestorePersonTileState extends State<_FirestorePersonTile> {
               mood: mood, moodEmoji: moodEmoji,
               songTitle: widget.data['pinnedSong'] as String? ?? '',
               artistName: widget.data['pinnedArtist'] as String? ?? '',
+              pfpUrl: widget.data['pfpUrl'] as String?,
             ),
           )),
           child: CircleAvatar(
             radius: 22,
             backgroundColor: color.withOpacity(0.15),
-            child: Text(initial,
-                style: TextStyle(
-                    color: color,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16)),
+            backgroundImage: (widget.data['pfpUrl'] as String?) != null
+                ? CachedNetworkImageProvider(widget.data['pfpUrl'] as String)
+                : null,
+            child: (widget.data['pfpUrl'] as String?) == null
+                ? Text(initial,
+                    style: TextStyle(
+                        color: color,
+                        fontWeight: FontWeight.w700,
+                        fontSize: 16))
+                : null,
           ),
         ),
         const SizedBox(width: 12),

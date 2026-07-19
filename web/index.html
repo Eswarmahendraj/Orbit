@@ -16,5 +16,14 @@
 </head>
 <body>
   <script src="flutter_bootstrap.js" async></script>
+  <script>
+    // Register Firebase Messaging service worker for web push notifications
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker
+        .register('/firebase-messaging-sw.js')
+        .then(reg => console.log('FCM SW registered:', reg.scope))
+        .catch(err => console.warn('FCM SW registration failed:', err));
+    }
+  </script>
 </body>
 </html>

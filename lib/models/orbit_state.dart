@@ -17,6 +17,7 @@ class OrbitState {
   String username = '@you';
   String bio = '';
   File? pfpFile;
+  String? pfpUrl;   // Firebase Storage download URL (visible to other users)
   String pfpFilter = 'none';
 
   // Mood
@@ -127,6 +128,9 @@ class OrbitState {
   String vibeStatus = '';
   String vibeStatusEmoji = '';
 
+  // Notification mode: 'push' (banner+sound), 'sound' (chime only), 'off'
+  String notifMode = 'push';
+
   // Anonymous orbit confessions (user-posted)
   List<Map<String, dynamic>> orbitConfessions = [];
 
@@ -203,6 +207,7 @@ class OrbitState {
     username = p.getString('username') ?? '@you';
     bio = p.getString('bio') ?? '';
     pfpFilter = p.getString('pfpFilter') ?? 'none';
+    pfpUrl = p.getString('pfpUrl');
     mood = p.getString('mood') ?? 'chill';
     moodEmoji = p.getString('moodEmoji') ?? '☀️';
     darkMode = p.getBool('darkMode') ?? false;
@@ -256,6 +261,7 @@ class OrbitState {
       identityTags = List<String>.from(jsonDecode(tagsRaw));
     }
     identityTagsPublic = p.getBool('identityTagsPublic') ?? false;
+    notifMode = p.getString('notifMode') ?? 'push';
     momentStreak = p.getInt('momentStreak') ?? 0;
     lastMomentDate = p.getString('lastMomentDate') ?? '';
     pinnedSong = p.getString('pinnedSong') ?? '';
@@ -297,6 +303,7 @@ class OrbitState {
     await p.setString('sotdLastDate', sotdLastDate);
     await p.setInt('sotdReactionCount', sotdReactionCount);
     if (pfpFile != null) await p.setString('pfpPath', pfpFile!.path);
+    if (pfpUrl != null) await p.setString('pfpUrl', pfpUrl!); else await p.remove('pfpUrl');
     await p.setString('vibeSong', vibeSong);
     await p.setString('vibeArtist', vibeArtist);
     if (vibeArtUrl != null) await p.setString('vibeArtUrl', vibeArtUrl!);
@@ -315,6 +322,7 @@ class OrbitState {
     await p.setString('pinnedPreviewUrl', pinnedPreviewUrl);
     await p.setString('vibeStatus', vibeStatus);
     await p.setString('vibeStatusEmoji', vibeStatusEmoji);
+    await p.setString('notifMode', notifMode);
     await p.setString('orbitConfessions', jsonEncode(orbitConfessions));
     await p.setString('myMoments', jsonEncode(myMoments));
   }

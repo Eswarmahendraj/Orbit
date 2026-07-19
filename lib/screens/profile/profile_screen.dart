@@ -1,16 +1,19 @@
 import 'dart:async';
 import 'dart:math' as math;
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../models/orbit_state.dart';
-import 'dart:io';
 import '../../services/spotify_service.dart';
 import '../../services/apple_music_service.dart';
+import '../../services/storage_service.dart';
+import '../../services/social_service.dart';
 import '../../theme/aura_theme.dart';
+import '../../widgets/orb_skeleton.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
@@ -40,6 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen>
   // Spotify Now Playing
   Map<String, dynamic>? _spotifyNowPlaying;
   bool _spotifyLoading = false;
+  Timer? _spotifyPollTimer;
 
   // Apple Music Now Playing (iOS only)
   Map<String, dynamic>? _appleNowPlaying;
@@ -62,6 +66,10 @@ class _ProfileScreenState extends State<ProfileScreen>
     _fetchPreview();
     _fetchSpotifyNowPlaying();
     _fetchAppleNowPlaying();
+    // Poll Spotify every 30 s so the card stays live
+    _spotifyPollTimer = Timer.periodic(const Duration(seconds: 30), (_) {
+      if (SpotifyService().isConnected) _fetchSpotifyNowPlaying();
+    });
   }
 
   @override
@@ -69,6 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     _ringAnim.dispose();
     _player.dispose();
     _pinnedPlayer?.dispose();
+    _spotifyPollTimer?.cancel();
     super.dispose();
   }
 
@@ -118,17 +127,52 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
   }
 
+  double? _uploadProgress; // null = idle, 0–1 = uploading
+
   Future<void> _pickPhoto(ImageSource source) async {
     try {
       final xf = await ImagePicker().pickImage(
           source: source, imageQuality: 85, maxWidth: 800);
-      if (xf != null) {
-        final state = OrbitState();
-        state.pfpFile = File(xf.path);
-        await state.save();
+      if (xf == null) return;
+
+      final state = OrbitState();
+      if (mounted) setState(() => _uploadProgress = 0.0);
+
+      String? url;
+
+      if (kIsWeb) {
+        // On web, dart:io File doesn't exist — read raw bytes instead
+        final bytes = await xf.readAsBytes();
+        final mimeType = xf.mimeType ?? 'image/jpeg';
+        url = await StorageService().uploadProfilePhotoBytes(
+          bytes,
+          contentType: mimeType,
+          onProgress: (p) {
+            if (mounted) setState(() => _uploadProgress = p);
+          },
+        );
+      } else {
+        // Mobile: use File path + show local preview instantly
+        final file = File(xf.path);
+        state.pfpFile = file;
         if (mounted) setState(() {});
+        url = await StorageService().uploadProfilePhoto(
+          file,
+          onProgress: (p) {
+            if (mounted) setState(() => _uploadProgress = p);
+          },
+        );
       }
-    } catch (_) {}
+
+      state.pfpUrl = url;
+      await state.save();
+      // Publish updated pfpUrl to Firestore so other users see it
+      SocialService().upsertProfile();
+
+      if (mounted) setState(() => _uploadProgress = null);
+    } catch (_) {
+      if (mounted) setState(() => _uploadProgress = null);
+    }
   }
 
   void _showPfpOptions() {
@@ -461,20 +505,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
 
     if (_spotifyLoading) {
-      return Container(
-        margin: const EdgeInsets.symmetric(horizontal: 16),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AuraTheme.card,
-          borderRadius: BorderRadius.circular(16),
-        ),
-        child: const Row(children: [
-          SizedBox(width: 16, height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2, color: Color(0xFF1DB954))),
-          SizedBox(width: 12),
-          Text('checking Spotify...', style: TextStyle(color: AuraTheme.textMuted, fontSize: 13)),
-        ]),
-      );
+      return const NowPlayingCardSkeleton();
     }
 
     if (_spotifyNowPlaying == null) {
@@ -503,6 +534,9 @@ class _ProfileScreenState extends State<ProfileScreen>
     final track = _spotifyNowPlaying!;
     final isPlaying = track['isPlaying'] as bool? ?? false;
     final artUrl = track['artUrl'] as String?;
+    final progressMs = track['progressMs'] as int? ?? 0;
+    final durationMs = track['durationMs'] as int? ?? 1;
+    final progress = durationMs > 0 ? progressMs / durationMs : 0.0;
 
     return Container(
       margin: const EdgeInsets.symmetric(horizontal: 16),
@@ -512,59 +546,107 @@ class _ProfileScreenState extends State<ProfileScreen>
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: const Color(0xFF1DB954).withOpacity(0.3)),
       ),
-      child: Row(children: [
-        // Album art
-        ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: artUrl != null
-              ? Image.network(artUrl, width: 48, height: 48, fit: BoxFit.cover,
-                  errorBuilder: (_, __, ___) => _spotifyArtPlaceholder())
-              : _spotifyArtPlaceholder(),
-        ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Row(children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF1DB954).withOpacity(0.15),
-                  borderRadius: BorderRadius.circular(4),
-                ),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  Container(
-                    width: 5, height: 5,
-                    decoration: BoxDecoration(
-                      color: isPlaying ? const Color(0xFF1DB954) : AuraTheme.textMuted,
-                      shape: BoxShape.circle,
+      child: Column(children: [
+        Row(children: [
+          // Album art with live pulse
+          Stack(children: [
+            ClipRRect(
+              borderRadius: BorderRadius.circular(8),
+              child: artUrl != null
+                  ? Image.network(artUrl, width: 52, height: 52, fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => _spotifyArtPlaceholder())
+                  : _spotifyArtPlaceholder(),
+            ),
+            if (isPlaying)
+              Positioned.fill(
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: AnimatedBuilder(
+                    animation: _ringAnim,
+                    builder: (_, __) => CustomPaint(
+                      painter: _WaveformPainter(_ringAnim.value),
                     ),
                   ),
-                  const SizedBox(width: 4),
-                  Text(
-                    isPlaying ? 'LIVE' : 'PAUSED',
-                    style: TextStyle(
-                        color: isPlaying ? const Color(0xFF1DB954) : AuraTheme.textMuted,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w800),
-                  ),
-                ]),
+                ),
               ),
-            ]),
-            const SizedBox(height: 3),
-            Text(track['song'] as String,
-                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
-                maxLines: 1, overflow: TextOverflow.ellipsis),
-            Text(track['artist'] as String,
-                style: const TextStyle(color: AuraTheme.textMuted, fontSize: 11),
-                maxLines: 1, overflow: TextOverflow.ellipsis),
           ]),
-        ),
-        GestureDetector(
-          onTap: _fetchSpotifyNowPlaying,
-          child: const Icon(Icons.refresh, size: 16, color: AuraTheme.textMuted),
-        ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF1DB954).withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    if (isPlaying)
+                      _AnimatedBars()
+                    else
+                      Container(
+                        width: 5, height: 5,
+                        decoration: const BoxDecoration(
+                          color: AuraTheme.textMuted,
+                          shape: BoxShape.circle,
+                        ),
+                      ),
+                    const SizedBox(width: 4),
+                    Text(
+                      isPlaying ? 'LIVE' : 'PAUSED',
+                      style: TextStyle(
+                          color: isPlaying ? const Color(0xFF1DB954) : AuraTheme.textMuted,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800),
+                    ),
+                  ]),
+                ),
+                const Spacer(),
+                GestureDetector(
+                  onTap: _fetchSpotifyNowPlaying,
+                  child: const Icon(Icons.refresh, size: 14, color: AuraTheme.textMuted),
+                ),
+              ]),
+              const SizedBox(height: 4),
+              Text(track['song'] as String,
+                  style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+              Text(track['artist'] as String,
+                  style: const TextStyle(color: AuraTheme.textMuted, fontSize: 11),
+                  maxLines: 1, overflow: TextOverflow.ellipsis),
+            ]),
+          ),
+        ]),
+        // Progress bar
+        if (durationMs > 1) ...[
+          const SizedBox(height: 10),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(2),
+            child: LinearProgressIndicator(
+              value: progress.clamp(0.0, 1.0),
+              backgroundColor: AuraTheme.textMuted.withOpacity(0.15),
+              color: const Color(0xFF1DB954),
+              minHeight: 3,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(_msToTime(progressMs),
+                  style: const TextStyle(fontSize: 9, color: AuraTheme.textMuted)),
+              Text(_msToTime(durationMs),
+                  style: const TextStyle(fontSize: 9, color: AuraTheme.textMuted)),
+            ],
+          ),
+        ],
       ]),
     );
+  }
+
+  String _msToTime(int ms) {
+    final s = ms ~/ 1000;
+    return '${s ~/ 60}:${(s % 60).toString().padLeft(2, '0')}';
   }
 
   Widget _spotifyArtPlaceholder() => Container(
@@ -1782,18 +1864,40 @@ class _ProfileScreenState extends State<ProfileScreen>
                         decoration: const BoxDecoration(shape: BoxShape.circle),
                         child: ClipOval(child: _buildPfp(initial)),
                       ),
-                      Positioned(
-                        right: 4,
-                        bottom: 4,
-                        child: Container(
-                          width: 24,
-                          height: 24,
-                          decoration: const BoxDecoration(
-                              color: AuraTheme.accent, shape: BoxShape.circle),
-                          child: const Icon(Icons.camera_alt_rounded,
-                              color: Colors.white, size: 12),
+                      // Upload progress overlay
+                      if (_uploadProgress != null)
+                        Container(
+                          width: 90,
+                          height: 90,
+                          margin: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.black.withOpacity(0.5),
+                          ),
+                          child: Center(
+                            child: SizedBox(
+                              width: 36, height: 36,
+                              child: CircularProgressIndicator(
+                                value: _uploadProgress,
+                                color: AuraTheme.accent,
+                                strokeWidth: 3,
+                              ),
+                            ),
+                          ),
                         ),
-                      ),
+                      if (_uploadProgress == null)
+                        Positioned(
+                          right: 4,
+                          bottom: 4,
+                          child: Container(
+                            width: 24,
+                            height: 24,
+                            decoration: const BoxDecoration(
+                                color: AuraTheme.accent, shape: BoxShape.circle),
+                            child: const Icon(Icons.camera_alt_rounded,
+                                color: Colors.white, size: 12),
+                          ),
+                        ),
                     ]),
                   ),
                 ),
@@ -2714,4 +2818,86 @@ class _MomentDetailSheetState extends State<_MomentDetailSheet> {
       ),
     );
   }
+}
+
+// ── Animated music bars (Spotify "now playing" indicator) ─────────────────────
+class _AnimatedBars extends StatefulWidget {
+  const _AnimatedBars();
+  @override
+  State<_AnimatedBars> createState() => _AnimatedBarsState();
+}
+
+class _AnimatedBarsState extends State<_AnimatedBars>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _c;
+  late List<Animation<double>> _anims;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+      ..repeat(reverse: true);
+    _anims = [
+      Tween(begin: 2.0, end: 10.0).animate(CurvedAnimation(
+          parent: _c,
+          curve: const Interval(0.0, 0.7, curve: Curves.easeInOut))),
+      Tween(begin: 4.0, end: 10.0).animate(CurvedAnimation(
+          parent: _c,
+          curve: const Interval(0.2, 0.9, curve: Curves.easeInOut))),
+      Tween(begin: 2.0, end: 8.0).animate(CurvedAnimation(
+          parent: _c,
+          curve: const Interval(0.1, 0.8, curve: Curves.easeInOut))),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _c,
+    builder: (_, __) => Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: _anims.map((a) => Container(
+        width: 2.5,
+        height: a.value,
+        margin: const EdgeInsets.symmetric(horizontal: 0.5),
+        decoration: BoxDecoration(
+          color: const Color(0xFF1DB954),
+          borderRadius: BorderRadius.circular(1),
+        ),
+      )).toList(),
+    ),
+  );
+}
+
+// ── Subtle waveform overlay on album art while playing ────────────────────────
+class _WaveformPainter extends CustomPainter {
+  final double t;
+  _WaveformPainter(this.t);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = const Color(0xFF1DB954).withOpacity(0.18)
+      ..strokeWidth = 1.5
+      ..style = PaintingStyle.stroke;
+    final path = Path();
+    const steps = 40;
+    for (var i = 0; i <= steps; i++) {
+      final x = size.width * i / steps;
+      final y = size.height / 2 +
+          math.sin((i / steps * 2 * math.pi) + t * 2 * math.pi) *
+              (size.height * 0.25);
+      i == 0 ? path.moveTo(x, y) : path.lineTo(x, y);
+    }
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(_WaveformPainter old) => old.t != t;
 }

@@ -1,9 +1,11 @@
+import 'dart:convert';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:http/http.dart' as http;
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
 import '../reels/create_pulse_screen.dart';
@@ -337,10 +339,40 @@ class _PulseScreenState extends State<PulseScreen> {
     super.dispose();
   }
 
+  // Cache resolved preview URLs so we don't re-fetch on revisit
+  final Map<int, String> _resolvedUrls = {};
+
+  Future<String?> _fetchPreviewUrl(String song, String artist) async {
+    try {
+      final q = Uri.encodeQueryComponent('$song $artist');
+      final res = await http.get(
+        Uri.parse('https://itunes.apple.com/search?term=$q&media=music&limit=1&entity=song'),
+      ).timeout(const Duration(seconds: 5));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body) as Map<String, dynamic>;
+        final results = data['results'] as List?;
+        if (results != null && results.isNotEmpty) {
+          return results.first['previewUrl'] as String?;
+        }
+      }
+    } catch (_) {}
+    return null;
+  }
+
   Future<void> _playCard(int index) async {
-    final url = _seedCards[index].previewUrl;
+    final card = _seedCards[index];
     try {
       await _player.stop();
+      // Use hardcoded URL if available, otherwise fetch from iTunes
+      String? url = card.previewUrl;
+      if (url == null || url.isEmpty) {
+        if (_resolvedUrls.containsKey(index)) {
+          url = _resolvedUrls[index];
+        } else {
+          url = await _fetchPreviewUrl(card.song, card.artist);
+          if (url != null) _resolvedUrls[index] = url;
+        }
+      }
       if (url != null && url.isNotEmpty) {
         await _player.setUrl(url);
         await _player.setLoopMode(LoopMode.one);

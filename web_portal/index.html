@@ -1,0 +1,627 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orbit — Sign In</title>
+<meta name="description" content="Sign in to Orbit — the music social platform">
+<meta name="theme-color" content="#a855f7">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Orbit">
+<link rel="manifest" href="/manifest.json">
+<link rel="apple-touch-icon" href="https://raw.githubusercontent.com/googlefonts/noto-emoji/main/png/128/emoji_u1fa90.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0c081c;
+    --surface: #14102a;
+    --card: #1c1736;
+    --accent: #a855f7;
+    --accent2: #7c3aed;
+    --green: #1DB954;
+    --text: #f0eeff;
+    --muted: #7a7a9a;
+    --border: #2a2450;
+    --error: #f87171;
+  }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Stars background ── */
+  .stars {
+    position: fixed; inset: 0; overflow: hidden; pointer-events: none; z-index: 0;
+  }
+  .star {
+    position: absolute; border-radius: 50%;
+    background: white; animation: twinkle var(--d) infinite ease-in-out;
+    opacity: 0;
+  }
+  @keyframes twinkle {
+    0%,100% { opacity: 0; } 50% { opacity: var(--o); }
+  }
+
+  /* ── Screens ── */
+  .screen {
+    display: none; position: relative; z-index: 1;
+    width: 100%; max-width: 420px; padding: 24px 20px;
+  }
+  .screen.active { display: block; }
+
+  /* ── Login screen ── */
+  .logo { text-align: center; margin-bottom: 36px; }
+  .logo .ring {
+    width: 72px; height: 72px; margin: 0 auto 12px;
+    border: 4px solid var(--accent);
+    border-radius: 50%;
+    position: relative;
+    animation: spin 8s linear infinite;
+    box-shadow: 0 0 24px #a855f730;
+  }
+  .logo .ring::before {
+    content: ''; position: absolute;
+    width: 12px; height: 12px;
+    background: white; border-radius: 50%;
+    top: -6px; left: 50%; transform: translateX(-50%);
+    box-shadow: 0 0 8px white;
+  }
+  .logo .ring::after {
+    content: ''; position: absolute;
+    width: 8px; height: 8px;
+    background: var(--accent); border-radius: 50%;
+    bottom: -4px; left: 50%; transform: translateX(-50%);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .logo h1 { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo p { color: var(--muted); font-size: 13px; margin-top: 4px; }
+
+  .card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 28px 24px;
+  }
+
+  .tabs {
+    display: flex; gap: 2px;
+    background: var(--surface); border-radius: 12px;
+    padding: 4px; margin-bottom: 24px;
+  }
+  .tab {
+    flex: 1; padding: 8px; border: none; border-radius: 9px;
+    font-size: 14px; font-weight: 600; cursor: pointer;
+    background: transparent; color: var(--muted); transition: all .2s;
+  }
+  .tab.active { background: var(--accent2); color: white; }
+
+  label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 6px; font-weight: 600; letter-spacing: 0.5px; }
+  input {
+    width: 100%; padding: 12px 14px;
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; color: var(--text); font-size: 15px;
+    outline: none; transition: border .2s; margin-bottom: 16px;
+  }
+  input:focus { border-color: var(--accent); }
+  input::placeholder { color: var(--muted); }
+
+  .btn {
+    width: 100%; padding: 13px;
+    background: var(--accent); color: white;
+    border: none; border-radius: 12px;
+    font-size: 15px; font-weight: 700; cursor: pointer;
+    transition: opacity .2s, transform .1s;
+    margin-bottom: 12px;
+  }
+  .btn:hover { opacity: 0.9; }
+  .btn:active { transform: scale(0.98); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  .btn-google {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .btn-google svg { width: 18px; height: 18px; }
+
+  .divider {
+    display: flex; align-items: center; gap: 10px;
+    margin: 16px 0; color: var(--muted); font-size: 12px;
+  }
+  .divider::before, .divider::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  .error-msg {
+    background: #2a0a0a; border: 1px solid #7f1d1d;
+    color: var(--error); border-radius: 10px;
+    padding: 10px 14px; font-size: 13px; margin-bottom: 14px;
+    display: none;
+  }
+  .error-msg.show { display: block; }
+
+  .forgot { text-align: center; margin-top: 12px; }
+  .forgot a { color: var(--accent); font-size: 13px; cursor: pointer; }
+
+  /* ── Dashboard screen ── */
+  #dashboard {
+    max-width: 520px; padding: 0;
+  }
+
+  .dash-header {
+    background: var(--card);
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex; align-items: center; justify-content: space-between;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .dash-header .brand { font-size: 18px; font-weight: 800; color: var(--accent); }
+  .dash-header .sign-out {
+    font-size: 13px; color: var(--muted); cursor: pointer; background: none; border: none;
+    padding: 6px 12px; border-radius: 8px; transition: background .2s;
+  }
+  .dash-header .sign-out:hover { background: var(--surface); color: var(--text); }
+
+  .dash-body { padding: 24px; display: flex; flex-direction: column; gap: 16px; }
+
+  .profile-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 20px; padding: 24px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 800; flex-shrink: 0;
+    overflow: hidden;
+  }
+  .avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .profile-info h2 { font-size: 18px; font-weight: 800; }
+  .profile-info p { color: var(--muted); font-size: 13px; margin-top: 3px; }
+
+  .badge {
+    display: inline-block; padding: 3px 10px;
+    background: var(--accent2); color: white;
+    border-radius: 20px; font-size: 11px; font-weight: 700;
+    margin-top: 6px; letter-spacing: 0.5px;
+  }
+
+  .info-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+  }
+  .info-card h3 { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 0.8px; margin-bottom: 12px; }
+
+  .stat-row { display: flex; gap: 12px; }
+  .stat {
+    flex: 1; background: var(--surface); border-radius: 12px; padding: 14px;
+    text-align: center;
+  }
+  .stat .num { font-size: 22px; font-weight: 800; color: var(--accent); }
+  .stat .label { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+  .now-playing {
+    background: linear-gradient(135deg, #0f3d1e, #0c1a10);
+    border: 1px solid #1a5c2a;
+    border-radius: 16px; padding: 16px;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .now-playing .art {
+    width: 48px; height: 48px; border-radius: 8px;
+    background: #1a5c2a; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .np-label {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: 800; color: var(--green); letter-spacing: 0.8px;
+    margin-bottom: 4px;
+  }
+  .np-dot { width: 5px; height: 5px; border-radius: 50%; background: var(--green); animation: pulse 1s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.3} }
+  .now-playing h4 { font-size: 14px; font-weight: 700; }
+  .now-playing p { font-size: 12px; color: var(--muted); }
+
+  .connect-spotify {
+    background: var(--surface); border: 1px solid #1a5c2a;
+    border-radius: 16px; padding: 16px;
+    display: flex; align-items: center; gap: 14px; cursor: pointer;
+    transition: border-color .2s;
+  }
+  .connect-spotify:hover { border-color: var(--green); }
+  .connect-spotify .icon { font-size: 28px; }
+  .connect-spotify h4 { font-size: 14px; font-weight: 700; color: var(--green); }
+  .connect-spotify p { font-size: 12px; color: var(--muted); }
+
+  .download-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px; text-align: center;
+  }
+  .download-card p { color: var(--muted); font-size: 13px; margin-bottom: 14px; }
+  .dl-btns { display: flex; gap: 10px; }
+  .dl-btn {
+    flex: 1; padding: 11px; border-radius: 10px; font-size: 13px; font-weight: 700;
+    cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+    color: var(--text); transition: all .2s;
+  }
+  .dl-btn:hover { background: var(--accent2); border-color: var(--accent2); }
+
+  .spinner {
+    width: 20px; height: 20px; border: 2px solid #ffffff40;
+    border-top-color: white; border-radius: 50%;
+    animation: spin .6s linear infinite; margin: 0 auto;
+    display: none;
+  }
+
+  @media (max-width: 480px) {
+    .stat-row { flex-direction: column; }
+    .dl-btns { flex-direction: column; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Stars -->
+<div class="stars" id="stars"></div>
+
+<!-- ── Login Screen ── -->
+<div class="screen active" id="loginScreen">
+  <div class="logo">
+    <div class="ring"></div>
+    <h1>🪐 Orbit</h1>
+    <p>The music social platform</p>
+  </div>
+
+  <div class="card">
+    <div class="tabs">
+      <button class="tab active" onclick="switchTab('login')">Sign In</button>
+      <button class="tab" onclick="switchTab('signup')">Create Account</button>
+    </div>
+
+    <div id="errorMsg" class="error-msg"></div>
+
+    <!-- Login form -->
+    <div id="loginForm">
+      <label>EMAIL</label>
+      <input type="email" id="loginEmail" placeholder="you@example.com" />
+      <label>PASSWORD</label>
+      <input type="password" id="loginPassword" placeholder="••••••••" />
+      <button class="btn" onclick="signInEmail()" id="loginBtn">
+        <span id="loginBtnText">Sign In</span>
+        <div class="spinner" id="loginSpinner"></div>
+      </button>
+      <div class="divider">or</div>
+      <button class="btn btn-google" onclick="signInGoogle()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+      <div class="forgot"><a onclick="forgotPassword()">Forgot password?</a></div>
+    </div>
+
+    <!-- Signup form -->
+    <div id="signupForm" style="display:none">
+      <label>DISPLAY NAME</label>
+      <input type="text" id="signupName" placeholder="Your name" />
+      <label>EMAIL</label>
+      <input type="email" id="signupEmail" placeholder="you@example.com" />
+      <label>PASSWORD</label>
+      <input type="password" id="signupPassword" placeholder="Min. 6 characters" />
+      <button class="btn" onclick="signUp()" id="signupBtn">
+        <span id="signupBtnText">Create Account</span>
+        <div class="spinner" id="signupSpinner"></div>
+      </button>
+      <div class="divider">or</div>
+      <button class="btn btn-google" onclick="signInGoogle()">
+        <svg viewBox="0 0 24 24"><path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/><path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z"/><path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+        Continue with Google
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Dashboard Screen ── -->
+<div class="screen" id="dashboard" style="max-width:520px">
+  <div class="dash-header">
+    <span class="brand">🪐 Orbit</span>
+    <button class="sign-out" onclick="signOut()">Sign out</button>
+  </div>
+  <div class="dash-body">
+
+    <!-- Profile card -->
+    <div class="profile-card">
+      <div class="avatar" id="dashAvatar">?</div>
+      <div class="profile-info">
+        <h2 id="dashName">Loading…</h2>
+        <p id="dashEmail"></p>
+        <span class="badge">🎵 Beta Member</span>
+      </div>
+    </div>
+
+    <!-- Stats -->
+    <div class="info-card">
+      <h3>YOUR ORBIT</h3>
+      <div class="stat-row">
+        <div class="stat"><div class="num">—</div><div class="label">Following</div></div>
+        <div class="stat"><div class="num">—</div><div class="label">Followers</div></div>
+        <div class="stat"><div class="num">—</div><div class="label">Day Streak</div></div>
+      </div>
+    </div>
+
+    <!-- Now playing -->
+    <div class="info-card">
+      <h3>NOW PLAYING</h3>
+      <div class="connect-spotify" id="spotifyConnect">
+        <div class="icon">🎵</div>
+        <div>
+          <h4>Connect Spotify</h4>
+          <p>Show what you're hearing live on your profile</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Download app -->
+    <div class="download-card">
+      <h3 style="font-size:15px;font-weight:800;margin-bottom:8px;">Get the full experience</h3>
+      <p>The Orbit app has Pulse, Vybe Map, Campfire, and more — all powered by music.</p>
+      <div class="dl-btns">
+        <button class="dl-btn" onclick="alert('Coming soon to Google Play!')">📱 Android (Beta)</button>
+        <button class="dl-btn" onclick="alert('Coming soon to TestFlight!')">🍎 iOS (TestFlight)</button>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Firebase SDK -->
+<script type="module">
+  import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+  import { getMessaging, getToken, onMessage } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-messaging.js';
+  import {
+    getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword,
+    signInWithPopup, GoogleAuthProvider, onAuthStateChanged,
+    sendPasswordResetEmail, updateProfile,
+    signOut as fbSignOut
+  } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
+  import {
+    getFirestore, doc, setDoc, getDoc, serverTimestamp
+  } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+  // ── Firebase config (from your Firebase project) ───────────────────────────
+  const app = initializeApp({
+    apiKey: 'AIzaSyA-qXcXK9ujcMkSf0-91pAmuy5IVXhUqI8',
+    authDomain: 'aura-4e337.firebaseapp.com',
+    projectId: 'aura-4e337',
+    storageBucket: 'aura-4e337.appspot.com',
+    messagingSenderId: '500091326393',
+    appId: '1:500091326393:web:cf47d49588b8ccb5'
+  });
+
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  const googleProvider = new GoogleAuthProvider();
+  const messaging = getMessaging(app);
+  const VAPID_KEY = 'BLbP7XwfptWDBjzJR1UlwUZbpZAPjsrhdRGxElj6h2n844gbo9I72PZDSVpypeGckgHgJLPpPnjfSkknkn10QQY';
+
+  // Register service worker + request web push permission after sign-in
+  async function initWebPush(uid) {
+    try {
+      if (!('serviceWorker' in navigator) || !('Notification' in window)) return;
+      const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') return;
+      const token = await getToken(messaging, { vapidKey: VAPID_KEY, serviceWorkerRegistration: reg });
+      if (!token) return;
+      // Save token to Firestore under /users/{uid}/tokens/{token}
+      const { doc, setDoc, serverTimestamp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+      await setDoc(doc(db, 'users', uid, 'tokens', token), {
+        token, updatedAt: serverTimestamp(),
+      });
+      // Handle foreground messages
+      onMessage(messaging, (payload) => {
+        const { title, body } = payload.notification ?? {};
+        if (title) console.log(`🔔 ${title}: ${body}`);
+      });
+    } catch (e) { console.warn('Web push init failed:', e); }
+  }
+
+  // ── Auth state listener ────────────────────────────────────────────────────
+  onAuthStateChanged(auth, async (user) => {
+    if (user) {
+      showDashboard(user);
+      await upsertUserProfile(user);
+      await initWebPush(user.uid);
+    } else {
+      showLogin();
+    }
+  });
+
+  // ── Upsert profile to Firestore ────────────────────────────────────────────
+  async function upsertUserProfile(user) {
+    try {
+      const ref = doc(db, 'users', user.uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        await setDoc(ref, {
+          uid: user.uid,
+          displayName: user.displayName || user.email.split('@')[0],
+          email: user.email,
+          pfpUrl: user.photoURL || null,
+          mood: 'chill',
+          moodEmoji: '☀️',
+          updatedAt: serverTimestamp(),
+          createdAt: serverTimestamp(),
+        });
+      } else {
+        await setDoc(ref, {
+          email: user.email,
+          pfpUrl: user.photoURL || snap.data().pfpUrl || null,
+          updatedAt: serverTimestamp(),
+        }, { merge: true });
+      }
+    } catch (e) { console.error(e); }
+  }
+
+  // ── Show / hide screens ────────────────────────────────────────────────────
+  function showDashboard(user) {
+    document.getElementById('loginScreen').classList.remove('active');
+    document.getElementById('dashboard').classList.add('active');
+
+    const name = user.displayName || user.email.split('@')[0] || 'Orbiter';
+    const email = user.email;
+    const photo = user.photoURL;
+
+    document.getElementById('dashName').textContent = name;
+    document.getElementById('dashEmail').textContent = email;
+
+    const avatarEl = document.getElementById('dashAvatar');
+    if (photo) {
+      avatarEl.innerHTML = `<img src="${photo}" alt="avatar">`;
+    } else {
+      avatarEl.textContent = name[0].toUpperCase();
+    }
+  }
+
+  function showLogin() {
+    document.getElementById('dashboard').classList.remove('active');
+    document.getElementById('loginScreen').classList.add('active');
+  }
+
+  // ── Email sign in ──────────────────────────────────────────────────────────
+  window.signInEmail = async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    const password = document.getElementById('loginPassword').value;
+    if (!email || !password) return showError('Please fill in all fields.');
+    setLoading('login', true);
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+    } catch (e) {
+      showError(friendlyError(e.code));
+    } finally {
+      setLoading('login', false);
+    }
+  };
+
+  // ── Sign up ────────────────────────────────────────────────────────────────
+  window.signUp = async () => {
+    const name = document.getElementById('signupName').value.trim();
+    const email = document.getElementById('signupEmail').value.trim();
+    const password = document.getElementById('signupPassword').value;
+    if (!name || !email || !password) return showError('Please fill in all fields.');
+    if (password.length < 6) return showError('Password must be at least 6 characters.');
+    setLoading('signup', true);
+    try {
+      const cred = await createUserWithEmailAndPassword(auth, email, password);
+      await updateProfile(cred.user, { displayName: name });
+      // onAuthStateChanged fires automatically
+    } catch (e) {
+      showError(friendlyError(e.code));
+    } finally {
+      setLoading('signup', false);
+    }
+  };
+
+  // ── Google sign in ─────────────────────────────────────────────────────────
+  window.signInGoogle = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user') showError(friendlyError(e.code));
+    }
+  };
+
+  // ── Forgot password ────────────────────────────────────────────────────────
+  window.forgotPassword = async () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    if (!email) return showError('Enter your email address first, then click Forgot password.');
+    try {
+      await sendPasswordResetEmail(auth, email);
+      showError('✅ Reset email sent! Check your inbox.', true);
+    } catch (e) {
+      showError(friendlyError(e.code));
+    }
+  };
+
+  // ── Sign out ───────────────────────────────────────────────────────────────
+  window.signOut = () => fbSignOut(auth);
+
+  // ── Tab switching ──────────────────────────────────────────────────────────
+  window.switchTab = (tab) => {
+    document.getElementById('loginForm').style.display = tab === 'login' ? 'block' : 'none';
+    document.getElementById('signupForm').style.display = tab === 'signup' ? 'block' : 'none';
+    document.querySelectorAll('.tab').forEach((t, i) =>
+      t.classList.toggle('active', (i === 0) === (tab === 'login')));
+    clearError();
+  };
+
+  // ── Helpers ────────────────────────────────────────────────────────────────
+  function showError(msg, success = false) {
+    const el = document.getElementById('errorMsg');
+    el.textContent = msg;
+    el.style.background = success ? '#0a2a1a' : '#2a0a0a';
+    el.style.borderColor = success ? '#1a7a3a' : '#7f1d1d';
+    el.style.color = success ? '#4ade80' : '#f87171';
+    el.classList.add('show');
+  }
+  function clearError() { document.getElementById('errorMsg').classList.remove('show'); }
+
+  function setLoading(type, loading) {
+    const btn = document.getElementById(type + 'Btn');
+    const text = document.getElementById(type + 'BtnText');
+    const spinner = document.getElementById(type + 'Spinner');
+    btn.disabled = loading;
+    text.style.display = loading ? 'none' : 'inline';
+    spinner.style.display = loading ? 'block' : 'none';
+  }
+
+  function friendlyError(code) {
+    const map = {
+      'auth/user-not-found': 'No account found with that email.',
+      'auth/wrong-password': 'Incorrect password.',
+      'auth/invalid-email': 'Please enter a valid email address.',
+      'auth/email-already-in-use': 'An account with this email already exists.',
+      'auth/weak-password': 'Password must be at least 6 characters.',
+      'auth/too-many-requests': 'Too many attempts. Try again in a few minutes.',
+      'auth/network-request-failed': 'Network error. Check your connection.',
+      'auth/invalid-credential': 'Incorrect email or password.',
+    };
+    return map[code] || 'Something went wrong. Please try again.';
+  }
+</script>
+
+<script>
+  // Generate starfield
+  const container = document.getElementById('stars');
+  for (let i = 0; i < 80; i++) {
+    const s = document.createElement('div');
+    s.className = 'star';
+    const size = Math.random() * 2 + 1;
+    s.style.cssText = `
+      left:${Math.random()*100}%;top:${Math.random()*100}%;
+      width:${size}px;height:${size}px;
+      --d:${(Math.random()*4+2).toFixed(1)}s;
+      --o:${(Math.random()*0.6+0.2).toFixed(2)};
+      animation-delay:${(Math.random()*5).toFixed(1)}s;
+    `;
+    container.appendChild(s);
+  }
+
+  // Enter key support
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Enter') return;
+    const loginVisible = document.getElementById('loginForm').style.display !== 'none';
+    if (loginVisible) window.signInEmail();
+    else window.signUp();
+  });
+</script>
+</body>
+</html>

@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/message_model.dart';
+import 'notification_service.dart';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -46,7 +47,16 @@ class ChatService {
       'participants': [senderId, receiverId],
       'lastMessageAt': Timestamp.now(),
       'lastSenderId': senderId,
+      'participantNames': {senderId: senderAuraName},
     }, SetOptions(merge: true));
+
+    // Push notification to recipient
+    NotificationService().sendDmNotification(
+      recipientUid: receiverId,
+      senderName: senderAuraName,
+      messageText: content,
+      dmId: chatId,
+    );
   }
 
   // ── Campfire Room Chat ─────────────────────────────────────

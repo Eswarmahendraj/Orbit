@@ -18,6 +18,13 @@ if (flutterVersionCode == null) { flutterVersionCode = '1' }
 def flutterVersionName = localProperties.getProperty('flutter.versionName')
 if (flutterVersionName == null) { flutterVersionName = '1.0' }
 
+// ── Release signing from key.properties (not committed to git) ────────────────
+def keyPropertiesFile = rootProject.file('key.properties')
+def keyProperties = new Properties()
+if (keyPropertiesFile.exists()) {
+    keyPropertiesFile.withReader('UTF-8') { reader -> keyProperties.load(reader) }
+}
+
 android {
     namespace 'com.aura.app'
     compileSdkVersion 36
@@ -32,6 +39,17 @@ android {
         multiDexEnabled true
     }
 
+    signingConfigs {
+        release {
+            if (keyPropertiesFile.exists()) {
+                keyAlias keyProperties['keyAlias']
+                keyPassword keyProperties['keyPassword']
+                storeFile keyProperties['storeFile'] ? file(keyProperties['storeFile']) : null
+                storePassword keyProperties['storePassword']
+            }
+        }
+    }
+
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_17
         targetCompatibility JavaVersion.VERSION_17
@@ -39,7 +57,10 @@ android {
 
     buildTypes {
         release {
-            signingConfig signingConfigs.debug
+            // Use release keystore if key.properties exists, else fall back to debug
+            signingConfig keyPropertiesFile.exists()
+                ? signingConfigs.release
+                : signingConfigs.debug
             minifyEnabled false
             shrinkResources false
         }

@@ -276,33 +276,74 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   // ── Notifications section ─────────────────────────────────────────────────
 
+  String get _notifModeLabel {
+    switch (_s.notifMode) {
+      case 'sound':
+        return 'Sound only';
+      case 'off':
+        return 'Off';
+      default:
+        return 'Push + Sound';
+    }
+  }
+
   Widget _notifSection() => Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           _section('notifications'),
-          _switch(
-            title: 'New clip from friend',
-            value: true,
-            onChanged: (_) {},
-          ),
-          _switch(
-            title: 'Streak reminder',
-            subtitle: 'Daily nudge to keep your clip streak alive',
-            value: true,
-            onChanged: (_) {},
-          ),
-          _switch(
-            title: 'Fire reactions',
-            value: true,
-            onChanged: (_) {},
-          ),
-          _switch(
-            title: 'New sync request',
-            value: true,
-            onChanged: (_) {},
+          _tile(
+            title: 'Notification style',
+            subtitle: _notifModeLabel,
+            onTap: () => _showNotifModeSheet(),
           ),
         ],
       );
+
+  void _showNotifModeSheet() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AuraTheme.card,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Text('Notification style',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          const Text(
+            'Choose how you want to be alerted when something happens.',
+            style: TextStyle(fontSize: 12, color: AuraTheme.textMuted),
+          ),
+          const SizedBox(height: 16),
+          for (final opt in [
+            ('push', '🔔  Push + Sound', 'Banner notification with sound'),
+            ('sound', '🎵  Sound only', 'Plays a chime — no banner'),
+            ('off', '🔕  Off', 'No notification at all'),
+          ])
+            ListTile(
+              title: Text(opt.$2,
+                  style: const TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 15)),
+              subtitle: Text(opt.$3,
+                  style: const TextStyle(
+                      fontSize: 12, color: AuraTheme.textMuted)),
+              trailing: _s.notifMode == opt.$1
+                  ? const Icon(Icons.check_circle_rounded,
+                      color: AuraTheme.accent)
+                  : null,
+              onTap: () {
+                _s.notifMode = opt.$1;
+                _s.save();
+                setState(() {});
+                Navigator.pop(context);
+              },
+            ),
+          const SizedBox(height: 8),
+        ]),
+      ),
+    );
+  }
 
   // ── Appearance section ────────────────────────────────────────────────────
 

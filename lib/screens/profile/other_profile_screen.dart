@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/orbit_state.dart';
 import '../../theme/aura_theme.dart';
 import '../home/dm_screen.dart';
@@ -27,6 +28,7 @@ class OtherProfileScreen extends StatefulWidget {
   final String artistName;
   final String? previewUrl;
   final List<String>? moodTags;
+  final String? pfpUrl;
 
   const OtherProfileScreen({
     super.key,
@@ -40,6 +42,7 @@ class OtherProfileScreen extends StatefulWidget {
     required this.artistName,
     this.previewUrl,
     this.moodTags,
+    this.pfpUrl,
   });
 
   @override
@@ -381,14 +384,39 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                         shape: BoxShape.circle,
                         color: widget.userColor.withOpacity(0.15),
                       ),
-                      alignment: Alignment.center,
-                      child: Text(
-                        widget.initial,
-                        style: TextStyle(
-                            color: widget.userColor,
-                            fontSize: 36,
-                            fontWeight: FontWeight.w800),
-                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: widget.pfpUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: widget.pfpUrl!,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Center(
+                                child: Text(
+                                  widget.initial,
+                                  style: TextStyle(
+                                      color: widget.userColor,
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                              errorWidget: (_, __, ___) => Center(
+                                child: Text(
+                                  widget.initial,
+                                  style: TextStyle(
+                                      color: widget.userColor,
+                                      fontSize: 36,
+                                      fontWeight: FontWeight.w800),
+                                ),
+                              ),
+                            )
+                          : Center(
+                              child: Text(
+                                widget.initial,
+                                style: TextStyle(
+                                    color: widget.userColor,
+                                    fontSize: 36,
+                                    fontWeight: FontWeight.w800),
+                              ),
+                            ),
                     ),
                   ),
                 ),

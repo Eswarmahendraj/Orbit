@@ -2,10 +2,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/user_model.dart';
 import '../../services/chat_service.dart';
 import '../home/dm_screen.dart';
+import '../../widgets/orb_skeleton.dart';
+import '../../widgets/orb_empty_state.dart';
 
 class MessagesScreen extends StatefulWidget {
   const MessagesScreen({super.key});
@@ -115,7 +118,17 @@ class _FirestoreConvList extends StatelessWidget {
           .orderBy('lastMessageAt', descending: true)
           .snapshots(),
       builder: (ctx, snap) {
+        // Loading skeleton
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const SkeletonList(skeleton: MessageTileSkeleton(), count: 5);
+        }
         final firestoreChats = snap.data?.docs ?? [];
+        // Show empty state when no Firestore chats and no local DMs
+        if (firestoreChats.isEmpty && localDms.isEmpty) {
+          return EmptyDMsState(
+            onFind: () => Navigator.of(ctx).popUntil((r) => r.isFirst),
+          );
+        }
         return ListView(
           padding: const EdgeInsets.all(20),
           children: [
@@ -137,18 +150,29 @@ class _FirestoreConvList extends StatelessWidget {
                     Map<String, dynamic>.from(data['participantNames'] ?? {});
                 final otherName = names[otherUid]?.toString() ?? 'User';
                 final lastMsg = data['lastMessage']?.toString() ?? '';
-                return ListTile(
+                // Load other user's pfpUrl from Firestore in real time
+                return FutureBuilder<DocumentSnapshot>(
+                  future: FirebaseFirestore.instance
+                      .collection('users').doc(otherUid).get(),
+                  builder: (_, userSnap) {
+                    final pfpUrl = (userSnap.data?.data() as Map<String, dynamic>?)?['pfpUrl'] as String?;
+                    return ListTile(
                   contentPadding: const EdgeInsets.symmetric(vertical: 6),
                   leading: CircleAvatar(
                     radius: 24,
                     backgroundColor: AuraColors.accent.withOpacity(0.15),
-                    child: Text(
-                      otherName.isNotEmpty ? otherName[0].toUpperCase() : 'U',
-                      style: const TextStyle(
-                          color: AuraColors.accent,
-                          fontWeight: FontWeight.w700,
-                          fontSize: 18),
-                    ),
+                    backgroundImage: pfpUrl != null
+                        ? CachedNetworkImageProvider(pfpUrl)
+                        : null,
+                    child: pfpUrl == null
+                        ? Text(
+                            otherName.isNotEmpty ? otherName[0].toUpperCase() : 'U',
+                            style: const TextStyle(
+                                color: AuraColors.accent,
+                                fontWeight: FontWeight.w700,
+                                fontSize: 18),
+                          )
+                        : null,
                   ),
                   title: Text(otherName,
                       style: const TextStyle(fontWeight: FontWeight.w600)),
@@ -167,6 +191,8 @@ class _FirestoreConvList extends StatelessWidget {
                     ),
                   )),
                 );
+                  }, // FutureBuilder builder
+                ); // FutureBuilder
               }),
               const Divider(height: 24),
             ],

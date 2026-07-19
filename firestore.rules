@@ -1,0 +1,241 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isAuth() && request.auth.uid == uid;
+    }
+
+    function isFollower(ownerUid) {
+      return isAuth() &&
+        exists(/databases/$(database)/documents/users/$(ownerUid)/followers/$(request.auth.uid));
+    }
+
+    function isPublicProfile(uid) {
+      return get(/databases/$(database)/documents/users/$(uid)).data.get('isPrivate', false) == false;
+    }
+
+    function validString(field, maxLen) {
+      return field is string && field.size() <= maxLen;
+    }
+
+    function notChanging(field) {
+      return !(field in request.resource.data) ||
+             request.resource.data[field] == resource.data[field];
+    }
+
+    // ── Users ──────────────────────────────────────────────────────────────────
+    // /users/{uid}  — profile document
+
+    match /users/{uid} {
+      // Any authenticated user can read a public profile; followers can read private ones
+      allow read: if isAuth() && (isOwner(uid) || isPublicProfile(uid) || isFollower(uid));
+
+      // Only the owner can create/update their own profile
+      allow create: if isOwner(uid)
+        && validString(request.resource.data.get('displayName', ''), 60)
+        && validString(request.resource.data.get('bio', ''), 300);
+
+      allow update: if isOwner(uid)
+        && notChanging('uid')
+        && validString(request.resource.data.get('displayName', ''), 60)
+        && validString(request.resource.data.get('bio', ''), 300);
+
+      // No one can delete a user document via client SDK
+      allow delete: if false;
+
+      // ── Followers sub-collection ────────────────────────────────────────────
+      // /users/{uid}/followers/{followerId}
+      match /followers/{followerId} {
+        allow read: if isAuth();
+        allow write: if isOwner(followerId);
+        allow delete: if isOwner(followerId);
+      }
+
+      // ── Following sub-collection ────────────────────────────────────────────
+      // /users/{uid}/following/{targetId}
+      match /following/{targetId} {
+        allow read: if isAuth() && (isOwner(uid) || isOwner(targetId));
+        allow write: if isOwner(uid);
+        allow delete: if isOwner(uid);
+      }
+
+      // ── FCM tokens ─────────────────────────────────────────────────────────
+      // /users/{uid}/tokens/{tokenId}
+      match /tokens/{tokenId} {
+        allow read, write, delete: if isOwner(uid);
+      }
+    }
+
+    // ── Direct Messages ────────────────────────────────────────────────────────
+    // /dms/{dmId}  — dmId = sorted(uid1, uid2).join('_')
+
+    match /dms/{dmId} {
+      function isParticipant() {
+        return isAuth() && (
+          request.auth.uid == resource.data.get('uid1', '') ||
+          request.auth.uid == resource.data.get('uid2', '')
+        );
+      }
+
+      function isNewParticipant() {
+        return isAuth() && (
+          request.auth.uid == request.resource.data.get('uid1', '') ||
+          request.auth.uid == request.resource.data.get('uid2', '')
+        );
+      }
+
+      allow read: if isParticipant();
+      allow create: if isNewParticipant();
+      allow update: if isParticipant();
+      allow delete: if false;
+
+      // ── Messages sub-collection ─────────────────────────────────────────────
+      // /dms/{dmId}/messages/{msgId}
+      match /messages/{msgId} {
+        function dmParticipant() {
+          return isAuth() && (
+            request.auth.uid ==
+              get(/databases/$(database)/documents/dms/$(dmId)).data.get('uid1', '') ||
+            request.auth.uid ==
+              get(/databases/$(database)/documents/dms/$(dmId)).data.get('uid2', '')
+          );
+        }
+
+        allow read: if dmParticipant();
+        allow create: if dmParticipant()
+          && request.resource.data.senderId == request.auth.uid
+          && validString(request.resource.data.get('text', ''), 2000);
+        allow update: if false;  // messages are immutable
+        allow delete: if false;
+      }
+    }
+
+    // ── Activity Feed ──────────────────────────────────────────────────────────
+    // /activity/{uid}/items/{itemId}
+
+    match /activity/{uid}/items/{itemId} {
+      allow read: if isOwner(uid);
+      // Any authenticated user can write to another's feed (e.g. follow/like notifications)
+      allow create: if isAuth()
+        && validString(request.resource.data.get('type', ''), 30);
+      allow update, delete: if isOwner(uid);
+    }
+
+    // ── Campfire (group chats) ─────────────────────────────────────────────────
+    // /campfires/{campfireId}
+
+    match /campfires/{campfireId} {
+      function isMember() {
+        return isAuth() &&
+          request.auth.uid in resource.data.get('memberIds', []);
+      }
+
+      function isAdmin() {
+        return isAuth() &&
+          request.auth.uid == resource.data.get('adminId', '');
+      }
+
+      allow read: if isAuth();  // anyone can browse campfires
+      allow create: if isAuth()
+        && request.resource.data.get('adminId', '') == request.auth.uid
+        && validString(request.resource.data.get('name', ''), 60);
+      allow update: if isAdmin() || isMember();
+      allow delete: if isAdmin();
+
+      // ── Campfire messages ───────────────────────────────────────────────────
+      match /messages/{msgId} {
+        allow read: if isAuth();
+        allow create: if isMember()
+          && request.resource.data.senderId == request.auth.uid
+          && validString(request.resource.data.get('text', ''), 2000);
+        allow update: if false;
+        allow delete: if isAdmin();
+      }
+    }
+
+    // ── Moments (posts / stories) ──────────────────────────────────────────────
+    // /moments/{momentId}
+
+    match /moments/{momentId} {
+      allow read: if isAuth() &&
+        (resource.data.get('authorId', '') == request.auth.uid ||
+         isPublicProfile(resource.data.get('authorId', '')) ||
+         isFollower(resource.data.get('authorId', '')));
+
+      allow create: if isAuth()
+        && request.resource.data.get('authorId', '') == request.auth.uid
+        && validString(request.resource.data.get('caption', ''), 500);
+
+      allow update: if isAuth()
+        && resource.data.get('authorId', '') == request.auth.uid;
+
+      allow delete: if isAuth()
+        && resource.data.get('authorId', '') == request.auth.uid;
+
+      // ── Reactions / comments ─────────────────────────────────────────────
+      match /reactions/{reactionId} {
+        allow read: if isAuth();
+        allow write: if isOwner(reactionId);
+      }
+
+      match /comments/{commentId} {
+        allow read: if isAuth();
+        allow create: if isAuth()
+          && request.resource.data.get('authorId', '') == request.auth.uid
+          && validString(request.resource.data.get('text', ''), 500);
+        allow delete: if isAuth()
+          && resource.data.get('authorId', '') == request.auth.uid;
+        allow update: if false;
+      }
+    }
+
+    // ── Anonymous Confessions ──────────────────────────────────────────────────
+    // /confessions/{confessionId}
+
+    match /confessions/{confessionId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && validString(request.resource.data.get('text', ''), 500)
+        // Do NOT store authorId — confessions are anonymous
+        && !('authorId' in request.resource.data);
+      allow update, delete: if false;  // immutable once posted
+    }
+
+    // ── Vybe Map presence ──────────────────────────────────────────────────────
+    // /presence/{uid}
+
+    match /presence/{uid} {
+      allow read: if isAuth();
+      allow write: if isOwner(uid);
+      allow delete: if isOwner(uid);
+    }
+
+    // ── Polls ──────────────────────────────────────────────────────────────────
+    // /polls/{pollId}
+
+    match /polls/{pollId} {
+      allow read: if isAuth();
+      allow create: if isAuth()
+        && request.resource.data.get('authorId', '') == request.auth.uid;
+      allow delete: if isAuth()
+        && resource.data.get('authorId', '') == request.auth.uid;
+
+      match /votes/{voterId} {
+        allow read: if isAuth();
+        allow write: if isOwner(voterId);
+      }
+    }
+
+    // ── Deny everything else ───────────────────────────────────────────────────
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

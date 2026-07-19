@@ -1,5 +1,10 @@
 build/*
 !build/web/
+# Android signing — NEVER commit the keystore or key.properties
+android/key.properties
+android/upload-keystore.jks
+*.keystore
+*.jks
 .dart_tool/
 .flutter-plugins
 .flutter-plugins-dependencies
