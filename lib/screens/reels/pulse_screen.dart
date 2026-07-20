@@ -8,6 +8,9 @@ import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
+import '../../models/song_battle_model.dart';
+import '../../services/song_battle_service.dart';
+import '../pulse/song_battle_sheet.dart';
 import '../reels/create_pulse_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -450,27 +453,131 @@ class _PulseScreenState extends State<PulseScreen> {
         ),
         if (_currentIndex == 0)
           const Positioned(bottom: 100, left: 0, right: 0, child: _ScrollHint()),
+        // Pending battle invite badge
+        Positioned(
+          top: kToolbarHeight + MediaQuery.of(context).padding.top + 8,
+          left: 0, right: 0,
+          child: _PendingBattlesBanner(),
+        ),
       ]),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 20),
-        child: GestureDetector(
-          onTap: () => Navigator.push(context,
-              MaterialPageRoute(builder: (_) => const CreatePulseScreen())),
-          child: Container(
-            width: 52, height: 52,
-            decoration: BoxDecoration(
-              gradient: const LinearGradient(
-                  colors: [AuraTheme.accent, AuraTheme.accentLight],
-                  begin: Alignment.topLeft, end: Alignment.bottomRight),
-              shape: BoxShape.circle,
-              boxShadow: [BoxShadow(
-                  color: AuraTheme.accent.withOpacity(0.5),
-                  blurRadius: 16, offset: const Offset(0, 4))],
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Battle FAB
+          GestureDetector(
+            onTap: () => showStartBattleSheet(context),
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: Colors.white.withOpacity(0.25), width: 1.5),
+              ),
+              child: const Center(
+                child: Text('⚔️', style: TextStyle(fontSize: 20)),
+              ),
             ),
-            child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
           ),
-        ),
+          const SizedBox(height: 10),
+          // Create Pulse FAB
+          GestureDetector(
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const CreatePulseScreen())),
+            child: Container(
+              width: 52, height: 52,
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                    colors: [AuraTheme.accent, AuraTheme.accentLight],
+                    begin: Alignment.topLeft, end: Alignment.bottomRight),
+                shape: BoxShape.circle,
+                boxShadow: [BoxShadow(
+                    color: AuraTheme.accent.withOpacity(0.5),
+                    blurRadius: 16, offset: const Offset(0, 4))],
+              ),
+              child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+            ),
+          ),
+        ]),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Pending Battle Invites Banner
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PendingBattlesBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<List<SongBattle>>(
+      stream: SongBattleService.instance.pendingInvitesStream(),
+      builder: (context, snap) {
+        final invites = snap.data ?? [];
+        if (invites.isEmpty) return const SizedBox.shrink();
+        final battle = invites.first;
+        return GestureDetector(
+          onTap: () => showBattleInviteSheet(context, battle),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding:
+                const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  AuraTheme.accent.withOpacity(0.9),
+                  AuraTheme.accentLight.withOpacity(0.9),
+                ],
+              ),
+              borderRadius: BorderRadius.circular(14),
+              boxShadow: [
+                BoxShadow(
+                    color: AuraTheme.accent.withOpacity(0.4),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Row(children: [
+              const Text('⚔️', style: TextStyle(fontSize: 18)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  const Text('Song Battle Invite!',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13)),
+                  Text(
+                    '${battle.challengerName} challenged you — tap to respond',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.8), fontSize: 11),
+                  ),
+                ]),
+              ),
+              if (invites.length > 1)
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.25),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text('+${invites.length - 1}',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 11,
+                          fontWeight: FontWeight.w800)),
+                ),
+              const SizedBox(width: 6),
+              const Icon(Icons.chevron_right_rounded,
+                  color: Colors.white, size: 20),
+            ]),
+          ),
+        );
+      },
     );
   }
 }
