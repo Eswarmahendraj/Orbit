@@ -486,6 +486,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 MaterialPageRoute(
                     builder: (_) => const _SupportChatScreen())),
           ),
+          _tile(
+            title: 'Email support',
+            subtitle: 'support.theorbit@gmail.com',
+            trailing: const Icon(Icons.mail_outline_rounded,
+                color: AuraTheme.textMuted, size: 20),
+            onTap: () => _showContactEmailSheet(),
+          ),
         ],
       );
 
@@ -607,6 +614,72 @@ class _SettingsScreenState extends State<SettingsScreen> {
             const SizedBox(height: 8),
           ]),
         ),
+      ),
+    );
+  }
+
+  void _showContactEmailSheet() {
+    const email = 'support.theorbit@gmail.com';
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AuraTheme.card,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (_) => Padding(
+        padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          const Icon(Icons.mail_rounded, size: 36, color: AuraTheme.accent),
+          const SizedBox(height: 12),
+          const Text('Contact Support',
+              style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 6),
+          const Text(
+            'Email us and we\'ll get back to you within 24 hours.',
+            textAlign: TextAlign.center,
+            style: TextStyle(fontSize: 13, color: AuraTheme.textMuted),
+          ),
+          const SizedBox(height: 20),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            decoration: BoxDecoration(
+              color: AuraTheme.surface,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Row(children: [
+              Expanded(
+                child: Text(email,
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.2)),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              icon: const Icon(Icons.copy_rounded, size: 18),
+              label: const Text('Copy email address',
+                  style: TextStyle(fontSize: 15, fontWeight: FontWeight.w700)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AuraTheme.accent,
+                foregroundColor: Colors.white,
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                padding: const EdgeInsets.symmetric(vertical: 14),
+              ),
+              onPressed: () {
+                Clipboard.setData(const ClipboardData(text: email));
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('Email copied to clipboard ✉️'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              },
+            ),
+          ),
+        ]),
       ),
     );
   }
