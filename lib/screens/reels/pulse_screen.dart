@@ -12,6 +12,7 @@ import '../../models/song_battle_model.dart';
 import '../../services/song_battle_service.dart';
 import '../pulse/song_battle_sheet.dart';
 import '../reels/create_pulse_screen.dart';
+import '../social/orbit_moment_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data Model
@@ -463,6 +464,24 @@ class _PulseScreenState extends State<PulseScreen> {
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 20),
         child: Column(mainAxisSize: MainAxisSize.min, children: [
+          // Orbit Moment FAB
+          GestureDetector(
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const OrbitMomentScreen())),
+            child: Container(
+              width: 44, height: 44,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: Colors.white.withOpacity(0.25), width: 1.5),
+              ),
+              child: const Center(
+                child: Text('📸', style: TextStyle(fontSize: 20)),
+              ),
+            ),
+          ),
+          const SizedBox(height: 10),
           // Battle FAB
           GestureDetector(
             onTap: () => showStartBattleSheet(context),

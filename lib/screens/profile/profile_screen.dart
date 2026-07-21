@@ -25,6 +25,7 @@ import '../social/vibe_check_screen.dart';
 import '../social/vybe_map_screen.dart';
 import '../settings/settings_screen.dart';
 import '../home/vibe_picker_sheet.dart';
+import 'era_picker_sheet.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -2012,6 +2013,85 @@ class _ProfileScreenState extends State<ProfileScreen>
                   ),
                 ],
               ]),
+
+              // Era Badge
+              if (state.currentEra.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                EraBadge(
+                  era: state.currentEra,
+                  emoji: state.currentEraEmoji,
+                  large: true,
+                  onTap: () => showEraPicker(context,
+                      onChanged: () => setState(() {})),
+                ),
+              ] else ...[
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => showEraPicker(context,
+                      onChanged: () => setState(() {})),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.15)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.add, size: 13,
+                          color: Colors.white.withOpacity(0.4)),
+                      const SizedBox(width: 4),
+                      Text("set your era",
+                          style: TextStyle(
+                              color: Colors.white.withOpacity(0.4),
+                              fontSize: 12)),
+                    ]),
+                  ),
+                ),
+              ],
+
+              // NPC Mode toggle
+              const SizedBox(height: 10),
+              GestureDetector(
+                onTap: () {
+                  if (state.npcModeExpired) {
+                    state.activateNpcMode();
+                  } else {
+                    state.deactivateNpcMode();
+                  }
+                  setState(() {});
+                },
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 6),
+                  decoration: BoxDecoration(
+                    color: (!state.npcModeExpired)
+                        ? const Color(0xFF4286f4).withOpacity(0.15)
+                        : Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(
+                        color: (!state.npcModeExpired)
+                            ? const Color(0xFF4286f4).withOpacity(0.5)
+                            : Colors.white.withOpacity(0.1)),
+                  ),
+                  child: Row(mainAxisSize: MainAxisSize.min, children: [
+                    const Text('🤖', style: TextStyle(fontSize: 14)),
+                    const SizedBox(width: 6),
+                    Text(
+                      (!state.npcModeExpired)
+                          ? 'npc mode: on'
+                          : 'npc mode: off',
+                      style: TextStyle(
+                          color: (!state.npcModeExpired)
+                              ? const Color(0xFF4286f4)
+                              : Colors.white.withOpacity(0.4),
+                          fontSize: 12,
+                          fontWeight: FontWeight.w700),
+                    ),
+                  ]),
+                ),
+              ),
 
               // Always vibes
               if (state.alwaysVibes.isNotEmpty) ...[

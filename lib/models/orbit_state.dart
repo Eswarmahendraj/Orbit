@@ -131,6 +131,47 @@ class OrbitState {
   // Notification mode: 'push' (banner+sound), 'sound' (chime only), 'off'
   String notifMode = 'push';
 
+  // Era Mode — Gen Z identity tag
+  String currentEra = '';      // e.g. 'villain era'
+  String currentEraEmoji = ''; // e.g. '🖤'
+
+  // NPC Mode — 24h invisibility (named after Gen Z NPC meme)
+  bool npcModeActive = false;
+  String npcModeExpiresAt = ''; // ISO8601
+
+  bool get npcModeExpired {
+    if (!npcModeActive || npcModeExpiresAt.isEmpty) return true;
+    final exp = DateTime.tryParse(npcModeExpiresAt);
+    if (exp == null) return true;
+    return DateTime.now().isAfter(exp);
+  }
+
+  void activateNpcMode() {
+    npcModeActive = true;
+    npcModeExpiresAt =
+        DateTime.now().add(const Duration(hours: 24)).toIso8601String();
+    save();
+  }
+
+  void deactivateNpcMode() {
+    npcModeActive = false;
+    npcModeExpiresAt = '';
+    save();
+  }
+
+  // Skip Stats — track how many times a song was skipped before giving in
+  // key: 'song|artist', value: skip count
+  Map<String, int> songSkips = {};
+
+  void recordSkip(String song, String artist) {
+    final key = '$song|$artist';
+    songSkips[key] = (songSkips[key] ?? 0) + 1;
+    save();
+  }
+
+  int getSkips(String song, String artist) =>
+      songSkips['$song|$artist'] ?? 0;
+
   // Anonymous orbit confessions (user-posted)
   List<Map<String, dynamic>> orbitConfessions = [];
 
@@ -262,6 +303,15 @@ class OrbitState {
     }
     identityTagsPublic = p.getBool('identityTagsPublic') ?? false;
     notifMode = p.getString('notifMode') ?? 'push';
+    currentEra = p.getString('currentEra') ?? '';
+    currentEraEmoji = p.getString('currentEraEmoji') ?? '';
+    npcModeActive = p.getBool('npcModeActive') ?? false;
+    npcModeExpiresAt = p.getString('npcModeExpiresAt') ?? '';
+    final skipsRaw = p.getString('songSkips');
+    if (skipsRaw != null) {
+      final raw = jsonDecode(skipsRaw) as Map<String, dynamic>;
+      songSkips = raw.map((k, v) => MapEntry(k, v as int));
+    }
     momentStreak = p.getInt('momentStreak') ?? 0;
     lastMomentDate = p.getString('lastMomentDate') ?? '';
     pinnedSong = p.getString('pinnedSong') ?? '';
@@ -323,6 +373,11 @@ class OrbitState {
     await p.setString('vibeStatus', vibeStatus);
     await p.setString('vibeStatusEmoji', vibeStatusEmoji);
     await p.setString('notifMode', notifMode);
+    await p.setString('currentEra', currentEra);
+    await p.setString('currentEraEmoji', currentEraEmoji);
+    await p.setBool('npcModeActive', npcModeActive);
+    await p.setString('npcModeExpiresAt', npcModeExpiresAt);
+    await p.setString('songSkips', jsonEncode(songSkips));
     await p.setString('orbitConfessions', jsonEncode(orbitConfessions));
     await p.setString('myMoments', jsonEncode(myMoments));
   }

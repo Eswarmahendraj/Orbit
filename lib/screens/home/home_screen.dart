@@ -13,6 +13,22 @@ import 'create_vybe_screen.dart';
 import 'dm_screen.dart';
 import 'activity_feed_screen.dart';
 import '../social/confessions_screen.dart';
+import '../social/daily_puzzle_screen.dart';
+import '../social/orbit_wrapped_screen.dart';
+import '../social/song_receipt_screen.dart';
+import '../social/music_roast_screen.dart';
+import '../social/red_flag_screen.dart';
+import '../social/daily_drop_screen.dart';
+import '../social/blindspot_screen.dart';
+import '../social/song_secret_screen.dart';
+import '../social/hot_take_screen.dart';
+import '../social/npc_song_screen.dart';
+import '../social/time_capsule_screen.dart';
+import '../social/song_dare_screen.dart';
+import '../social/sound_room_screen.dart';
+import '../social/vibe_match_screen.dart';
+import '../social/orbit_receipts_screen.dart';
+import '../social/streak_chain_screen.dart';
 
 // ── Data models ────────────────────────────────────────────────
 
@@ -307,6 +323,20 @@ class _FeedTabState extends State<_FeedTab>
             title: const Text('orbit',
                 style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
             actions: [
+              // Daily puzzle
+              IconButton(
+                tooltip: 'Daily Puzzle',
+                icon: const Text('🧩', style: TextStyle(fontSize: 20)),
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const DailyPuzzleScreen())),
+              ),
+              // Orbit Wrapped
+              IconButton(
+                tooltip: 'Orbit Wrapped',
+                icon: const Text('🌌', style: TextStyle(fontSize: 20)),
+                onPressed: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const OrbitWrappedScreen())),
+              ),
               IconButton(
                 icon: const Icon(Icons.map_outlined, color: AuraTheme.accent),
                 onPressed: () => Navigator.push(context,
@@ -547,7 +577,9 @@ class _FeedTabState extends State<_FeedTab>
         children: [
           _moodChips(),
           _sotdCard(state),
+          _dailyDropBanner(context),
           _confessionsTeaser(),
+          _discoverRow(context),
           if (hot.isNotEmpty) _hotRightNow(hot),
           if (match != null) _matchCard(match),
           if (state.streakCount > 0 && !_postedToday()) _streakCard(state),
@@ -840,6 +872,103 @@ class _FeedTabState extends State<_FeedTab>
                   fontSize: 11,
                   fontWeight: FontWeight.w500)),
         ]),
+      ),
+    );
+  }
+
+  // ── Daily Drop Banner ─────────────────────────────────────
+  Widget _dailyDropBanner(BuildContext ctx) {
+    return GestureDetector(
+      onTap: () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const DailyDropScreen())),
+      child: Container(
+        margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          gradient: const LinearGradient(
+              colors: [Color(0xFF1a1a2e), Color(0xFF16213e)],
+              begin: Alignment.centerLeft,
+              end: Alignment.centerRight),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: AuraTheme.accent.withOpacity(0.3)),
+        ),
+        child: Row(children: [
+          const Text('⚡', style: TextStyle(fontSize: 22)),
+          const SizedBox(width: 12),
+          Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+            const Text('the daily drop',
+                style: TextStyle(color: Colors.white,
+                    fontWeight: FontWeight.w800, fontSize: 14)),
+            Text('everyone is listening right now — join in',
+                style: TextStyle(color: Colors.white.withOpacity(0.5),
+                    fontSize: 11)),
+          ])),
+          const Icon(Icons.chevron_right, color: AuraTheme.accent, size: 20),
+        ]),
+      ),
+    );
+  }
+
+  // ── Discover Row ───────────────────────────────────────────
+  Widget _discoverRow(BuildContext ctx) {
+    final items = [
+      ('🚩', 'red flag?', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const RedFlagScreen()))),
+      ('🔥', 'roast me', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const MusicRoastScreen()))),
+      ('🧾', 'receipt', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const SongReceiptScreen()))),
+      ('👁️', 'blindspot', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const BlindspotScreen()))),
+      ('🤫', 'song secret', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const SongSecretScreen()))),
+      ('🎙️', 'sound room', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const SoundRoomListScreen()))),
+      ('💫', 'vibe match', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const VibeMatchScreen()))),
+      ('🎯', 'song dare', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const SongDareScreen()))),
+      ('💬', 'hot takes', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const HotTakeScreen()))),
+      ('🤖', 'npc song', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const NpcSongScreen()))),
+      ('⏳', 'time capsule', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const TimeCapsuleScreen()))),
+      ('🧾', 'orbit recap', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const OrbitReceiptsScreen()))),
+      ('🔗', 'streaks', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const StreakChainScreen()))),
+    ];
+    return SizedBox(
+      height: 76,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+        itemCount: items.length,
+        separatorBuilder: (_, __) => const SizedBox(width: 10),
+        itemBuilder: (_, i) {
+          final (emoji, label, onTap) = items[i];
+          return GestureDetector(
+            onTap: onTap,
+            child: Container(
+              width: 76,
+              decoration: BoxDecoration(
+                color: AuraTheme.card,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: Colors.white.withOpacity(0.08)),
+              ),
+              child: Column(mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                Text(emoji, style: const TextStyle(fontSize: 24)),
+                const SizedBox(height: 4),
+                Text(label,
+                    style: TextStyle(color: Colors.white.withOpacity(0.6),
+                        fontSize: 10, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+          );
+        },
       ),
     );
   }
