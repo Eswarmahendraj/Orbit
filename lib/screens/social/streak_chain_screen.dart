@@ -376,12 +376,10 @@ class _StreakCard extends StatelessWidget {
     );
   }
 
-  Widget get _Dot => const SizedBox();
   TextStyle get _legendStyle =>
       TextStyle(color: Colors.white.withOpacity(0.3), fontSize: 10);
 }
 
-// Fix the _Dot usage — make it a proper widget
 class _Dot extends StatelessWidget {
   final Color color;
   const _Dot({required this.color});

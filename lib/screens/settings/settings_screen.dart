@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../main.dart' show themeNotifier;
 import '../../models/orbit_state.dart';
 import '../../theme/aura_theme.dart';
@@ -670,7 +671,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 padding: const EdgeInsets.symmetric(vertical: 14),
               ),
               onPressed: () {
-                Clipboard.setData(const ClipboardData(text: email));
+                Clipboard.setData(ClipboardData(text: email));
                 Navigator.pop(context);
                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                   content: Text('Email copied to clipboard ✉️'),

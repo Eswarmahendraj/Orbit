@@ -129,7 +129,7 @@ class _OrbitReceiptsScreenState extends State<OrbitReceiptsScreen>
         value: topMood.isNotEmpty ? topMood : _state.currentEra.isNotEmpty
             ? _state.currentEra : 'chaotic neutral',
         roast: topMoodCount > 2
-            ? 'you've been in your $topMood era ${topMoodCount}x this week. therapy is a thing.'
+            ? 'you\'ve been in your $topMood era ${topMoodCount}x this week. therapy is a thing.'
             : 'you\'re emotionally diverse. or just confused. same thing.',
         gradient: const [Color(0xFF8B2FC9), Color(0xFFFF6B9D)],
       ),
