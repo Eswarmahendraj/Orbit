@@ -198,20 +198,28 @@ class SongBattleService {
 
   // ── Streams ───────────────────────────────────────────────────────────────
 
-  /// All battles involving the current user (challenger or opponent)
+  /// Battles where I am the challenger (pending or active)
   Stream<List<SongBattle>> myBattlesStream() {
     final uid = _uid;
     if (uid == null) return const Stream.empty();
-
-    // Merge two streams manually — battles where I'm challenger
-    final asChallenger = _db
+    return _db
         .collection('song_battles')
         .where('challengerId', isEqualTo: uid)
         .where('status', whereIn: ['pending', 'active'])
         .snapshots()
         .map((s) => s.docs.map(SongBattle.fromFirestore).toList());
+  }
 
-    return asChallenger; // We'll also query as opponent in the UI
+  /// Battles where I am the opponent and already active
+  Stream<List<SongBattle>> myBattlesAsOpponentStream() {
+    final uid = _uid;
+    if (uid == null) return const Stream.empty();
+    return _db
+        .collection('song_battles')
+        .where('opponentId', isEqualTo: uid)
+        .where('status', isEqualTo: 'active')
+        .snapshots()
+        .map((s) => s.docs.map(SongBattle.fromFirestore).toList());
   }
 
   /// Pending invites where I'm the opponent
