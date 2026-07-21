@@ -256,6 +256,32 @@
   }
   .dl-btn:hover { background: var(--accent2); border-color: var(--accent2); }
 
+  /* ── Features grid ── */
+  .features-card {
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 16px; padding: 20px;
+  }
+  .features-card h3 { font-size: 13px; font-weight: 700; color: var(--muted); letter-spacing: 0.8px; margin-bottom: 14px; }
+  .features-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 8px;
+  }
+  .feature-pill {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 10px; padding: 10px 12px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .feature-pill .fi { font-size: 16px; flex-shrink: 0; }
+  .feature-pill .ft { font-size: 12px; font-weight: 600; color: var(--text); line-height: 1.3; }
+  .feature-pill .fd { font-size: 10px; color: var(--muted); margin-top: 1px; }
+
+  .whats-new-badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    color: white; font-size: 11px; font-weight: 800;
+    padding: 4px 10px; border-radius: 20px; margin-bottom: 14px;
+    letter-spacing: 0.5px;
+  }
+
   .spinner {
     width: 20px; height: 20px; border: 2px solid #ffffff40;
     border-top-color: white; border-radius: 50%;
@@ -369,10 +395,98 @@
       </div>
     </div>
 
+    <!-- Features showcase -->
+    <div class="features-card">
+      <div class="whats-new-badge">✨ 20+ FEATURES</div>
+      <h3>WHAT'S IN THE APP</h3>
+      <div class="features-grid">
+        <div class="feature-pill">
+          <span class="fi">📸</span>
+          <div><div class="ft">Orbit Moment</div><div class="fd">BeReal-style daily check-in</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🧩</span>
+          <div><div class="ft">Daily Puzzle</div><div class="fd">Guess the song from emojis</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🌌</span>
+          <div><div class="ft">Orbit Wrapped</div><div class="fd">Your weekly music DNA</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🎯</span>
+          <div><div class="ft">Song Dares</div><div class="fd">Dare friends to listen</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🎙️</span>
+          <div><div class="ft">Sound Rooms</div><div class="fd">Live co-listening rooms</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">💫</span>
+          <div><div class="ft">Vibe Match</div><div class="fd">Swipe to find your sync</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🧾</span>
+          <div><div class="ft">Orbit Receipts</div><div class="fd">Weekly embarrassing stats</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🔗</span>
+          <div><div class="ft">Streak Chains</div><div class="fd">7-day mutual moment badge</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">💬</span>
+          <div><div class="ft">Hot Takes</div><div class="fd">Anonymous music opinions</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🤖</span>
+          <div><div class="ft">NPC Song</div><div class="fd">Your daily song persona</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">⏳</span>
+          <div><div class="ft">Time Capsule</div><div class="fd">Lock songs for the future</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🚩</span>
+          <div><div class="ft">Red Flag</div><div class="fd">Is that song a red flag?</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🔥</span>
+          <div><div class="ft">Music Roast</div><div class="fd">AI roast of your taste</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🧾</span>
+          <div><div class="ft">Song Receipt</div><div class="fd">Monthly stats as a receipt</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">💀</span>
+          <div><div class="ft">Daily Drop</div><div class="fd">One song. Everyone reacts.</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">👁️</span>
+          <div><div class="ft">Blindspot</div><div class="fd">Anonymous listener discovery</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🤫</span>
+          <div><div class="ft">Song Secret</div><div class="fd">Anonymous song sharing</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">⚔️</span>
+          <div><div class="ft">Song Battle</div><div class="fd">Head-to-head song votes</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🎧</span>
+          <div><div class="ft">Steal the Aux</div><div class="fd">Vote to take over the DJ</div></div>
+        </div>
+        <div class="feature-pill">
+          <span class="fi">🌍</span>
+          <div><div class="ft">Vybe Map</div><div class="fd">See where friends listen</div></div>
+        </div>
+      </div>
+    </div>
+
     <!-- Download app -->
     <div class="download-card">
       <h3 style="font-size:15px;font-weight:800;margin-bottom:8px;">Get the full experience</h3>
-      <p>The Orbit app has Pulse, Vybe Map, Campfire, and more — all powered by music.</p>
+      <p>20+ social music features — Pulse feed, live rooms, song battles, vibe matching, and more. All powered by your music taste.</p>
       <div class="dl-btns">
         <button class="dl-btn" onclick="alert('Coming soon to Google Play!')">📱 Android (Beta)</button>
         <button class="dl-btn" onclick="alert('Coming soon to TestFlight!')">🍎 iOS (TestFlight)</button>
