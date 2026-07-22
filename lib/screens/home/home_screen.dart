@@ -320,8 +320,22 @@ class _FeedTabState extends State<_FeedTab>
           SliverAppBar(
             floating: true,
             backgroundColor: AuraTheme.background,
-            title: const Text('orbit',
-                style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
+            title: ShaderMask(
+              shaderCallback: (bounds) => const LinearGradient(
+                colors: [AuraTheme.accentLight, AuraTheme.accent, AuraTheme.purple],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds),
+              child: const Text(
+                'orbit',
+                style: TextStyle(
+                  fontWeight: FontWeight.w900,
+                  fontSize: 24,
+                  color: Colors.white,
+                  letterSpacing: -0.5,
+                ),
+              ),
+            ),
             actions: [
               // Daily puzzle
               IconButton(
@@ -486,42 +500,78 @@ class _FeedTabState extends State<_FeedTab>
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Stack(clipBehavior: Clip.none, children: [
-                        Container(
-                          width: 52,
-                          height: 52,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            gradient: LinearGradient(
-                                colors: [
-                                  s.color,
-                                  s.color.withOpacity(0.4)
-                                ]),
-                          ),
-                          child: Padding(
-                            padding: const EdgeInsets.all(2.5),
-                            child: CircleAvatar(
-                              backgroundColor: s.color.withOpacity(0.18),
-                              child: Text(s.initial,
-                                  style: TextStyle(
-                                      color: s.color,
-                                      fontWeight: FontWeight.w800,
-                                      fontSize: 18)),
+                        // Glowing ring for live users
+                        if (s.live)
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: s.color.withOpacity(0.5),
+                                  blurRadius: 12,
+                                  spreadRadius: 2,
+                                ),
+                              ],
+                              gradient: LinearGradient(
+                                colors: [s.color, AuraTheme.accent],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(2.5),
+                              child: CircleAvatar(
+                                backgroundColor: const Color(0xFF0F0F1E),
+                                child: Text(s.initial,
+                                    style: TextStyle(
+                                        color: s.color,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18)),
+                              ),
                             ),
                           ),
-                        ),
+                        if (!s.live)
+                          Container(
+                            width: 56,
+                            height: 56,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              gradient: LinearGradient(
+                                colors: [s.color, s.color.withOpacity(0.5)],
+                              ),
+                            ),
+                            child: Padding(
+                              padding: const EdgeInsets.all(2.5),
+                              child: CircleAvatar(
+                                backgroundColor: const Color(0xFF0F0F1E),
+                                child: Text(s.initial,
+                                    style: TextStyle(
+                                        color: s.color,
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: 18)),
+                              ),
+                            ),
+                          ),
                         if (s.live)
                           Positioned(
                             right: 0,
                             bottom: 0,
                             child: Container(
-                              width: 14,
-                              height: 14,
+                              width: 16,
+                              height: 16,
                               decoration: BoxDecoration(
                                 color: const Color(0xFF00D26A),
                                 shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: AuraTheme.background,
-                                    width: 2),
+                                    color: AuraTheme.background, width: 2),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: const Color(0xFF00D26A).withOpacity(0.6),
+                                    blurRadius: 6,
+                                  ),
+                                ],
                               ),
                             ),
                           ),
@@ -540,7 +590,13 @@ class _FeedTabState extends State<_FeedTab>
                               horizontal: 5, vertical: 1),
                           decoration: BoxDecoration(
                               color: AuraTheme.accent,
-                              borderRadius: BorderRadius.circular(4)),
+                              borderRadius: BorderRadius.circular(4),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AuraTheme.accent.withOpacity(0.4),
+                                  blurRadius: 6,
+                                ),
+                              ]),
                           child: Text(
                             s.nowSong!,
                             style: const TextStyle(
@@ -1505,17 +1561,32 @@ class _PostCardState extends State<_PostCard>
       onLongPress: _showMenu,
       child: Container(
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 10),
-        padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
           color: AuraTheme.card,
           borderRadius: BorderRadius.circular(18),
-          border: p.isOwn
-              ? Border.all(
-                  color: AuraTheme.accent.withOpacity(0.2), width: 1.5)
-              : null,
+          border: Border.all(
+            color: p.isOwn
+                ? AuraTheme.accent.withOpacity(0.3)
+                : p.userColor.withOpacity(0.12),
+            width: 1,
+          ),
+          boxShadow: [
+            BoxShadow(
+              color: p.isOwn
+                  ? AuraTheme.accent.withOpacity(0.08)
+                  : p.userColor.withOpacity(0.06),
+              blurRadius: 16,
+              offset: const Offset(0, 4),
+            ),
+          ],
         ),
-        child:
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(18),
+          child: Stack(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(17, 14, 14, 14),
+                child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           // ── Header ──
           Row(children: [
             GestureDetector(
@@ -1623,16 +1694,37 @@ class _PostCardState extends State<_PostCard>
           Container(
             padding: const EdgeInsets.all(10),
             decoration: BoxDecoration(
-                color: AuraTheme.background,
-                borderRadius: BorderRadius.circular(14)),
+              color: AuraTheme.surface,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(
+                color: _playing
+                    ? AuraTheme.accent.withOpacity(0.4)
+                    : const Color(0xFF1E1E30),
+                width: 1,
+              ),
+            ),
             child: Row(children: [
-              ClipRRect(
-                borderRadius: BorderRadius.circular(10),
-                child: p.artUrl != null && p.artUrl!.isNotEmpty
-                    ? Image.network(p.artUrl!, width: 44, height: 44,
-                        fit: BoxFit.cover,
-                        errorBuilder: (_, __, ___) => _songIcon(p))
-                    : _songIcon(p),
+              Container(
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(10),
+                  boxShadow: _playing
+                      ? [
+                          BoxShadow(
+                            color: p.userColor.withOpacity(0.4),
+                            blurRadius: 12,
+                            spreadRadius: 2,
+                          )
+                        ]
+                      : [],
+                ),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(10),
+                  child: p.artUrl != null && p.artUrl!.isNotEmpty
+                      ? Image.network(p.artUrl!, width: 44, height: 44,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => _songIcon(p))
+                      : _songIcon(p),
+                ),
               ),
               const SizedBox(width: 10),
               Expanded(
@@ -1641,7 +1733,8 @@ class _PostCardState extends State<_PostCard>
                     children: [
                   Text(p.songTitle,
                       style: const TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 14)),
+                          fontWeight: FontWeight.w800, fontSize: 14,
+                          letterSpacing: -0.2)),
                   Text(p.artistName,
                       style: const TextStyle(
                           color: AuraTheme.textMuted, fontSize: 12)),
@@ -1672,10 +1765,17 @@ class _PostCardState extends State<_PostCard>
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                      color: _playing
-                          ? p.userColor
-                          : AuraTheme.accent,
-                      shape: BoxShape.circle),
+                    color: _playing ? p.userColor : AuraTheme.accent,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: (_playing ? p.userColor : AuraTheme.accent)
+                            .withOpacity(0.45),
+                        blurRadius: 12,
+                        spreadRadius: 0,
+                      ),
+                    ],
+                  ),
                   child: Center(
                     child: _playing
                         ? const _NowPlayingBars()
@@ -1760,6 +1860,26 @@ class _PostCardState extends State<_PostCard>
             ),
           ]),
         ]),
+              ),
+              // Left accent bar overlay
+              Positioned(
+                left: 0,
+                top: 0,
+                bottom: 0,
+                child: Container(
+                  width: 3,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [p.userColor, p.userColor.withOpacity(0.3)],
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

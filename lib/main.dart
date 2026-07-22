@@ -15,7 +15,7 @@ import 'screens/privacy/app_disguise_screen.dart';
 import 'widgets/web_scaffold.dart';
 
 /// Global theme notifier — toggled from SettingsScreen.
-final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.light);
+final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -29,14 +29,13 @@ void main() async {
   OrbitState().checkStreak();
   await NotificationService().init(); // FCM push notifications
 
-  // Restore dark-mode preference
-  final isDark = OrbitState().darkMode;
-  AuraTheme.isDark = isDark;
-  themeNotifier.value = isDark ? ThemeMode.dark : ThemeMode.light;
+  // Always dark-first; respect user override from settings
+  AuraTheme.isDark = true;
+  themeNotifier.value = ThemeMode.dark;
 
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
+    statusBarIconBrightness: Brightness.light,
   ));
   runApp(const OrbitApp());
 }
