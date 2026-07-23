@@ -8,6 +8,7 @@ import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../../models/orbit_state.dart';
+import '../../services/now_playing_service.dart';
 import '../../services/spotify_service.dart';
 import '../../services/apple_music_service.dart';
 import '../../services/storage_service.dart';
@@ -18,6 +19,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:share_plus/share_plus.dart';
 import 'pfp_editor_screen.dart';
+import 'music_dna_share_screen.dart';
 import 'secret_vault_screen.dart';
 import 'edit_profile_screen.dart';
 import '../privacy/privacy_screen.dart';
@@ -64,6 +66,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     _ringAnim = AnimationController(
         vsync: this, duration: const Duration(seconds: 3))
       ..repeat();
+    // Seed NowPlayingService so the map bar renders before Spotify connects
+    NowPlayingService().seedDemo();
     _fetchPreview();
     _fetchSpotifyNowPlaying();
     _fetchAppleNowPlaying();
@@ -90,6 +94,14 @@ class _ProfileScreenState extends State<ProfileScreen>
       _spotifyNowPlaying = track;
       _spotifyLoading = false;
     });
+    // Feed the global NowPlayingService so map + other screens stay in sync
+    if (track != null) {
+      NowPlayingService().setTrack(
+        track['track'] ?? '',
+        track['artist'] ?? '',
+        newArtUrl: track['artUrl'] as String?,
+      );
+    }
   }
 
   Future<void> _connectSpotify() async {
@@ -113,6 +125,13 @@ class _ProfileScreenState extends State<ProfileScreen>
       _appleNowPlaying = track;
       _appleLoading = false;
     });
+    if (track != null) {
+      NowPlayingService().setTrack(
+        track['track'] ?? '',
+        track['artist'] ?? '',
+        newArtUrl: track['artUrl'] as String?,
+      );
+    }
   }
 
   Future<void> _connectAppleMusic() async {
@@ -1814,109 +1833,211 @@ class _ProfileScreenState extends State<ProfileScreen>
           SliverAppBar(
             floating: true,
             backgroundColor: AuraTheme.background,
-            title: Text(username,
-                style: const TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+            elevation: 0,
+            title: Row(children: [
+              ShaderMask(
+                shaderCallback: (b) => const LinearGradient(
+                  colors: [AuraTheme.purple, AuraTheme.cyan],
+                ).createShader(b),
+                child: Text(
+                  username,
+                  style: const TextStyle(
+                    fontFamily: 'SpaceMono',
+                    fontWeight: FontWeight.w800,
+                    fontSize: 14,
+                    color: Colors.white,
+                  ),
+                ),
+              ),
+            ]),
             actions: [
               IconButton(
-                icon: const Icon(Icons.qr_code_rounded),
+                icon: const Icon(Icons.qr_code_rounded, size: 22),
+                color: AuraTheme.textSecondary,
                 tooltip: 'Share profile',
                 onPressed: _showQrSheet,
               ),
               IconButton(
-                icon: const Icon(Icons.map_outlined),
+                icon: const Icon(Icons.map_outlined, size: 22),
+                color: AuraTheme.textSecondary,
                 onPressed: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const VybeMapScreen())),
               ),
               IconButton(
-                icon: const Icon(Icons.settings_outlined),
+                icon: const Icon(Icons.settings_outlined, size: 22),
+                color: AuraTheme.textSecondary,
                 onPressed: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const SettingsScreen())),
               ),
-              IconButton(
-                icon: const Icon(Icons.edit_rounded, color: AuraTheme.accent),
-                onPressed: () async {
-                  final updated = await Navigator.push<bool>(context,
-                      MaterialPageRoute(builder: (_) => const EditProfileScreen()));
-                  if (updated == true && mounted) setState(() {});
-                },
+              Container(
+                margin: const EdgeInsets.only(right: 12),
+                child: GestureDetector(
+                  onTap: () async {
+                    final updated = await Navigator.push<bool>(context,
+                        MaterialPageRoute(builder: (_) => const EditProfileScreen()));
+                    if (updated == true && mounted) setState(() {});
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [AuraTheme.purple, AuraTheme.cyan],
+                      ),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Text(
+                      'EDIT',
+                      style: TextStyle(
+                        fontFamily: 'SpaceMono',
+                        fontSize: 9,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 1,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ],
           ),
 
           SliverToBoxAdapter(
             child: Column(children: [
-              const SizedBox(height: 24),
-              // PFP with animated ring
+
+              // ─── HERO ─────────────────────────────────────────────────
+
+              const SizedBox(height: 28),
+
+              // Double-orbital avatar
               Center(
                 child: GestureDetector(
-                  onTap: () => _showPfpOptions(),
-                  child: AnimatedBuilder(
-                    animation: _ringAnim,
-                    builder: (_, child) => CustomPaint(
-                      painter: _RingPainter(
-                          progress: _ringAnim.value, color: AuraTheme.accent),
-                      child: child,
-                    ),
-                    child: Stack(alignment: Alignment.center, children: [
-                      Container(
-                        width: 90,
-                        height: 90,
-                        margin: const EdgeInsets.all(4),
-                        decoration: const BoxDecoration(shape: BoxShape.circle),
-                        child: ClipOval(child: _buildPfp(initial)),
+                  onTap: _showPfpOptions,
+                  child: SizedBox(
+                    width: 120,
+                    height: 120,
+                    child: AnimatedBuilder(
+                      animation: _ringAnim,
+                      builder: (_, child) => CustomPaint(
+                        painter: _DualRingPainter(progress: _ringAnim.value),
+                        child: child,
                       ),
-                      // Upload progress overlay
-                      if (_uploadProgress != null)
-                        Container(
-                          width: 90,
-                          height: 90,
-                          margin: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: Colors.black.withOpacity(0.5),
-                          ),
-                          child: Center(
-                            child: SizedBox(
-                              width: 36, height: 36,
-                              child: CircularProgressIndicator(
-                                value: _uploadProgress,
-                                color: AuraTheme.accent,
-                                strokeWidth: 3,
-                              ),
+                      child: Center(
+                        child: Stack(alignment: Alignment.center, children: [
+                          // Glow halo
+                          Container(
+                            width: 82,
+                            height: 82,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: AuraTheme.purple.withOpacity(0.4),
+                                  blurRadius: 24,
+                                  spreadRadius: 4,
+                                ),
+                              ],
                             ),
                           ),
-                        ),
-                      if (_uploadProgress == null)
-                        Positioned(
-                          right: 4,
-                          bottom: 4,
-                          child: Container(
-                            width: 24,
-                            height: 24,
-                            decoration: const BoxDecoration(
-                                color: AuraTheme.accent, shape: BoxShape.circle),
-                            child: const Icon(Icons.camera_alt_rounded,
-                                color: Colors.white, size: 12),
+                          // Avatar
+                          Container(
+                            width: 80,
+                            height: 80,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              border: Border.all(
+                                color: AuraTheme.purple.withOpacity(0.5),
+                                width: 2,
+                              ),
+                            ),
+                            child: ClipOval(child: _buildPfp(initial)),
                           ),
-                        ),
-                    ]),
+                          // Upload overlay
+                          if (_uploadProgress != null)
+                            Container(
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: Colors.black.withOpacity(0.6),
+                              ),
+                              child: Center(
+                                child: SizedBox(
+                                  width: 32, height: 32,
+                                  child: CircularProgressIndicator(
+                                    value: _uploadProgress,
+                                    color: AuraTheme.purple,
+                                    strokeWidth: 2.5,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          // Camera badge
+                          if (_uploadProgress == null)
+                            Positioned(
+                              right: 0, bottom: 0,
+                              child: Container(
+                                width: 24, height: 24,
+                                decoration: BoxDecoration(
+                                  gradient: const LinearGradient(
+                                    colors: [AuraTheme.purple, AuraTheme.cyan],
+                                  ),
+                                  shape: BoxShape.circle,
+                                  border: Border.all(color: AuraTheme.background, width: 2),
+                                ),
+                                child: const Icon(Icons.camera_alt_rounded,
+                                    color: Colors.white, size: 11),
+                              ),
+                            ),
+                        ]),
+                      ),
+                    ),
                   ),
                 ),
               ),
-              const SizedBox(height: 12),
-              // Tappable display name
+
+              const SizedBox(height: 14),
+
+              // Name (gradient)
               GestureDetector(
                 onTap: () async {
                   final updated = await Navigator.push<bool>(context,
                       MaterialPageRoute(builder: (_) => const EditProfileScreen()));
                   if (updated == true && mounted) setState(() {});
                 },
-                child: Text(displayName,
+                child: ShaderMask(
+                  shaderCallback: (b) => const LinearGradient(
+                    colors: [AuraTheme.purple, AuraTheme.cyan],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  ).createShader(b),
+                  child: Text(
+                    displayName,
                     style: const TextStyle(
-                        fontSize: 22, fontWeight: FontWeight.w800)),
+                      fontSize: 24,
+                      fontWeight: FontWeight.w900,
+                      color: Colors.white,
+                      letterSpacing: -0.5,
+                    ),
+                  ),
+                ),
               ),
-              const SizedBox(height: 2),
-              // Tappable bio (or add bio prompt)
+
+              const SizedBox(height: 3),
+
+              // Username in Space Mono
+              Text(
+                '// $username',
+                style: const TextStyle(
+                  fontFamily: 'SpaceMono',
+                  fontSize: 11,
+                  color: AuraTheme.textMuted,
+                  letterSpacing: 0.5,
+                ),
+              ),
+
+              const SizedBox(height: 10),
+
+              // Bio
               GestureDetector(
                 onTap: () async {
                   final updated = await Navigator.push<bool>(context,
@@ -1925,169 +2046,201 @@ class _ProfileScreenState extends State<ProfileScreen>
                 },
                 child: state.bio.isNotEmpty
                     ? Padding(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 32, vertical: 4),
-                        child: Text(state.bio,
-                            textAlign: TextAlign.center,
-                            style: const TextStyle(
-                                color: AuraTheme.textSecondary, fontSize: 13)),
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          state.bio,
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: AuraTheme.textSecondary,
+                            fontSize: 13,
+                            height: 1.4,
+                          ),
+                        ),
                       )
-                    : Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4),
-                        child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: const [
-                              Icon(Icons.add_circle_outline,
-                                  size: 14, color: AuraTheme.textMuted),
-                              SizedBox(width: 4),
-                              Text('add bio',
-                                  style: TextStyle(
-                                      color: AuraTheme.textMuted,
-                                      fontSize: 13,
-                                      fontStyle: FontStyle.italic)),
-                            ]),
+                    : Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 5),
+                        decoration: BoxDecoration(
+                          color: AuraTheme.surface,
+                          borderRadius: BorderRadius.circular(10),
+                          border: Border.all(color: AuraTheme.purple.withOpacity(0.2)),
+                        ),
+                        child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                          Icon(Icons.add, size: 12, color: AuraTheme.textMuted),
+                          SizedBox(width: 4),
+                          Text('add bio',
+                              style: TextStyle(
+                                  fontFamily: 'SpaceMono',
+                                  color: AuraTheme.textMuted,
+                                  fontSize: 10)),
+                        ]),
                       ),
               ),
-              const SizedBox(height: 8),
-              // Chips row: mood + vibe status
-              Row(mainAxisAlignment: MainAxisAlignment.center, children: [
-                // Today's vibe chip
-                GestureDetector(
-                  onTap: () async {
-                    await showVibePicker(context, todayMode: true);
-                    setState(() {});
-                  },
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: AuraTheme.accent.withOpacity(0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(
-                      '${state.moodEmoji} ${state.mood} · today',
-                      style: const TextStyle(
-                          color: AuraTheme.accent,
-                          fontWeight: FontWeight.w600,
-                          fontSize: 13),
-                    ),
-                  ),
-                ),
-                if (state.vibeStatus.isNotEmpty) ...[
-                  const SizedBox(width: 8),
+
+              const SizedBox(height: 12),
+
+              // Mood + status chips
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 6,
+                children: [
+                  // Vibe chip
                   GestureDetector(
-                    onTap: () => _showVibeStatusPicker(state),
+                    onTap: () async {
+                      await showVibePicker(context, todayMode: true);
+                      setState(() {});
+                    },
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                       decoration: BoxDecoration(
-                        color: AuraTheme.surface,
+                        gradient: LinearGradient(colors: [
+                          AuraTheme.purple.withOpacity(0.15),
+                          AuraTheme.cyan.withOpacity(0.1),
+                        ]),
                         borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AuraTheme.textMuted.withOpacity(0.2)),
+                        border: Border.all(color: AuraTheme.purple.withOpacity(0.4)),
                       ),
-                      child: Text(
-                        '${state.vibeStatusEmoji} ${state.vibeStatus}',
-                        style: const TextStyle(
-                            color: AuraTheme.textPrimary,
-                            fontWeight: FontWeight.w600,
-                            fontSize: 13),
-                      ),
-                    ),
-                  ),
-                ] else ...[
-                  const SizedBox(width: 8),
-                  GestureDetector(
-                    onTap: () => _showVibeStatusPicker(state),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(
-                        color: AuraTheme.surface,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AuraTheme.textMuted.withOpacity(0.15)),
-                      ),
-                      child: const Row(mainAxisSize: MainAxisSize.min, children: [
-                        Icon(Icons.add, size: 13, color: AuraTheme.textMuted),
-                        SizedBox(width: 3),
-                        Text('status', style: TextStyle(
-                            color: AuraTheme.textMuted, fontSize: 12)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: [
+                        Text(state.moodEmoji, style: const TextStyle(fontSize: 12)),
+                        const SizedBox(width: 5),
+                        Text(
+                          state.mood.toUpperCase(),
+                          style: const TextStyle(
+                            fontFamily: 'SpaceMono',
+                            fontSize: 9,
+                            fontWeight: FontWeight.w700,
+                            color: AuraTheme.purple,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
                       ]),
                     ),
                   ),
+                  // Status chip
+                  GestureDetector(
+                    onTap: () => _showVibeStatusPicker(state),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                      decoration: BoxDecoration(
+                        color: AuraTheme.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AuraTheme.cyan.withOpacity(0.25)),
+                      ),
+                      child: state.vibeStatus.isNotEmpty
+                          ? Row(mainAxisSize: MainAxisSize.min, children: [
+                              Text(state.vibeStatusEmoji, style: const TextStyle(fontSize: 12)),
+                              const SizedBox(width: 5),
+                              Text(
+                                state.vibeStatus,
+                                style: const TextStyle(
+                                  fontSize: 12,
+                                  color: AuraTheme.textSecondary,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                            ])
+                          : const Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(Icons.add, size: 11, color: AuraTheme.textMuted),
+                              SizedBox(width: 3),
+                              Text('status',
+                                  style: TextStyle(
+                                    fontFamily: 'SpaceMono',
+                                    fontSize: 9,
+                                    color: AuraTheme.textMuted,
+                                  )),
+                            ]),
+                    ),
+                  ),
                 ],
-              ]),
+              ),
 
-              // Era Badge
+              // Era badge
               if (state.currentEra.isNotEmpty) ...[
                 const SizedBox(height: 10),
-                EraBadge(
-                  era: state.currentEra,
-                  emoji: state.currentEraEmoji,
-                  large: true,
-                  onTap: () => showEraPicker(context,
-                      onChanged: () => setState(() {})),
+                GestureDetector(
+                  onTap: () => showEraPicker(context, onChanged: () => setState(() {})),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: AuraTheme.cyan.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AuraTheme.cyan.withOpacity(0.25)),
+                    ),
+                    child: Row(mainAxisSize: MainAxisSize.min, children: [
+                      Text(state.currentEraEmoji, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(width: 6),
+                      Text(
+                        state.currentEra.toUpperCase(),
+                        style: const TextStyle(
+                          fontFamily: 'SpaceMono',
+                          fontSize: 9,
+                          color: AuraTheme.cyan,
+                          fontWeight: FontWeight.w700,
+                          letterSpacing: 1,
+                        ),
+                      ),
+                    ]),
+                  ),
                 ),
               ] else ...[
                 const SizedBox(height: 10),
                 GestureDetector(
-                  onTap: () => showEraPicker(context,
-                      onChanged: () => setState(() {})),
+                  onTap: () => showEraPicker(context, onChanged: () => setState(() {})),
                   child: Container(
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 12, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                     decoration: BoxDecoration(
-                      border: Border.all(
-                          color: Colors.white.withOpacity(0.15)),
-                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AuraTheme.textMuted.withOpacity(0.2)),
+                      borderRadius: BorderRadius.circular(10),
                     ),
-                    child: Row(mainAxisSize: MainAxisSize.min, children: [
-                      Icon(Icons.add, size: 13,
-                          color: Colors.white.withOpacity(0.4)),
-                      const SizedBox(width: 4),
-                      Text("set your era",
+                    child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                      Icon(Icons.add, size: 12, color: AuraTheme.textMuted),
+                      SizedBox(width: 4),
+                      Text('set your era',
                           style: TextStyle(
-                              color: Colors.white.withOpacity(0.4),
-                              fontSize: 12)),
+                            fontFamily: 'SpaceMono',
+                            fontSize: 9,
+                            color: AuraTheme.textMuted,
+                          )),
                     ]),
                   ),
                 ),
               ],
 
-              // NPC Mode toggle
-              const SizedBox(height: 10),
+              // NPC mode toggle
+              const SizedBox(height: 8),
               GestureDetector(
                 onTap: () {
-                  if (state.npcModeExpired) {
-                    state.activateNpcMode();
-                  } else {
-                    state.deactivateNpcMode();
-                  }
+                  if (state.npcModeExpired) { state.activateNpcMode(); }
+                  else { state.deactivateNpcMode(); }
                   setState(() {});
                 },
                 child: AnimatedContainer(
                   duration: const Duration(milliseconds: 200),
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
                   decoration: BoxDecoration(
                     color: (!state.npcModeExpired)
-                        ? const Color(0xFF4286f4).withOpacity(0.15)
-                        : Colors.white.withOpacity(0.05),
+                        ? const Color(0xFF4286f4).withOpacity(0.1)
+                        : AuraTheme.surface,
                     borderRadius: BorderRadius.circular(20),
                     border: Border.all(
                         color: (!state.npcModeExpired)
-                            ? const Color(0xFF4286f4).withOpacity(0.5)
-                            : Colors.white.withOpacity(0.1)),
+                            ? const Color(0xFF4286f4).withOpacity(0.4)
+                            : AuraTheme.textMuted.withOpacity(0.15)),
                   ),
                   child: Row(mainAxisSize: MainAxisSize.min, children: [
-                    const Text('🤖', style: TextStyle(fontSize: 14)),
-                    const SizedBox(width: 6),
+                    const Text('🤖', style: TextStyle(fontSize: 12)),
+                    const SizedBox(width: 5),
                     Text(
-                      (!state.npcModeExpired)
-                          ? 'npc mode: on'
-                          : 'npc mode: off',
+                      (!state.npcModeExpired) ? 'NPC_MODE · ON' : 'NPC_MODE · OFF',
                       style: TextStyle(
-                          color: (!state.npcModeExpired)
-                              ? const Color(0xFF4286f4)
-                              : Colors.white.withOpacity(0.4),
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700),
+                        fontFamily: 'SpaceMono',
+                        fontSize: 8,
+                        fontWeight: FontWeight.w700,
+                        letterSpacing: 0.5,
+                        color: (!state.npcModeExpired)
+                            ? const Color(0xFF4286f4)
+                            : AuraTheme.textMuted,
+                      ),
                     ),
                   ]),
                 ),
@@ -2095,184 +2248,179 @@ class _ProfileScreenState extends State<ProfileScreen>
 
               // Always vibes
               if (state.alwaysVibes.isNotEmpty) ...[
-                const SizedBox(height: 8),
+                const SizedBox(height: 10),
                 Wrap(
                   alignment: WrapAlignment.center,
                   spacing: 6,
-                  children: state.alwaysVibes
-                      .map((v) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: AuraTheme.surface,
-                              borderRadius: BorderRadius.circular(16),
-                              border: Border.all(
-                                  color: AuraTheme.accent.withOpacity(0.3)),
-                            ),
-                            child: Text('${v['emoji']} ${v['label']}',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AuraTheme.textSecondary)),
-                          ))
-                      .toList(),
+                  runSpacing: 6,
+                  children: state.alwaysVibes.map((v) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AuraTheme.surface,
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AuraTheme.purple.withOpacity(0.2)),
+                    ),
+                    child: Text('${v['emoji']} ${v['label']}',
+                        style: const TextStyle(fontSize: 11, color: AuraTheme.textSecondary)),
+                  )).toList(),
                 ),
               ],
 
-              // Identity tags (if public)
+              // Identity tags
               if (state.identityTagsPublic && state.identityTags.isNotEmpty) ...[
                 const SizedBox(height: 8),
                 Wrap(
                   alignment: WrapAlignment.center,
                   spacing: 6,
-                  children: state.identityTags
-                      .map((t) => Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFF8EDFF),
-                              borderRadius: BorderRadius.circular(16),
-                            ),
-                            child: Text(t,
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: Color(0xFF9B59B6))),
-                          ))
-                      .toList(),
+                  children: state.identityTags.map((t) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: AuraTheme.purple.withOpacity(0.08),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AuraTheme.purple.withOpacity(0.2)),
+                    ),
+                    child: Text(t,
+                        style: const TextStyle(fontSize: 11, color: AuraTheme.purpleLight)),
+                  )).toList(),
                 ),
               ],
 
-              const SizedBox(height: 16),
+              // ─── STATS ────────────────────────────────────────────────
 
-              // Moment streak banner
+              const SizedBox(height: 20),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(children: [
+                  _GlowStatCard(value: '$postCount', label: 'VYBES', color: AuraTheme.purple),
+                  const SizedBox(width: 10),
+                  const _GlowStatCard(value: '5', label: 'SYNCED', color: AuraTheme.cyan),
+                  const SizedBox(width: 10),
+                  _GlowStatCard(
+                    value: '${state.streakCount}',
+                    label: 'STREAK 🔥',
+                    color: AuraTheme.accent,
+                  ),
+                ]),
+              ),
+
+              // ─── QUICK ACTIONS ────────────────────────────────────────
+
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Row(children: [
+                  Expanded(
+                    child: _ActionBtn(
+                      icon: Icons.lock_outline_rounded,
+                      label: 'VAULT',
+                      colors: [AuraTheme.accent, const Color(0xFFFF9640)],
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const SecretVaultScreen())),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _ActionBtn(
+                      icon: Icons.thermostat_rounded,
+                      label: 'VIBE CHECK',
+                      colors: [AuraTheme.purple, AuraTheme.cyan],
+                      onTap: () => Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const VibeCheckScreen())),
+                    ),
+                  ),
+                ]),
+              ),
+
+              // ─── MOOD TAGS ────────────────────────────────────────────
+
+              const SizedBox(height: 16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
+                  children: _moodTags.map((tag) => Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+                    decoration: BoxDecoration(
+                      color: AuraTheme.purple.withOpacity(0.06),
+                      borderRadius: BorderRadius.circular(20),
+                      border: Border.all(color: AuraTheme.purple.withOpacity(0.3)),
+                    ),
+                    child: Text(
+                      tag,
+                      style: const TextStyle(
+                        color: AuraTheme.purpleLight,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  )).toList(),
+                ),
+              ),
+
+              // ─── CARDS ───────────────────────────────────────────────
+
+              const SizedBox(height: 16),
               _momentStreakBanner(state),
 
-              // Pinned song card
               if (state.pinnedSong.isNotEmpty) ...[
                 _pinnedSongCard(state),
                 const SizedBox(height: 12),
               ],
 
-              // Moments strip
               _momentsStrip(state),
-
-              // Orbit stats card
               _orbitStatsCard(state),
-
               const SizedBox(height: 12),
-
-              // Vibe song card
+              _MusicDNACard(),
+              const SizedBox(height: 12),
               _vibeSongCard(state),
-
               const SizedBox(height: 12),
-
-              // Spotify Now Playing
               _spotifyCard(),
-
               const SizedBox(height: 10),
-
-              // Apple Music Now Playing (iOS only — SizedBox.shrink on Android)
               _appleMusicCard(),
 
-              const SizedBox(height: 20),
+              // ─── VYBES SECTION HEADER ─────────────────────────────────
 
-              // Stats
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 32),
-                child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [
-                  _StatChip(label: 'vybes', value: '$postCount'),
-                  const _StatChip(label: 'synced', value: '5'),
-                  _StatChip(label: 'streak', value: '${state.streakCount}🔥'),
-                ]),
-              ),
-              const SizedBox(height: 16),
-
-              // Quick actions
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Row(children: [
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const SecretVaultScreen())),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                            color: AuraTheme.card,
-                            borderRadius: BorderRadius.circular(14)),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(Icons.lock_outline_rounded,
-                                color: AuraTheme.accent, size: 18),
-                            SizedBox(width: 6),
-                            Text('vault',
-                                style: TextStyle(
-                                    color: AuraTheme.accent,
-                                    fontWeight: FontWeight.w700,
-                                    fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: GestureDetector(
-                      onTap: () => Navigator.push(context,
-                          MaterialPageRoute(builder: (_) => const VibeCheckScreen())),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
-                        decoration: BoxDecoration(
-                            color: AuraTheme.card,
-                            borderRadius: BorderRadius.circular(14)),
-                        child: const Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Text('🌡️', style: TextStyle(fontSize: 16)),
-                            SizedBox(width: 6),
-                            Text('vibe check',
-                                style: TextStyle(
-                                    fontWeight: FontWeight.w700, fontSize: 13)),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ]),
-              ),
-              const SizedBox(height: 20),
-
-              // Mood tags
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16),
-                child: Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: _moodTags.map((tag) => Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(
-                        border: Border.all(color: AuraTheme.accent.withOpacity(0.5)),
-                        borderRadius: BorderRadius.circular(20)),
-                    child: Text(tag,
-                        style: const TextStyle(
-                            color: AuraTheme.accent, fontSize: 12, fontWeight: FontWeight.w500)),
-                  )).toList(),
-                ),
-              ),
               const SizedBox(height: 24),
-              const Divider(height: 1),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 16, 16, 12),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text('my vybes',
-                        style: TextStyle(fontWeight: FontWeight.w700, fontSize: 17)),
-                    Text('$postCount posts',
-                        style: const TextStyle(
-                            color: AuraTheme.textMuted, fontSize: 13)),
-                  ],
+              Container(
+                margin: const EdgeInsets.symmetric(horizontal: 16),
+                height: 1,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(colors: [
+                    AuraTheme.purple.withOpacity(0.5),
+                    AuraTheme.cyan.withOpacity(0.3),
+                    Colors.transparent,
+                  ]),
                 ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 14, 20, 12),
+                child: Row(children: [
+                  ShaderMask(
+                    shaderCallback: (b) => const LinearGradient(
+                      colors: [AuraTheme.purple, AuraTheme.cyan],
+                    ).createShader(b),
+                    child: const Text(
+                      'ORBIT_TRANSMISSIONS',
+                      style: TextStyle(
+                        fontFamily: 'SpaceMono',
+                        fontSize: 11,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white,
+                        letterSpacing: 2,
+                      ),
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '$postCount posts',
+                    style: const TextStyle(
+                      fontFamily: 'SpaceMono',
+                      fontSize: 9,
+                      color: AuraTheme.textMuted,
+                    ),
+                  ),
+                ]),
               ),
             ]),
           ),
@@ -2309,6 +2457,258 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           const SliverToBoxAdapter(child: SizedBox(height: 100)),
         ],
+      ),
+    );
+  }
+}
+
+// ─── Music DNA Card ───────────────────────────────────────────────────────────
+
+class _MusicDNACard extends StatefulWidget {
+  @override
+  State<_MusicDNACard> createState() => _MusicDNACardState();
+}
+
+class _MusicDNACardState extends State<_MusicDNACard>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _aura;
+
+  // Demo genre data — replace with real Spotify/Apple stats
+  static const _genres = [
+    ('Indie', 0.82, Color(0xFF7C3AED)),
+    ('Lo-fi',  0.68, Color(0xFF22D3EE)),
+    ('Alt R&B', 0.55, Color(0xFFEC4899)),
+    ('Indie Pop', 0.73, Color(0xFFFF6B00)),
+    ('Ambient', 0.44, Color(0xFF10B981)),
+    ('Hip-Hop', 0.60, Color(0xFFE879F9)),
+  ];
+
+  static const _topEras = [
+    ('90s alt', '🎸'), ('00s indie', '💿'), ('2010s vibes', '✨'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _aura = AnimationController(
+        vsync: this, duration: const Duration(seconds: 4))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _aura.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16),
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: AuraTheme.card,
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: AuraTheme.purple.withOpacity(0.25)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          // Header
+          Row(children: [
+            ShaderMask(
+              shaderCallback: (b) => const LinearGradient(
+                colors: [AuraTheme.purple, AuraTheme.cyan],
+              ).createShader(b),
+              child: const Text(
+                'MUSIC_DNA',
+                style: TextStyle(
+                  fontFamily: 'SpaceMono',
+                  fontSize: 11,
+                  letterSpacing: 2,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.white,
+                ),
+              ),
+            ),
+            const Spacer(),
+            AnimatedBuilder(
+              animation: _aura,
+              builder: (_, __) => Container(
+                width: 8, height: 8,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AuraTheme.cyan.withOpacity(0.5 + _aura.value * 0.5),
+                  boxShadow: [BoxShadow(
+                    color: AuraTheme.cyan.withOpacity(0.4 + _aura.value * 0.3),
+                    blurRadius: 6,
+                  )],
+                ),
+              ),
+            ),
+            const SizedBox(width: 5),
+            const Text('LIVE',
+              style: TextStyle(
+                fontFamily: 'SpaceMono',
+                fontSize: 8,
+                color: AuraTheme.cyan,
+                letterSpacing: 1,
+              ),
+            ),
+            const SizedBox(width: 12),
+            // Share button
+            GestureDetector(
+              onTap: () => Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => const MusicDnaShareScreen())),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: AuraTheme.accent.withOpacity(0.12),
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AuraTheme.accent.withOpacity(0.35)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: const [
+                  Icon(Icons.ios_share_rounded, size: 10, color: AuraTheme.accent),
+                  SizedBox(width: 4),
+                  Text('share',
+                      style: TextStyle(
+                          fontSize: 9,
+                          fontWeight: FontWeight.w800,
+                          color: AuraTheme.accent,
+                          letterSpacing: 0.5)),
+                ]),
+              ),
+            ),
+          ]),
+
+          const SizedBox(height: 16),
+
+          // Genre radar bars
+          ...(_genres.map((g) {
+            return Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Row(children: [
+                SizedBox(
+                  width: 70,
+                  child: Text(
+                    g.$1,
+                    style: const TextStyle(
+                      fontSize: 11,
+                      color: AuraTheme.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                Expanded(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(4),
+                    child: AnimatedBuilder(
+                      animation: _aura,
+                      builder: (_, __) => LinearProgressIndicator(
+                        value: g.$2,
+                        minHeight: 8,
+                        backgroundColor: g.$3.withOpacity(0.1),
+                        valueColor: AlwaysStoppedAnimation<Color>(g.$3),
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${(g.$2 * 100).round()}%',
+                  style: TextStyle(
+                    fontFamily: 'SpaceMono',
+                    fontSize: 9,
+                    color: g.$3,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ]),
+            );
+          })),
+
+          const SizedBox(height: 8),
+
+          // Top eras
+          Row(children: [
+            const Text(
+              'TOP_ERAS · ',
+              style: TextStyle(
+                fontFamily: 'SpaceMono',
+                fontSize: 8,
+                color: AuraTheme.textMuted,
+                letterSpacing: 1,
+              ),
+            ),
+            Expanded(
+              child: Row(children: _topEras.map((e) =>
+                Container(
+                  margin: const EdgeInsets.only(right: 6),
+                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                  decoration: BoxDecoration(
+                    color: AuraTheme.purple.withOpacity(0.1),
+                    borderRadius: BorderRadius.circular(6),
+                    border: Border.all(color: AuraTheme.purple.withOpacity(0.2)),
+                  ),
+                  child: Text(
+                    '${e.$2} ${e.$1}',
+                    style: const TextStyle(fontSize: 10, color: AuraTheme.textSecondary),
+                  ),
+                ),
+              ).toList()),
+            ),
+          ]),
+
+          const SizedBox(height: 12),
+
+          // Listening streak
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [
+                AuraTheme.purple.withOpacity(0.1),
+                AuraTheme.cyan.withOpacity(0.08),
+              ]),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AuraTheme.purple.withOpacity(0.2)),
+            ),
+            child: Row(children: [
+              const Text('🔥', style: TextStyle(fontSize: 16)),
+              const SizedBox(width: 8),
+              Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+                const Text(
+                  '12-day listening streak',
+                  style: TextStyle(
+                    fontSize: 12, fontWeight: FontWeight.w700,
+                    color: AuraTheme.textPrimary),
+                ),
+                Text(
+                  'connect Spotify for real stats',
+                  style: TextStyle(
+                    fontFamily: 'SpaceMono',
+                    fontSize: 8,
+                    color: AuraTheme.textMuted,
+                  ),
+                ),
+              ]),
+              const Spacer(),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                decoration: BoxDecoration(
+                  color: AuraTheme.accent.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: const Text('12',
+                  style: TextStyle(
+                    fontFamily: 'SpaceMono',
+                    fontSize: 14,
+                    color: AuraTheme.accent,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+            ]),
+          ),
+        ]),
       ),
     );
   }
@@ -2980,4 +3380,160 @@ class _WaveformPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WaveformPainter old) => old.t != t;
+}
+
+// ── Dual orbital ring painter (outer purple 3s, inner cyan offset) ────────────
+class _DualRingPainter extends CustomPainter {
+  final double progress;
+  const _DualRingPainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+
+    // Outer ring — purple, 3-s spin
+    final outerR = size.width / 2 - 2;
+    final outerTrack = Paint()
+      ..color = AuraTheme.purple.withOpacity(0.12)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5;
+    canvas.drawCircle(Offset(cx, cy), outerR, outerTrack);
+    final outerSweep = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: math.pi * 2,
+        colors: [Colors.transparent, AuraTheme.purple],
+        stops: const [0.7, 1.0],
+        transform: GradientRotation(progress * math.pi * 2),
+      ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: outerR));
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: outerR),
+      progress * math.pi * 2,
+      math.pi * 1.2,
+      false,
+      outerSweep,
+    );
+
+    // Inner ring — cyan, offset by half-cycle
+    final innerR = size.width / 2 - 8;
+    final innerTrack = Paint()
+      ..color = AuraTheme.cyan.withOpacity(0.08)
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1;
+    canvas.drawCircle(Offset(cx, cy), innerR, innerTrack);
+    final innerProgress = (progress + 0.5) % 1.0;
+    final innerSweep = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 1
+      ..strokeCap = StrokeCap.round
+      ..shader = SweepGradient(
+        startAngle: 0,
+        endAngle: math.pi * 2,
+        colors: [Colors.transparent, AuraTheme.cyan],
+        stops: const [0.6, 1.0],
+        transform: GradientRotation(innerProgress * math.pi * 2),
+      ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: innerR));
+    canvas.drawArc(
+      Rect.fromCircle(center: Offset(cx, cy), radius: innerR),
+      innerProgress * math.pi * 2,
+      math.pi * 0.9,
+      false,
+      innerSweep,
+    );
+  }
+
+  @override
+  bool shouldRepaint(_DualRingPainter old) => old.progress != progress;
+}
+
+// ── Glowing stat card ─────────────────────────────────────────────────────────
+class _GlowStatCard extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+  const _GlowStatCard({required this.value, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Expanded(
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: color.withOpacity(0.2)),
+        boxShadow: [
+          BoxShadow(color: color.withOpacity(0.12), blurRadius: 12, spreadRadius: 0),
+        ],
+      ),
+      child: Column(children: [
+        Text(
+          value,
+          style: TextStyle(
+            fontFamily: 'SpaceMono',
+            fontSize: 18,
+            fontWeight: FontWeight.w800,
+            color: color,
+          ),
+        ),
+        const SizedBox(height: 2),
+        Text(
+          label,
+          style: TextStyle(
+            fontFamily: 'SpaceMono',
+            fontSize: 8,
+            color: color.withOpacity(0.7),
+            letterSpacing: 1,
+          ),
+        ),
+      ]),
+    ),
+  );
+}
+
+// ── Gradient action button ────────────────────────────────────────────────────
+class _ActionBtn extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final List<Color> colors;
+  final VoidCallback onTap;
+  const _ActionBtn({required this.icon, required this.label, required this.colors, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) => GestureDetector(
+    onTap: onTap,
+    child: Container(
+      padding: const EdgeInsets.symmetric(vertical: 12),
+      decoration: BoxDecoration(
+        color: colors.first.withOpacity(0.07),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(
+          color: colors.first.withOpacity(0.3),
+        ),
+      ),
+      child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+        ShaderMask(
+          shaderCallback: (b) => LinearGradient(colors: colors).createShader(b),
+          child: Icon(icon, color: Colors.white, size: 16),
+        ),
+        const SizedBox(width: 7),
+        ShaderMask(
+          shaderCallback: (b) => LinearGradient(colors: colors).createShader(b),
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'SpaceMono',
+              fontWeight: FontWeight.w800,
+              fontSize: 10,
+              color: Colors.white,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+      ]),
+    ),
+  );
 }

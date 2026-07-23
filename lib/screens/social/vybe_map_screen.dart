@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../theme/aura_theme.dart';
+import '../../widgets/now_playing_bar.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Friend location data
@@ -443,108 +444,21 @@ class _VybeMapScreenState extends State<VybeMapScreen>
     );
   }
 
-  Widget _infoCard(_Friend f) => Container(
+  Widget _infoCard(_Friend f) => _InfoCard(
         key: ValueKey(f.handle),
-        margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-        decoration: BoxDecoration(
-          color: const Color(0xFF0A0A1E),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: f.color.withOpacity(0.45), width: 1.5),
-          boxShadow: [
-            BoxShadow(
-                color: f.color.withOpacity(0.18),
-                blurRadius: 24,
-                offset: const Offset(0, 4)),
-          ],
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              '[SIGNAL_LOCK // ${f.city.toUpperCase()}]',
-              style: TextStyle(
-                fontFamily: 'SpaceMono',
-                fontSize: 7,
-                color: f.color.withOpacity(0.7),
-                letterSpacing: 0.8,
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Row(children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                    color: f.color.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(14),
-                    border:
-                        Border.all(color: f.color.withOpacity(0.5), width: 1.5)),
-                child: Center(
-                    child:
-                        Text(f.emoji, style: const TextStyle(fontSize: 22))),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        f.handle,
-                        style: TextStyle(
-                            fontFamily: 'SpaceMono',
-                            color: f.color,
-                            fontWeight: FontWeight.w800,
-                            fontSize: 13,
-                            letterSpacing: 0.5),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(children: [
-                        Icon(Icons.music_note_rounded,
-                            color: AuraTheme.accent, size: 11),
-                        const SizedBox(width: 4),
-                        Expanded(
-                          child: Text(
-                            f.song,
-                            style: TextStyle(
-                                fontFamily: 'SpaceMono',
-                                color: Colors.white.withOpacity(0.65),
-                                fontSize: 10),
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ]),
-                    ]),
-              ),
-              GestureDetector(
-                onTap: () => setState(() => _selected = null),
-                child: Container(
-                  width: 26,
-                  height: 26,
-                  decoration: BoxDecoration(
-                    color: Colors.white.withOpacity(0.05),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.white.withOpacity(0.12)),
-                  ),
-                  child: Icon(Icons.close_rounded,
-                      color: Colors.white.withOpacity(0.5), size: 14),
-                ),
-              ),
-            ]),
-          ],
-        ),
+        friend: f,
+        pulse: _pulse,
+        onClose: () => setState(() => _selected = null),
       );
 
   Widget _friendsRow() => Container(
         key: const ValueKey('row'),
-        height: 88,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        height: 100,
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
           itemCount: _friends.length,
-          separatorBuilder: (_, __) => const SizedBox(width: 10),
+          separatorBuilder: (_, __) => const SizedBox(width: 12),
           itemBuilder: (_, i) {
             final f = _friends[i];
             return GestureDetector(
@@ -552,26 +466,37 @@ class _VybeMapScreenState extends State<VybeMapScreen>
                 setState(() => _selected = f);
                 _mapController.move(LatLng(f.lat, f.lon), 4.0);
               },
-              child: Column(children: [
-                Container(
-                  width: 44,
-                  height: 44,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: f.color.withOpacity(0.2),
-                      border: Border.all(
-                          color: f.color.withOpacity(0.5), width: 1.5)),
-                  child: Center(
-                      child: Text(f.emoji,
-                          style: const TextStyle(fontSize: 20))),
-                ),
-                const SizedBox(height: 4),
-                Text(f.handle.substring(1),
-                    style: const TextStyle(
-                        color: Colors.white60,
-                        fontSize: 9,
-                        fontWeight: FontWeight.w600)),
-              ]),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 44,
+                    height: 44,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: f.color.withOpacity(0.2),
+                        border: Border.all(
+                            color: f.color.withOpacity(0.5), width: 1.5)),
+                    child: Center(
+                        child: Text(f.emoji,
+                            style: const TextStyle(fontSize: 20))),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(f.handle.substring(1),
+                      style: const TextStyle(
+                          color: Colors.white60,
+                          fontSize: 9,
+                          fontWeight: FontWeight.w600)),
+                  const SizedBox(height: 3),
+                  // Song pill
+                  NowPlayingBar(
+                    track: f.song,
+                    color: f.color,
+                    compact: true,
+                    isPlaying: true,
+                  ),
+                ],
+              ),
             );
           },
         ),
@@ -579,6 +504,251 @@ class _VybeMapScreenState extends State<VybeMapScreen>
 
   void _centerOnMe() {
     _mapController.move(const LatLng(_youLat, _youLon), 5.0);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Info card widget (shown when a friend pin is selected)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _InfoCard extends StatefulWidget {
+  final _Friend friend;
+  final AnimationController pulse;
+  final VoidCallback onClose;
+
+  const _InfoCard({
+    super.key,
+    required this.friend,
+    required this.pulse,
+    required this.onClose,
+  });
+
+  @override
+  State<_InfoCard> createState() => _InfoCardState();
+}
+
+class _InfoCardState extends State<_InfoCard>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _wave;
+
+  @override
+  void initState() {
+    super.initState();
+    _wave = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 800))
+      ..repeat();
+  }
+
+  @override
+  void dispose() {
+    _wave.dispose();
+    super.dispose();
+  }
+
+  Widget _waveBar(int count) {
+    final phases = [0.0, math.pi / 2, math.pi, math.pi * 1.5];
+    return AnimatedBuilder(
+      animation: _wave,
+      builder: (_, __) => Row(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: List.generate(count, (i) {
+          final h =
+              (math.sin(_wave.value * 2 * math.pi + phases[i % 4]) * 0.5 +
+                          0.5) *
+                      14 +
+                  4;
+          return Container(
+            width: 3,
+            height: h,
+            margin: const EdgeInsets.symmetric(horizontal: 1),
+            decoration: BoxDecoration(
+              color: widget.friend.color,
+              borderRadius: BorderRadius.circular(2),
+            ),
+          );
+        }),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final f = widget.friend;
+    return Container(
+      key: ValueKey(f.handle),
+      margin: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 14),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0A0A1E),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: f.color.withOpacity(0.45), width: 1.5),
+        boxShadow: [
+          BoxShadow(
+              color: f.color.withOpacity(0.20),
+              blurRadius: 28,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // ── Signal lock header ──────────────────────────────────
+          Text(
+            '[SIGNAL_LOCK // ${f.city.toUpperCase()}]',
+            style: TextStyle(
+              fontFamily: 'SpaceMono',
+              fontSize: 7,
+              color: f.color.withOpacity(0.7),
+              letterSpacing: 0.8,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 10),
+          // ── Avatar + identity ───────────────────────────────────
+          Row(children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(
+                  color: f.color.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(
+                      color: f.color.withOpacity(0.5), width: 1.5)),
+              child: Center(
+                  child: Text(f.emoji,
+                      style: const TextStyle(fontSize: 22))),
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      f.handle,
+                      style: TextStyle(
+                          fontFamily: 'SpaceMono',
+                          color: f.color,
+                          fontWeight: FontWeight.w800,
+                          fontSize: 13,
+                          letterSpacing: 0.5),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      f.city,
+                      style: TextStyle(
+                          color: Colors.white.withOpacity(0.35),
+                          fontSize: 10),
+                    ),
+                  ]),
+            ),
+            // Close button
+            GestureDetector(
+              onTap: widget.onClose,
+              child: Container(
+                width: 26,
+                height: 26,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.05),
+                  borderRadius: BorderRadius.circular(8),
+                  border:
+                      Border.all(color: Colors.white.withOpacity(0.12)),
+                ),
+                child: Icon(Icons.close_rounded,
+                    color: Colors.white.withOpacity(0.5), size: 14),
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          // ── Now Playing strip ───────────────────────────────────
+          Container(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: f.color.withOpacity(0.08),
+              borderRadius: BorderRadius.circular(12),
+              border:
+                  Border.all(color: f.color.withOpacity(0.22), width: 1),
+            ),
+            child: Row(children: [
+              // Animated waveform
+              SizedBox(height: 22, child: _waveBar(4)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'LISTENING NOW',
+                        style: TextStyle(
+                          fontSize: 7,
+                          fontWeight: FontWeight.w800,
+                          color: f.color.withOpacity(0.7),
+                          letterSpacing: 1.2,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        f.song,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w700),
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ]),
+              ),
+            ]),
+          ),
+          const SizedBox(height: 10),
+          // ── Jam Together button ─────────────────────────────────
+          GestureDetector(
+            onTap: () {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text(
+                    '🎵 Listening Party with ${f.handle} — coming soon!'),
+                backgroundColor: f.color.withOpacity(0.85),
+                behavior: SnackBarBehavior.floating,
+                duration: const Duration(seconds: 2),
+              ));
+            },
+            child: Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(vertical: 9),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    f.color.withOpacity(0.35),
+                    f.color.withOpacity(0.15),
+                  ],
+                ),
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                    color: f.color.withOpacity(0.45), width: 1.2),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.headphones_rounded,
+                      color: f.color, size: 14),
+                  const SizedBox(width: 6),
+                  Text(
+                    'Jam Together',
+                    style: TextStyle(
+                      color: f.color,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 12,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
   }
 }
 

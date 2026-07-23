@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'models/orbit_state.dart';
 import 'services/spotify_service.dart';
 import 'services/apple_music_service.dart';
 import 'services/social_service.dart';
 import 'services/notification_service.dart';
+import 'services/theme_service.dart';
 import 'theme/aura_theme.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/onboarding/onboarding_screen.dart';
@@ -16,6 +18,9 @@ import 'widgets/web_scaffold.dart';
 
 /// Global theme notifier — toggled from SettingsScreen.
 final themeNotifier = ValueNotifier<ThemeMode>(ThemeMode.dark);
+
+/// Global font scale notifier — adjusted from SettingsScreen (0.8–1.4).
+final fontScaleNotifier = ValueNotifier<double>(1.0);
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -33,6 +38,12 @@ void main() async {
   AuraTheme.isDark = true;
   themeNotifier.value = ThemeMode.dark;
 
+  // Restore saved font scale
+  final prefs = await SharedPreferences.getInstance();
+  fontScaleNotifier.value = prefs.getDouble('fontScale') ?? 1.0;
+  // Restore app theme
+  await ThemeService().load();
+
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
     statusBarColor: Colors.transparent,
     statusBarIconBrightness: Brightness.light,
@@ -46,16 +57,28 @@ class OrbitApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final disguise = OrbitState().appDisguiseEnabled;
-    return ValueListenableBuilder<ThemeMode>(
-      valueListenable: themeNotifier,
-      builder: (_, mode, __) => MaterialApp(
-        title: disguise ? 'Calculator' : 'Orbit',
-        debugShowCheckedModeBanner: false,
-        theme: AuraTheme.dark,
-        darkTheme: AuraTheme.darkTheme,
-        themeMode: mode,
-        navigatorKey: navigatorKey,
-        home: disguise ? const AppDisguiseScreen() : const OrbitRoot(),
+    return ListenableBuilder(
+      listenable: ThemeService(),
+      builder: (_, __) => ValueListenableBuilder<ThemeMode>(
+        valueListenable: themeNotifier,
+        builder: (_, mode, __) => ValueListenableBuilder<double>(
+          valueListenable: fontScaleNotifier,
+          builder: (_, scale, __) => MaterialApp(
+            title: disguise ? 'Calculator' : 'Orbit',
+            debugShowCheckedModeBanner: false,
+            theme: ThemeService().themeData,
+            darkTheme: ThemeService().themeData,
+            themeMode: ThemeMode.dark,
+            navigatorKey: navigatorKey,
+            builder: (ctx, child) => MediaQuery(
+              data: MediaQuery.of(ctx).copyWith(
+                textScaler: TextScaler.linear(scale),
+              ),
+              child: child!,
+            ),
+            home: disguise ? const AppDisguiseScreen() : const OrbitRoot(),
+          ),
+        ),
       ),
     );
   }

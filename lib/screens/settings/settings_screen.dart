@@ -1,9 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import '../../main.dart' show themeNotifier;
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../main.dart' show themeNotifier, fontScaleNotifier;
 import '../../models/orbit_state.dart';
+import '../../services/theme_service.dart';
 import '../../theme/aura_theme.dart';
 import '../home/vibe_picker_sheet.dart';
+import 'theme_picker_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -396,11 +399,51 @@ class _SettingsScreenState extends State<SettingsScreen> {
               activeColor: AuraTheme.accent,
             ),
           ),
+          // App theme picker
+          ListenableBuilder(
+            listenable: ThemeService(),
+            builder: (_, __) => ListTile(
+              contentPadding:
+                  const EdgeInsets.symmetric(horizontal: 20, vertical: 2),
+              leading: Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: ThemeService().accent.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Center(
+                  child: Text(
+                    ThemeService().current.emoji,
+                    style: const TextStyle(fontSize: 18),
+                  ),
+                ),
+              ),
+              title: const Text('App Theme',
+                  style: TextStyle(
+                      fontWeight: FontWeight.w600, fontSize: 15)),
+              subtitle: Text(
+                ThemeService().current.name,
+                style: TextStyle(
+                    fontSize: 12,
+                    color: ThemeService().accent),
+              ),
+              trailing: const Icon(Icons.chevron_right_rounded,
+                  color: AuraTheme.textMuted),
+              onTap: () => Navigator.push(
+                context,
+                MaterialPageRoute(
+                    builder: (_) => const ThemePickerScreen()),
+              ),
+            ),
+          ),
           _tile(
             title: 'Language',
             subtitle: 'English',
             onTap: () => _showLanguageSheet(),
           ),
+          // Font size picker
+          _FontSizePicker(),
         ],
       );
 
@@ -786,6 +829,118 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const Divider(indent: 20, endIndent: 20),
           _accountSection(),
         ],
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Font Size Picker
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _FontSizePicker extends StatefulWidget {
+  @override
+  State<_FontSizePicker> createState() => _FontSizePickerState();
+}
+
+class _FontSizePickerState extends State<_FontSizePicker> {
+  static const _sizes = [
+    ('XS', 0.80),
+    ('S',  0.90),
+    ('MD', 1.00),
+    ('L',  1.15),
+    ('XL', 1.30),
+  ];
+
+  Future<void> _pick(double scale) async {
+    fontScaleNotifier.value = scale;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setDouble('fontScale', scale);
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final current = fontScaleNotifier.value;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+      child: Container(
+        padding: const EdgeInsets.all(14),
+        decoration: BoxDecoration(
+          color: AuraTheme.surface,
+          borderRadius: BorderRadius.circular(14),
+          border: Border.all(color: AuraTheme.purple.withOpacity(0.2)),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          Row(children: [
+            const Icon(Icons.text_fields_rounded, size: 16, color: AuraTheme.purple),
+            const SizedBox(width: 8),
+            const Text('Text size',
+              style: TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+            const Spacer(),
+            Text(
+              _sizes.firstWhere(
+                (s) => (s.$2 - current).abs() < 0.01,
+                orElse: () => ('MD', 1.0),
+              ).$1,
+              style: const TextStyle(
+                fontFamily: 'SpaceMono',
+                fontSize: 11,
+                color: AuraTheme.purple,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ]),
+          const SizedBox(height: 12),
+          Row(
+            children: _sizes.map((s) {
+              final active = (s.$2 - current).abs() < 0.01;
+              return Expanded(
+                child: GestureDetector(
+                  onTap: () => _pick(s.$2),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    height: 38,
+                    decoration: BoxDecoration(
+                      gradient: active
+                          ? const LinearGradient(
+                              colors: [AuraTheme.purple, Color(0xFF2563EB)],
+                            )
+                          : null,
+                      color: active ? null : AuraTheme.card,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(
+                        color: active
+                            ? AuraTheme.purple
+                            : Colors.white.withOpacity(0.06),
+                      ),
+                    ),
+                    child: Center(
+                      child: Text(
+                        s.$1,
+                        style: TextStyle(
+                          fontFamily: 'SpaceMono',
+                          fontSize: 10,
+                          fontWeight: FontWeight.w700,
+                          color: active ? Colors.white : AuraTheme.textMuted,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            'Preview: The orbit never sleeps.',
+            style: TextStyle(
+              fontSize: 13 * current,
+              color: AuraTheme.textSecondary,
+            ),
+          ),
+        ]),
       ),
     );
   }
