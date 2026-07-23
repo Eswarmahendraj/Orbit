@@ -10,6 +10,7 @@ import '../profile/other_profile_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/orb_skeleton.dart';
 import '../../widgets/orb_empty_state.dart';
+import 'dart:math' as math;
 
 // ─── Models ───────────────────────────────────────────────────────────────────
 
@@ -73,10 +74,11 @@ class FindScreen extends StatefulWidget {
 }
 
 class _FindScreenState extends State<FindScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   final _searchController = TextEditingController();
   bool _isSearching = false;
   late TabController _tabController;
+  late AnimationController _radarCtrl;
   List<Map<String, dynamic>> _songResults = [];
   bool _loadingSongs = false;
   final _player = AudioPlayer();
@@ -149,6 +151,10 @@ class _FindScreenState extends State<FindScreen>
   void initState() {
     super.initState();
     _tabController = TabController(length: 3, vsync: this);
+    _radarCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 3600),
+    )..repeat();
     _searchController.addListener(() {
       setState(() {
         _isSearching = _searchController.text.trim().isNotEmpty;
@@ -178,6 +184,7 @@ class _FindScreenState extends State<FindScreen>
   @override
   void dispose() {
     _tabController.dispose();
+    _radarCtrl.dispose();
     _searchController.dispose();
     _player.dispose();
     super.dispose();
@@ -221,8 +228,45 @@ class _FindScreenState extends State<FindScreen>
     return Scaffold(
       backgroundColor: AuraTheme.background,
       appBar: AppBar(
-        title: const Text('find',
-            style: TextStyle(fontWeight: FontWeight.w800, fontSize: 22)),
+        backgroundColor: AuraTheme.background,
+        elevation: 0,
+        title: ShaderMask(
+          shaderCallback: (r) => const LinearGradient(
+            colors: [AuraTheme.accent, Color(0xFFFF8C42), AuraTheme.accent],
+          ).createShader(r),
+          child: const Text(
+            'ORBIT_SCAN',
+            style: TextStyle(
+              fontFamily: 'SpaceMono',
+              fontSize: 17,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: 2.5,
+            ),
+          ),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: ShaderMask(
+              shaderCallback: (r) => const LinearGradient(
+                colors: [AuraTheme.accent, Color(0xFFFF8C42)],
+              ).createShader(r),
+              child: const Icon(Icons.wifi_tethering, color: Colors.white, size: 22),
+            ),
+          ),
+        ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.5),
+          child: Container(
+            height: 1.5,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AuraTheme.accent, Colors.transparent],
+              ),
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
@@ -232,8 +276,19 @@ class _FindScreenState extends State<FindScreen>
             child: TextField(
               controller: _searchController,
               decoration: InputDecoration(
-                hintText: 'search people, songs, campfires...',
-                prefixIcon: const Icon(Icons.search, color: AuraTheme.textMuted),
+                hintText: 'SCAN::  people · songs · campfires',
+                hintStyle: const TextStyle(
+                  fontFamily: 'SpaceMono',
+                  fontSize: 11,
+                  color: AuraTheme.textMuted,
+                  letterSpacing: 0.5,
+                ),
+                prefixIcon: ShaderMask(
+                  shaderCallback: (r) => const LinearGradient(
+                    colors: [AuraTheme.accent, Color(0xFFFF8C42)],
+                  ).createShader(r),
+                  child: const Icon(Icons.radar, color: Colors.white, size: 20),
+                ),
                 suffixIcon: _isSearching
                     ? IconButton(
                         icon: const Icon(Icons.clear),
@@ -248,6 +303,10 @@ class _FindScreenState extends State<FindScreen>
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(16),
                   borderSide: BorderSide.none,
+                ),
+                focusedBorder: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: const BorderSide(color: AuraTheme.accent, width: 1.5),
                 ),
               ),
               onSubmitted: (q) {
@@ -327,10 +386,23 @@ class _FindScreenState extends State<FindScreen>
               child: ListView(
                 padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
                 children: [
-                  // Trending chips
-                  const Text('trending now',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 16)),
+                  // ── Orbit Radar ─────────────────────────────────────
+                  _OrbitRadar(
+                    people: _fallbackPeople,
+                    animation: _radarCtrl,
+                  ),
+                  const SizedBox(height: 24),
+                  // ── Trending ─────────────────────────────────────────
+                  const Text(
+                    'TRENDING_NOW',
+                    style: TextStyle(
+                      fontFamily: 'SpaceMono',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      letterSpacing: 2.5,
+                      color: AuraTheme.textMuted,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
@@ -349,19 +421,24 @@ class _FindScreenState extends State<FindScreen>
                                   color: AuraTheme.card,
                                   borderRadius: BorderRadius.circular(20),
                                   border: Border.all(
-                                      color:
-                                          AuraTheme.accent.withOpacity(0.3)),
+                                      color: AuraTheme.accent.withOpacity(0.3)),
                                 ),
                                 child: Row(
                                   mainAxisSize: MainAxisSize.min,
                                   children: [
-                                    const Icon(Icons.trending_up,
-                                        color: AuraTheme.accent, size: 14),
-                                    const SizedBox(width: 4),
+                                    ShaderMask(
+                                      shaderCallback: (r) => const LinearGradient(
+                                        colors: [AuraTheme.accent, Color(0xFFFF8C42)],
+                                      ).createShader(r),
+                                      child: const Icon(Icons.trending_up,
+                                          color: Colors.white, size: 14),
+                                    ),
+                                    const SizedBox(width: 5),
                                     Text(chip,
                                         style: const TextStyle(
-                                            fontSize: 13,
-                                            fontWeight: FontWeight.w500)),
+                                            fontFamily: 'SpaceMono',
+                                            fontSize: 11,
+                                            fontWeight: FontWeight.w600)),
                                   ],
                                 ),
                               ),
@@ -369,10 +446,17 @@ class _FindScreenState extends State<FindScreen>
                         .toList(),
                   ),
                   const SizedBox(height: 24),
-                  // Suggested people
-                  const Text('people you might vibe with',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 16)),
+                  // ── Orbit Signals ────────────────────────────────────
+                  const Text(
+                    'ORBIT_SIGNALS',
+                    style: TextStyle(
+                      fontFamily: 'SpaceMono',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      letterSpacing: 2.5,
+                      color: AuraTheme.textMuted,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   if (_loadingUsers)
                     const Center(child: Padding(
@@ -384,10 +468,17 @@ class _FindScreenState extends State<FindScreen>
                   else
                     ..._fallbackPeople.map((p) => _PersonTile(person: p)),
                   const SizedBox(height: 24),
-                  // Open campfires
-                  const Text('open campfires',
-                      style: TextStyle(
-                          fontWeight: FontWeight.w700, fontSize: 16)),
+                  // ── Active Campfires ─────────────────────────────────
+                  const Text(
+                    'ACTIVE_CAMPFIRES',
+                    style: TextStyle(
+                      fontFamily: 'SpaceMono',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      letterSpacing: 2.5,
+                      color: AuraTheme.textMuted,
+                    ),
+                  ),
                   const SizedBox(height: 12),
                   ..._openCampfires.map((c) => _CampfireTile(campfire: c)),
                 ],
@@ -769,4 +860,274 @@ class _CampfireTile extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Orbit Radar ──────────────────────────────────────────────────────────────
+
+class _OrbitRadar extends StatelessWidget {
+  final List<_PersonResult> people;
+  final Animation<double> animation;
+
+  const _OrbitRadar({required this.people, required this.animation});
+
+  @override
+  Widget build(BuildContext context) {
+    return Stack(
+      children: [
+        Container(
+          height: 262,
+          decoration: BoxDecoration(
+            color: const Color(0xFF05050F),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(color: AuraTheme.accent.withOpacity(0.18)),
+            boxShadow: [
+              BoxShadow(
+                color: AuraTheme.accent.withOpacity(0.07),
+                blurRadius: 24,
+                spreadRadius: 2,
+              ),
+            ],
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(20),
+            child: AnimatedBuilder(
+              animation: animation,
+              builder: (context, _) => CustomPaint(
+                painter: _RadarPainter(
+                  sweep: animation.value,
+                  people: people,
+                ),
+              ),
+            ),
+          ),
+        ),
+        // HUD top-left label
+        const Positioned(
+          top: 12,
+          left: 14,
+          child: Text(
+            'ORBIT_RADAR',
+            style: TextStyle(
+              fontFamily: 'SpaceMono',
+              fontSize: 8,
+              fontWeight: FontWeight.w700,
+              color: AuraTheme.accent,
+              letterSpacing: 2,
+            ),
+          ),
+        ),
+        // HUD top-right scanning badge
+        Positioned(
+          top: 9,
+          right: 12,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+            decoration: BoxDecoration(
+              color: AuraTheme.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: AuraTheme.accent.withOpacity(0.38)),
+            ),
+            child: const Text(
+              '● SCANNING',
+              style: TextStyle(
+                fontFamily: 'SpaceMono',
+                fontSize: 7,
+                fontWeight: FontWeight.w700,
+                color: AuraTheme.accent,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─── Radar Painter ────────────────────────────────────────────────────────────
+
+class _RadarPainter extends CustomPainter {
+  final double sweep;
+  final List<_PersonResult> people;
+
+  // Orbit radii as fraction of maxR
+  static const List<double> _orbits = [0.30, 0.52, 0.70, 0.88];
+  // Angular speeds relative to sweep revolution
+  static const List<double> _speeds = [0.45, 0.28, 0.62, 0.35];
+  // Initial phase offsets (radians)
+  static const List<double> _phases = [0.0, 1.4, 2.8, 4.5];
+
+  const _RadarPainter({required this.sweep, required this.people});
+
+  void _drawText(Canvas canvas, Offset center, String text, TextStyle style) {
+    final tp = TextPainter(
+      text: TextSpan(text: text, style: style),
+      textDirection: TextDirection.ltr,
+    )..layout();
+    tp.paint(canvas, center - Offset(tp.width / 2, tp.height / 2));
+  }
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final cx = size.width / 2;
+    final cy = size.height / 2;
+    final maxR = math.min(cx, cy) * 0.86;
+    final center = Offset(cx, cy);
+
+    // Background radial gradient
+    canvas.drawRect(
+      Rect.fromLTWH(0, 0, size.width, size.height),
+      Paint()
+        ..shader = RadialGradient(
+          colors: [const Color(0xFF0D0A1A), const Color(0xFF05050F)],
+          radius: 0.85,
+        ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
+    );
+
+    // Concentric rings
+    for (int i = 1; i <= 4; i++) {
+      canvas.drawCircle(
+        center,
+        maxR * i / 4,
+        Paint()
+          ..color = AuraTheme.accent.withOpacity(0.05 + i * 0.015)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8,
+      );
+    }
+
+    // Crosshairs
+    final xPaint = Paint()
+      ..color = AuraTheme.accent.withOpacity(0.07)
+      ..strokeWidth = 0.6;
+    canvas.drawLine(Offset(cx - maxR, cy), Offset(cx + maxR, cy), xPaint);
+    canvas.drawLine(Offset(cx, cy - maxR), Offset(cx, cy + maxR), xPaint);
+    final d = maxR * math.cos(math.pi / 4);
+    final xPaint2 = Paint()
+      ..color = AuraTheme.accent.withOpacity(0.04)
+      ..strokeWidth = 0.5;
+    canvas.drawLine(Offset(cx - d, cy - d), Offset(cx + d, cy + d), xPaint2);
+    canvas.drawLine(Offset(cx + d, cy - d), Offset(cx - d, cy + d), xPaint2);
+
+    // Sweep trail — SweepGradient over full circle, clipped to circle
+    final rect = Rect.fromCircle(center: center, radius: maxR);
+    canvas.save();
+    canvas.clipPath(Path()..addOval(rect));
+    final trailS0 = math.max(0.0, sweep - 0.16);
+    final trailS1 = math.max(0.001, sweep).clamp(0.0, 1.0);
+    canvas.drawCircle(
+      center,
+      maxR,
+      Paint()
+        ..shader = SweepGradient(
+          center: Alignment.center,
+          startAngle: -math.pi / 2,
+          endAngle: math.pi * 2 - math.pi / 2,
+          colors: [
+            Colors.transparent,
+            Colors.transparent,
+            AuraTheme.accent.withOpacity(0.45),
+            Colors.transparent,
+          ],
+          stops: [0.0, trailS0, trailS1, 1.0],
+        ).createShader(rect),
+    );
+    canvas.restore();
+
+    // Sweep line — glow layer + solid layer
+    final sweepAngle = sweep * 2 * math.pi - math.pi / 2;
+    final lineEnd = Offset(
+      cx + maxR * math.cos(sweepAngle),
+      cy + maxR * math.sin(sweepAngle),
+    );
+    canvas.drawLine(center, lineEnd,
+        Paint()
+          ..color = AuraTheme.accent.withOpacity(0.65)
+          ..strokeWidth = 2.5
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 4));
+    canvas.drawLine(center, lineEnd,
+        Paint()
+          ..color = AuraTheme.accent
+          ..strokeWidth = 1.0);
+
+    // Person nodes — each orbiting at their own speed
+    final count = math.min(people.length, 4);
+    for (int i = 0; i < count; i++) {
+      final orbitR = maxR * _orbits[i];
+      final nodeAngle =
+          sweep * 2 * math.pi * _speeds[i] + _phases[i] - math.pi / 2;
+      final nx = cx + orbitR * math.cos(nodeAngle);
+      final ny = cy + orbitR * math.sin(nodeAngle);
+      final node = Offset(nx, ny);
+
+      // Hit: sweep just crossed the node's angle
+      final diff =
+          ((sweepAngle - nodeAngle) % (2 * math.pi) + 2 * math.pi) %
+              (2 * math.pi);
+      final isHit = diff < 0.28;
+
+      // Hit glow burst
+      if (isHit) {
+        canvas.drawCircle(
+          node,
+          20,
+          Paint()
+            ..color = people[i].color.withOpacity(0.40)
+            ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 12),
+        );
+      }
+
+      // Node fill + border
+      canvas.drawCircle(node, 14,
+          Paint()..color = people[i].color.withOpacity(isHit ? 0.22 : 0.08));
+      canvas.drawCircle(
+        node,
+        14,
+        Paint()
+          ..color = people[i].color.withOpacity(isHit ? 1.0 : 0.5)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5,
+      );
+
+      // Initial letter
+      _drawText(
+        canvas,
+        node,
+        people[i].initial,
+        TextStyle(
+          color: people[i].color.withOpacity(isHit ? 1.0 : 0.8),
+          fontSize: 10,
+          fontWeight: FontWeight.w800,
+        ),
+      );
+    }
+
+    // Center YOU node
+    canvas.drawCircle(center, 28,
+        Paint()
+          ..color = AuraTheme.accent.withOpacity(0.10)
+          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 10));
+    canvas.drawCircle(center, 22,
+        Paint()..color = AuraTheme.accent.withOpacity(0.14));
+    canvas.drawCircle(center, 22,
+        Paint()
+          ..color = AuraTheme.accent.withOpacity(0.85)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5);
+    canvas.drawCircle(center, 14,
+        Paint()
+          ..color = AuraTheme.accent.withOpacity(0.45)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.0);
+    _drawText(canvas, center, 'YOU',
+        const TextStyle(
+          color: Colors.white,
+          fontSize: 8,
+          fontWeight: FontWeight.w900,
+          letterSpacing: 0.8,
+        ));
+  }
+
+  @override
+  bool shouldRepaint(covariant _RadarPainter old) => old.sweep != sweep;
 }

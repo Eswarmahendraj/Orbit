@@ -1,5 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import '../../theme/aura_theme.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -8,12 +10,12 @@ import '../../theme/aura_theme.dart';
 
 class _Friend {
   final String handle;
-  final String emoji;   // mood emoji / bitmoji stand-in
+  final String emoji;
   final String song;
   final String city;
   final Color color;
-  final double lat;  // -90 to 90
-  final double lon;  // -180 to 180
+  final double lat;
+  final double lon;
 
   const _Friend({
     required this.handle,
@@ -57,8 +59,8 @@ class _VybeMapScreenState extends State<VybeMapScreen>
     with TickerProviderStateMixin {
   late final AnimationController _pulse;
   late final AnimationController _scanLine;
+  final _mapController = MapController();
   _Friend? _selected;
-  final TransformationController _xform = TransformationController();
 
   @override
   void initState() {
@@ -69,37 +71,25 @@ class _VybeMapScreenState extends State<VybeMapScreen>
     _scanLine = AnimationController(
         vsync: this, duration: const Duration(seconds: 4))
       ..repeat();
-
-    // Start slightly zoomed in on user location
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      final size = MediaQuery.of(context).size;
-      final mapH = size.height * 0.78;
-      final mapW = size.width;
-      final (ux, uy) = _latLonToXY(_youLat, _youLon, mapW, mapH);
-      final cx = mapW / 2 - ux * 1.4;
-      final cy = mapH / 2 - uy * 1.4;
-      _xform.value = Matrix4.identity()
-        ..scale(1.4)
-        ..translate(cx / 1.4, cy / 1.4);
-    });
   }
 
   @override
   void dispose() {
     _pulse.dispose();
     _scanLine.dispose();
-    _xform.dispose();
     super.dispose();
   }
 
-  static (double, double) _latLonToXY(
-      double lat, double lon, double w, double h) {
-    // Mercator-ish projection
-    final x = (lon + 180) / 360 * w;
-    final latRad = lat * math.pi / 180;
-    final mercN = math.log(math.tan(math.pi / 4 + latRad / 2));
-    final y = (h / 2) - (w * mercN / (2 * math.pi));
-    return (x.clamp(0, w), y.clamp(0, h));
+  // Generate N intermediate lat/lon points for the connection arc
+  List<LatLng> _arcPoints(LatLng from, LatLng to) {
+    const steps = 48;
+    return List.generate(steps + 1, (i) {
+      final t = i / steps;
+      return LatLng(
+        from.latitude + (to.latitude - from.latitude) * t,
+        from.longitude + (to.longitude - from.longitude) * t,
+      );
+    });
   }
 
   @override
@@ -109,23 +99,55 @@ class _VybeMapScreenState extends State<VybeMapScreen>
       appBar: AppBar(
         backgroundColor: const Color(0xFF060614),
         foregroundColor: Colors.white,
-        title: const Text('vybe map 🌍',
+        title: ShaderMask(
+          shaderCallback: (r) => const LinearGradient(
+            colors: [AuraTheme.accent, Color(0xFFFF8C42), AuraTheme.accent],
+          ).createShader(r),
+          child: const Text(
+            'VYBE_MAP',
             style: TextStyle(
-                fontWeight: FontWeight.w800,
-                fontSize: 20,
-                color: Colors.white)),
+              fontFamily: 'SpaceMono',
+              fontSize: 16,
+              fontWeight: FontWeight.w700,
+              color: Colors.white,
+              letterSpacing: 3,
+            ),
+          ),
+        ),
         leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new_rounded,
-                color: Colors.white),
-            onPressed: () => Navigator.pop(context)),
+          icon: ShaderMask(
+            shaderCallback: (r) => const LinearGradient(
+              colors: [AuraTheme.accent, Color(0xFFFF8C42)],
+            ).createShader(r),
+            child: const Icon(Icons.arrow_back_ios_new_rounded, color: Colors.white),
+          ),
+          onPressed: () => Navigator.pop(context),
+        ),
         actions: [
-          IconButton(
-            icon: const Icon(Icons.my_location_rounded,
-                color: AuraTheme.accent),
-            onPressed: _centerOnMe,
-            tooltip: 'Find me',
+          Padding(
+            padding: const EdgeInsets.only(right: 14),
+            child: GestureDetector(
+              onTap: _centerOnMe,
+              child: ShaderMask(
+                shaderCallback: (r) => const LinearGradient(
+                  colors: [AuraTheme.accent, Color(0xFFFF8C42)],
+                ).createShader(r),
+                child: const Icon(Icons.my_location_rounded, color: Colors.white, size: 22),
+              ),
+            ),
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1.5),
+          child: Container(
+            height: 1.5,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [AuraTheme.accent, Colors.transparent],
+              ),
+            ),
+          ),
+        ),
       ),
       body: Column(children: [
         // ── Legend chips ───────────────────────────────────────────
@@ -142,188 +164,148 @@ class _VybeMapScreenState extends State<VybeMapScreen>
           ]),
         ),
 
-        // ── Interactive map ────────────────────────────────────────
+        // ── World map (CartoDB dark matter tiles) ──────────────────
         Expanded(
-          child: GestureDetector(
-            onTapDown: (_) {
-              if (_selected != null) setState(() => _selected = null);
-            },
-            child: InteractiveViewer(
-              transformationController: _xform,
-              minScale: 0.5,
-              maxScale: 6.0,
-              boundaryMargin: const EdgeInsets.all(200),
-              child: AnimatedBuilder(
-                animation: Listenable.merge([_pulse, _scanLine]),
-                builder: (_, __) => LayoutBuilder(
-                  builder: (ctx, c) {
-                    final w = c.maxWidth;
-                    final h = c.maxHeight;
-                    return Stack(
-                      clipBehavior: Clip.none,
-                      children: [
-                        // Map canvas
-                        CustomPaint(
-                          size: Size(w, h),
-                          painter: _WorldMapPainter(
-                              scanProgress: _scanLine.value),
-                        ),
-
-                        // Arc overlay (you → selected friend)
-                        if (_selected != null)
-                          CustomPaint(
-                            size: Size(w, h),
-                            painter: _ArcPainter(
-                              fromX: _latLonToXY(_youLat, _youLon, w, h).$1,
-                              fromY: _latLonToXY(_youLat, _youLon, w, h).$2,
-                              toX: _latLonToXY(_selected!.lat, _selected!.lon, w, h).$1,
-                              toY: _latLonToXY(_selected!.lat, _selected!.lon, w, h).$2,
-                              color: _selected!.color,
-                              progress: _pulse.value,
-                            ),
-                          ),
-
-                        // Friend pins
-                        ..._friends.map((f) {
-                          final (x, y) =
-                              _latLonToXY(f.lat, f.lon, w, h);
-                          final isSelected = _selected == f;
-                          final ring =
-                              (math.sin(_pulse.value * 2 * math.pi) *
-                                          0.5 +
-                                      0.5) *
-                                  20 +
-                                  8;
-                          return Positioned(
-                            left: x - 22,
-                            top: y - 22,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() =>
-                                    _selected = isSelected ? null : f);
-                              },
-                              child: SizedBox(
-                                width: 44,
-                                height: 44,
-                                child: Stack(
-                                    alignment: Alignment.center,
-                                    children: [
-                                      // Pulse ring
-                                      Container(
-                                        width: ring,
-                                        height: ring,
-                                        decoration: BoxDecoration(
-                                            shape: BoxShape.circle,
-                                            color: f.color.withOpacity(
-                                                0.2)),
-                                      ),
-                                      // Avatar bubble
-                                      Column(
-                                        mainAxisSize: MainAxisSize.min,
-                                        children: [
-                                          AnimatedContainer(
-                                            duration: const Duration(milliseconds: 200),
-                                            width: isSelected ? 36 : 30,
-                                            height: isSelected ? 36 : 30,
-                                            decoration: BoxDecoration(
-                                              shape: BoxShape.circle,
-                                              color: isSelected
-                                                  ? f.color
-                                                  : f.color.withOpacity(0.85),
-                                              border: isSelected
-                                                  ? Border.all(color: Colors.white, width: 2.5)
-                                                  : null,
-                                              boxShadow: [BoxShadow(
-                                                color: f.color.withOpacity(0.5),
-                                                blurRadius: 8,
-                                              )],
-                                            ),
-                                            child: Center(
-                                              child: Text(f.emoji,
-                                                  style: TextStyle(fontSize: isSelected ? 16 : 13)),
-                                            ),
-                                          ),
-                                          if (isSelected)
-                                            Container(
-                                              margin: const EdgeInsets.only(top: 2),
-                                              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
-                                              decoration: BoxDecoration(
-                                                color: f.color.withOpacity(0.9),
-                                                borderRadius: BorderRadius.circular(6),
-                                              ),
-                                              child: Text(
-                                                f.handle.substring(1),
-                                                style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.w700),
-                                              ),
-                                            ),
-                                        ],
-                                      ),
-                                    ]),
-                              ),
-                            ),
-                          );
-                        }),
-
-                        // "YOU" pulsing dot
-                        Builder(builder: (_) {
-                          final (x, y) = _latLonToXY(
-                              _youLat, _youLon, w, h);
-                          final youRing =
-                              (math.sin(_pulse.value * 2 * math.pi +
-                                              1.0) *
-                                          0.5 +
-                                      0.5) *
-                                  24 +
-                                  10;
-                          return Positioned(
-                            left: x - 22,
-                            top: y - 22,
-                            child: SizedBox(
-                              width: 44,
-                              height: 44,
-                              child:
-                                  Stack(alignment: Alignment.center, children: [
-                                Container(
-                                  width: youRing,
-                                  height: youRing,
-                                  decoration: BoxDecoration(
-                                      shape: BoxShape.circle,
-                                      color: AuraTheme.accent
-                                          .withOpacity(0.25)),
-                                ),
-                                Container(
-                                  width: 18,
-                                  height: 18,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    color: AuraTheme.accent,
-                                    border: Border.all(
-                                        color: Colors.white, width: 2),
-                                    boxShadow: [
-                                      BoxShadow(
-                                          color: AuraTheme.accent
-                                              .withOpacity(0.7),
-                                          blurRadius: 10)
-                                    ],
-                                  ),
-                                  child: const Center(
-                                    child: Text('me',
-                                        style: TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 6,
-                                            fontWeight: FontWeight.w800)),
-                                  ),
-                                ),
-                              ]),
-                            ),
-                          );
-                        }),
-                      ],
-                    );
+          child: Stack(
+            children: [
+              // flutter_map — real tile-based world map
+              FlutterMap(
+                mapController: _mapController,
+                options: MapOptions(
+                  center: const LatLng(20, 10),
+                  zoom: 2.2,
+                  minZoom: 1.2,
+                  maxZoom: 8.0,
+                  backgroundColor: const Color(0xFF060A1A),
+                  onTap: (_, __) {
+                    if (_selected != null) setState(() => _selected = null);
                   },
                 ),
+                children: [
+                  // ── Dark Matter tile layer (no API key required) ──
+                  TileLayer(
+                    urlTemplate:
+                        'https://cartodb-basemaps-{s}.global.ssl.fastly.net/dark_matter/{z}/{x}/{y}.png',
+                    subdomains: const ['a', 'b', 'c', 'd'],
+                    userAgentPackageName: 'com.example.aura',
+                    backgroundColor: const Color(0xFF060A1A),
+                    maxZoom: 8,
+                  ),
+
+                  // ── Connection arc (YOU → selected friend) ────────
+                  if (_selected != null)
+                    PolylineLayer(
+                      polylines: [
+                        Polyline(
+                          points: _arcPoints(
+                            const LatLng(_youLat, _youLon),
+                            LatLng(_selected!.lat, _selected!.lon),
+                          ),
+                          color: _selected!.color.withOpacity(0.25),
+                          strokeWidth: 1.8,
+                        ),
+                      ],
+                    ),
+
+                  // ── Animated dot traveling the arc ────────────────
+                  if (_selected != null)
+                    AnimatedBuilder(
+                      animation: _pulse,
+                      builder: (_, __) {
+                        final head = (_pulse.value * 1.4).clamp(0.0, 1.0);
+                        final sel = _selected;
+                        if (sel == null) return const SizedBox.shrink();
+                        return MarkerLayer(
+                          markers: [
+                            Marker(
+                              point: LatLng(
+                                _youLat + (sel.lat - _youLat) * head,
+                                _youLon + (sel.lon - _youLon) * head,
+                              ),
+                              width: 14,
+                              height: 14,
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  shape: BoxShape.circle,
+                                  color: sel.color,
+                                  boxShadow: [
+                                    BoxShadow(
+                                      color: sel.color.withOpacity(0.7),
+                                      blurRadius: 10,
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+
+                  // ── Friend + YOU pins ─────────────────────────────
+                  AnimatedBuilder(
+                    animation: _pulse,
+                    builder: (_, __) => MarkerLayer(
+                      markers: [
+                        // YOU pin
+                        Marker(
+                          point: const LatLng(_youLat, _youLon),
+                          width: 44,
+                          height: 44,
+                          child: _YouPin(pulse: _pulse.value),
+                        ),
+                        // Friend pins
+                        ..._friends.map(
+                          (f) => Marker(
+                            point: LatLng(f.lat, f.lon),
+                            width: _selected == f ? 58 : 44,
+                            height: _selected == f ? 62 : 44,
+                            child: GestureDetector(
+                              onTap: () => setState(
+                                  () => _selected = _selected == f ? null : f),
+                              child: _FriendPin(
+                                friend: f,
+                                selected: _selected == f,
+                                pulse: _pulse.value,
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-            ),
+
+              // ── Scan-line HUD overlay ──────────────────────────────
+              IgnorePointer(
+                child: AnimatedBuilder(
+                  animation: _scanLine,
+                  builder: (_, __) => CustomPaint(
+                    size: Size.infinite,
+                    painter: _ScanLinePainter(progress: _scanLine.value),
+                  ),
+                ),
+              ),
+
+              // ── HUD corner brackets ────────────────────────────────
+              const IgnorePointer(child: _HudCorners()),
+
+              // ── HUD coordinates readout ────────────────────────────
+              Positioned(
+                bottom: 10,
+                left: 14,
+                child: Text(
+                  'LAT: 12.97°N  ·  LON: 77.59°E  ·  ● SIGNAL ACTIVE',
+                  style: TextStyle(
+                    fontFamily: 'SpaceMono',
+                    fontSize: 7,
+                    color: AuraTheme.accent.withOpacity(0.55),
+                    letterSpacing: 0.8,
+                  ),
+                ),
+              ),
+            ],
           ),
         ),
 
@@ -350,7 +332,11 @@ class _VybeMapScreenState extends State<VybeMapScreen>
         child: Row(mainAxisSize: MainAxisSize.min, children: [
           Text(text,
               style: const TextStyle(
-                  color: AuraTheme.accent, fontSize: 11, fontWeight: FontWeight.w600)),
+                  fontFamily: 'SpaceMono',
+                  color: AuraTheme.accent,
+                  fontSize: 9,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: 0.5)),
           if (tappable) ...[
             const SizedBox(width: 4),
             const Icon(Icons.keyboard_arrow_right_rounded,
@@ -377,13 +363,18 @@ class _VybeMapScreenState extends State<VybeMapScreen>
           child: Column(
             children: [
               const SizedBox(height: 12),
-              Container(width: 36, height: 4,
-                  decoration: BoxDecoration(color: Colors.white24,
+              Container(
+                  width: 36,
+                  height: 4,
+                  decoration: BoxDecoration(
+                      color: Colors.white24,
                       borderRadius: BorderRadius.circular(2))),
               const SizedBox(height: 16),
               Text('${_friends.length} friends vibing globally 🌍',
-                  style: const TextStyle(color: Colors.white,
-                      fontWeight: FontWeight.w800, fontSize: 16)),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16)),
               const SizedBox(height: 4),
               const Text('tap a friend to see their pin',
                   style: TextStyle(color: Colors.white38, fontSize: 12)),
@@ -396,38 +387,50 @@ class _VybeMapScreenState extends State<VybeMapScreen>
                   itemBuilder: (_, i) {
                     final f = _friends[i];
                     return ListTile(
-                      contentPadding: const EdgeInsets.symmetric(vertical: 4),
+                      contentPadding:
+                          const EdgeInsets.symmetric(vertical: 4),
                       leading: Container(
-                        width: 44, height: 44,
+                        width: 44,
+                        height: 44,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: f.color.withOpacity(0.2),
-                          border: Border.all(color: f.color.withOpacity(0.5)),
+                          border: Border.all(
+                              color: f.color.withOpacity(0.5)),
                         ),
-                        child: Center(child: Text(f.emoji,
-                            style: const TextStyle(fontSize: 20))),
+                        child: Center(
+                            child: Text(f.emoji,
+                                style: const TextStyle(fontSize: 20))),
                       ),
                       title: Text(f.handle,
-                          style: const TextStyle(color: Colors.white,
-                              fontWeight: FontWeight.w700, fontSize: 13)),
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 13)),
                       subtitle: Row(children: [
                         const Icon(Icons.music_note_rounded,
                             color: AuraTheme.accent, size: 11),
                         const SizedBox(width: 3),
-                        Expanded(child: Text(f.song,
-                            style: const TextStyle(color: Colors.white54, fontSize: 11),
-                            overflow: TextOverflow.ellipsis)),
+                        Expanded(
+                            child: Text(f.song,
+                                style: const TextStyle(
+                                    color: Colors.white54, fontSize: 11),
+                                overflow: TextOverflow.ellipsis)),
                       ]),
-                      trailing: Row(mainAxisSize: MainAxisSize.min, children: [
-                        const Icon(Icons.location_on_rounded,
-                            color: Colors.white38, size: 13),
-                        const SizedBox(width: 2),
-                        Text(f.city,
-                            style: const TextStyle(color: Colors.white38, fontSize: 11)),
-                      ]),
+                      trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.location_on_rounded,
+                                color: Colors.white38, size: 13),
+                            const SizedBox(width: 2),
+                            Text(f.city,
+                                style: const TextStyle(
+                                    color: Colors.white38, fontSize: 11)),
+                          ]),
                       onTap: () {
                         Navigator.pop(context);
                         setState(() => _selected = f);
+                        _mapController.move(LatLng(f.lat, f.lon), 4.0);
                       },
                     );
                   },
@@ -443,71 +446,95 @@ class _VybeMapScreenState extends State<VybeMapScreen>
   Widget _infoCard(_Friend f) => Container(
         key: ValueKey(f.handle),
         margin: const EdgeInsets.all(16),
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF111128),
-          borderRadius: BorderRadius.circular(22),
-          border: Border.all(color: f.color.withOpacity(0.35), width: 1.5),
+          color: const Color(0xFF0A0A1E),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: f.color.withOpacity(0.45), width: 1.5),
           boxShadow: [
             BoxShadow(
-                color: f.color.withOpacity(0.15),
-                blurRadius: 20,
-                offset: const Offset(0, 4))
+                color: f.color.withOpacity(0.18),
+                blurRadius: 24,
+                offset: const Offset(0, 4)),
           ],
         ),
-        child: Row(children: [
-          Container(
-            width: 52,
-            height: 52,
-            decoration: BoxDecoration(
-                color: f.color.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: f.color.withOpacity(0.4))),
-            child: Center(
-                child: Text(f.emoji,
-                    style: const TextStyle(fontSize: 24))),
-          ),
-          const SizedBox(width: 14),
-          Expanded(
-            child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(f.handle,
-                      style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.w800,
-                          fontSize: 15)),
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    const Icon(Icons.music_note_rounded,
-                        color: AuraTheme.accent, size: 12),
-                    const SizedBox(width: 4),
-                    Expanded(
-                      child: Text(f.song,
-                          style: TextStyle(
-                              color: Colors.white.withOpacity(0.7),
-                              fontSize: 12),
-                          overflow: TextOverflow.ellipsis),
-                    ),
-                  ]),
-                  const SizedBox(height: 2),
-                  Row(children: [
-                    const Icon(Icons.location_on_rounded,
-                        color: Color(0xFF7C83FD), size: 12),
-                    const SizedBox(width: 4),
-                    Text(f.city,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              '[SIGNAL_LOCK // ${f.city.toUpperCase()}]',
+              style: TextStyle(
+                fontFamily: 'SpaceMono',
+                fontSize: 7,
+                color: f.color.withOpacity(0.7),
+                letterSpacing: 0.8,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Row(children: [
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                    color: f.color.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(14),
+                    border:
+                        Border.all(color: f.color.withOpacity(0.5), width: 1.5)),
+                child: Center(
+                    child:
+                        Text(f.emoji, style: const TextStyle(fontSize: 22))),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        f.handle,
                         style: TextStyle(
-                            color: Colors.white.withOpacity(0.5),
-                            fontSize: 11)),
-                  ]),
-                ]),
-          ),
-          GestureDetector(
-            onTap: () => setState(() => _selected = null),
-            child: Icon(Icons.close_rounded,
-                color: Colors.white.withOpacity(0.4), size: 20),
-          ),
-        ]),
+                            fontFamily: 'SpaceMono',
+                            color: f.color,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13,
+                            letterSpacing: 0.5),
+                      ),
+                      const SizedBox(height: 4),
+                      Row(children: [
+                        Icon(Icons.music_note_rounded,
+                            color: AuraTheme.accent, size: 11),
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: Text(
+                            f.song,
+                            style: TextStyle(
+                                fontFamily: 'SpaceMono',
+                                color: Colors.white.withOpacity(0.65),
+                                fontSize: 10),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ),
+                      ]),
+                    ]),
+              ),
+              GestureDetector(
+                onTap: () => setState(() => _selected = null),
+                child: Container(
+                  width: 26,
+                  height: 26,
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.05),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.white.withOpacity(0.12)),
+                  ),
+                  child: Icon(Icons.close_rounded,
+                      color: Colors.white.withOpacity(0.5), size: 14),
+                ),
+              ),
+            ]),
+          ],
+        ),
       );
 
   Widget _friendsRow() => Container(
@@ -521,7 +548,10 @@ class _VybeMapScreenState extends State<VybeMapScreen>
           itemBuilder: (_, i) {
             final f = _friends[i];
             return GestureDetector(
-              onTap: () => setState(() => _selected = f),
+              onTap: () {
+                setState(() => _selected = f);
+                _mapController.move(LatLng(f.lat, f.lon), 4.0);
+              },
               child: Column(children: [
                 Container(
                   width: 44,
@@ -548,332 +578,245 @@ class _VybeMapScreenState extends State<VybeMapScreen>
       );
 
   void _centerOnMe() {
-    final size = MediaQuery.of(context).size;
-    final mapH = size.height * 0.78;
-    final mapW = size.width;
-    final (ux, uy) = _latLonToXY(_youLat, _youLon, mapW, mapH);
-    final cx = mapW / 2 - ux * 2.0;
-    final cy = mapH / 2 - uy * 2.0;
-    final target = Matrix4.identity()
-      ..scale(2.0)
-      ..translate(cx / 2.0, cy / 2.0);
-    // Animate
-    final begin = _xform.value.clone();
-    final ctrl = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 600));
-    Animation<Matrix4> anim = Matrix4Tween(begin: begin, end: target)
-        .animate(CurvedAnimation(parent: ctrl, curve: Curves.easeInOut));
-    ctrl.addListener(() => _xform.value = anim.value);
-    ctrl.forward().then((_) => ctrl.dispose());
+    _mapController.move(const LatLng(_youLat, _youLon), 5.0);
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// World Map Painter (night-mode satellite-style)
+// Friend pin widget
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _WorldMapPainter extends CustomPainter {
-  final double scanProgress;
-  const _WorldMapPainter({required this.scanProgress});
+class _FriendPin extends StatelessWidget {
+  final _Friend friend;
+  final bool selected;
+  final double pulse; // 0..1
 
-  @override
-  void paint(Canvas canvas, Size size) {
-    final w = size.width;
-    final h = size.height;
-
-    // Ocean
-    final oceanPaint = Paint()..color = const Color(0xFF060A1A);
-    canvas.drawRect(Rect.fromLTWH(0, 0, w, h), oceanPaint);
-
-    // Subtle latitude/longitude grid
-    final gridPaint = Paint()
-      ..color = const Color(0xFF0D1530)
-      ..strokeWidth = 0.5;
-    for (int i = 1; i < 9; i++) {
-      canvas.drawLine(
-          Offset(w * i / 9, 0), Offset(w * i / 9, h), gridPaint);
-    }
-    for (int i = 1; i < 6; i++) {
-      canvas.drawLine(
-          Offset(0, h * i / 6), Offset(w, h * i / 6), gridPaint);
-    }
-
-    // Equator & Prime Meridian highlights
-    final eqPaint = Paint()
-      ..color = const Color(0xFF1A2550).withOpacity(0.6)
-      ..strokeWidth = 1.2;
-    canvas.drawLine(Offset(0, h * 0.51), Offset(w, h * 0.51), eqPaint);
-    canvas.drawLine(Offset(w * 0.5, 0), Offset(w * 0.5, h), eqPaint);
-
-    // ── Continents ─────────────────────────────────────────────────
-    void land(Path p) {
-      canvas.drawPath(
-          p,
-          Paint()
-            ..color = const Color(0xFF1B2545)
-            ..style = PaintingStyle.fill);
-      canvas.drawPath(
-          p,
-          Paint()
-            ..color = const Color(0xFF2A3B6A)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 0.8);
-    }
-
-    // North America
-    final na = Path();
-    na.moveTo(w * 0.09, h * 0.08);
-    na.lineTo(w * 0.33, h * 0.06);
-    na.lineTo(w * 0.35, h * 0.14);
-    na.lineTo(w * 0.30, h * 0.22);
-    na.quadraticBezierTo(w * 0.28, h * 0.40, w * 0.20, h * 0.55);
-    na.lineTo(w * 0.16, h * 0.62);
-    na.lineTo(w * 0.12, h * 0.55);
-    na.quadraticBezierTo(w * 0.06, h * 0.38, w * 0.07, h * 0.20);
-    na.close();
-    land(na);
-
-    // Greenland
-    final gl = Path();
-    gl.addOval(Rect.fromCenter(
-        center: Offset(w * 0.415, h * 0.07), width: w * 0.06, height: h * 0.10));
-    land(gl);
-
-    // South America
-    final sa = Path();
-    sa.moveTo(w * 0.20, h * 0.56);
-    sa.quadraticBezierTo(w * 0.28, h * 0.52, w * 0.31, h * 0.60);
-    sa.lineTo(w * 0.30, h * 0.74);
-    sa.quadraticBezierTo(w * 0.27, h * 0.86, w * 0.24, h * 0.90);
-    sa.lineTo(w * 0.20, h * 0.85);
-    sa.quadraticBezierTo(w * 0.17, h * 0.72, w * 0.18, h * 0.60);
-    sa.close();
-    land(sa);
-
-    // Europe
-    final eu = Path();
-    eu.moveTo(w * 0.445, h * 0.08);
-    eu.lineTo(w * 0.545, h * 0.08);
-    eu.lineTo(w * 0.555, h * 0.22);
-    eu.quadraticBezierTo(w * 0.535, h * 0.30, w * 0.51, h * 0.32);
-    eu.lineTo(w * 0.445, h * 0.30);
-    eu.quadraticBezierTo(w * 0.430, h * 0.22, w * 0.445, h * 0.08);
-    land(eu);
-
-    // Africa
-    final af = Path();
-    af.moveTo(w * 0.445, h * 0.30);
-    af.lineTo(w * 0.565, h * 0.28);
-    af.lineTo(w * 0.585, h * 0.38);
-    af.quadraticBezierTo(w * 0.585, h * 0.58, w * 0.545, h * 0.70);
-    af.lineTo(w * 0.510, h * 0.78);
-    af.quadraticBezierTo(w * 0.480, h * 0.78, w * 0.455, h * 0.68);
-    af.quadraticBezierTo(w * 0.435, h * 0.52, w * 0.445, h * 0.30);
-    land(af);
-
-    // Middle East
-    final me = Path();
-    me.addOval(Rect.fromCenter(
-        center: Offset(w * 0.595, h * 0.32), width: w * 0.07, height: h * 0.10));
-    land(me);
-
-    // Asia (large mass)
-    final as = Path();
-    as.moveTo(w * 0.550, h * 0.08);
-    as.lineTo(w * 0.945, h * 0.06);
-    as.lineTo(w * 0.960, h * 0.16);
-    as.quadraticBezierTo(w * 0.950, h * 0.30, w * 0.900, h * 0.38);
-    as.lineTo(w * 0.840, h * 0.42);
-    as.quadraticBezierTo(w * 0.780, h * 0.46, w * 0.730, h * 0.42);
-    as.lineTo(w * 0.680, h * 0.45);
-    as.quadraticBezierTo(w * 0.640, h * 0.42, w * 0.620, h * 0.38);
-    as.lineTo(w * 0.565, h * 0.32);
-    as.lineTo(w * 0.550, h * 0.08);
-    land(as);
-
-    // Indian subcontinent
-    final ind = Path();
-    ind.moveTo(w * 0.610, h * 0.38);
-    ind.lineTo(w * 0.655, h * 0.38);
-    ind.quadraticBezierTo(w * 0.668, h * 0.50, w * 0.638, h * 0.56);
-    ind.quadraticBezierTo(w * 0.618, h * 0.52, w * 0.610, h * 0.38);
-    land(ind);
-
-    // Southeast Asia
-    final sea = Path();
-    sea.moveTo(w * 0.730, h * 0.42);
-    sea.lineTo(w * 0.760, h * 0.40);
-    sea.lineTo(w * 0.780, h * 0.48);
-    sea.lineTo(w * 0.760, h * 0.52);
-    sea.lineTo(w * 0.730, h * 0.50);
-    sea.close();
-    land(sea);
-
-    // Australia
-    final au = Path();
-    au.moveTo(w * 0.755, h * 0.59);
-    au.quadraticBezierTo(w * 0.860, h * 0.56, w * 0.905, h * 0.62);
-    au.quadraticBezierTo(w * 0.920, h * 0.72, w * 0.890, h * 0.78);
-    au.quadraticBezierTo(w * 0.820, h * 0.82, w * 0.765, h * 0.75);
-    au.quadraticBezierTo(w * 0.745, h * 0.68, w * 0.755, h * 0.59);
-    land(au);
-
-    // Japan islands
-    final jp = Path();
-    jp.addOval(Rect.fromCenter(
-        center: Offset(w * 0.862, h * 0.245), width: w * 0.022, height: h * 0.07));
-    land(jp);
-
-    // Philippines / Indonesia (small islands)
-    for (final pos in [
-      [0.800, 0.480],
-      [0.818, 0.510],
-      [0.840, 0.530],
-      [0.860, 0.500],
-    ]) {
-      final isPath = Path()
-        ..addOval(Rect.fromCenter(
-            center: Offset(w * pos[0], h * pos[1]),
-            width: w * 0.016,
-            height: h * 0.022));
-      land(isPath);
-    }
-
-    // Antarctica hint
-    final ant = Paint()
-      ..color = const Color(0xFF1D2B50)
-      ..style = PaintingStyle.fill;
-    canvas.drawRect(
-        Rect.fromLTWH(0, h * 0.90, w, h * 0.10), ant);
-
-    // ── City light clusters ─────────────────────────────────────────
-    final cityPaint = Paint()..style = PaintingStyle.fill;
-    for (final c in [
-      (0.220, 0.355, const Color(0xFFFFEE99)),  // New York
-      (0.133, 0.380, const Color(0xFFFFEE99)),  // LA
-      (0.472, 0.220, const Color(0xFFFFEE99)),  // London
-      (0.480, 0.245, const Color(0xFFFFEE99)),  // Paris
-      (0.502, 0.205, const Color(0xFFFFEE99)),  // Berlin
-      (0.638, 0.400, const Color(0xFFFFEE99)),  // Mumbai
-      (0.641, 0.430, const Color(0xFFFFEE99)),  // Bangalore
-      (0.863, 0.248, const Color(0xFFFFEE99)),  // Tokyo
-      (0.860, 0.300, const Color(0xFFFFEE99)),  // Seoul
-      (0.836, 0.660, const Color(0xFFFFEE99)),  // Sydney
-    ]) {
-      final (cx, cy, col) = c;
-      cityPaint.color = col.withOpacity(0.15);
-      canvas.drawCircle(Offset(w * cx, h * cy), 5, cityPaint);
-      cityPaint.color = col.withOpacity(0.6);
-      canvas.drawCircle(Offset(w * cx, h * cy), 1.5, cityPaint);
-    }
-
-    // ── Scan-line effect ────────────────────────────────────────────
-    final scanY = h * scanProgress;
-    final scanGrad = Paint()
-      ..shader = LinearGradient(
-        colors: [
-          Colors.transparent,
-          AuraTheme.accent.withOpacity(0.04),
-          AuraTheme.accent.withOpacity(0.08),
-          AuraTheme.accent.withOpacity(0.04),
-          Colors.transparent,
-        ],
-        stops: const [0, 0.3, 0.5, 0.7, 1],
-        begin: Alignment.topCenter,
-        end: Alignment.bottomCenter,
-      ).createShader(Rect.fromLTWH(0, scanY - 30, w, 60));
-    canvas.drawRect(
-        Rect.fromLTWH(0, scanY - 30, w, 60), scanGrad);
-  }
-
-  @override
-  bool shouldRepaint(_WorldMapPainter old) =>
-      old.scanProgress != scanProgress;
-}
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Arc Painter — animated great-circle-style arc from you → selected friend
-// ─────────────────────────────────────────────────────────────────────────────
-
-class _ArcPainter extends CustomPainter {
-  final double fromX, fromY, toX, toY;
-  final Color color;
-  final double progress; // 0→1 animation tick
-
-  const _ArcPainter({
-    required this.fromX, required this.fromY,
-    required this.toX, required this.toY,
-    required this.color, required this.progress,
+  const _FriendPin({
+    required this.friend,
+    required this.selected,
+    required this.pulse,
   });
 
   @override
-  void paint(Canvas canvas, Size size) {
-    final cx = (fromX + toX) / 2;
-    final cy = (fromY + toY) / 2;
-    // Arc control point rises above the midpoint
-    final dx = toX - fromX;
-    final dy = toY - fromY;
-    final dist = math.sqrt(dx * dx + dy * dy);
-    final lift = dist * 0.35;
-    // Perpendicular up-left direction for control point
-    final cpx = cx - dy / dist * lift;
-    final cpy = cy + dx / dist * lift - lift * 0.5;
-
-    final path = Path();
-    path.moveTo(fromX, fromY);
-    path.quadraticBezierTo(cpx, cpy, toX, toY);
-
-    // Dashed / animated progress: draw only part of the path
-    final metrics = path.computeMetrics().first;
-    final totalLen = metrics.length;
-
-    // Trailing glow — full arc faint
-    canvas.drawPath(
-      path,
-      Paint()
-        ..color = color.withOpacity(0.15)
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 1.5
-        ..strokeCap = StrokeCap.round,
+  Widget build(BuildContext context) {
+    final ring = (math.sin(pulse * 2 * math.pi) * 0.5 + 0.5) * 18 + 8;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: ring,
+          height: ring,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: friend.color.withOpacity(0.22),
+          ),
+        ),
+        Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              width: selected ? 36 : 30,
+              height: selected ? 36 : 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: selected ? friend.color : friend.color.withOpacity(0.85),
+                border: selected
+                    ? Border.all(color: Colors.white, width: 2.5)
+                    : null,
+                boxShadow: [
+                  BoxShadow(
+                    color: friend.color.withOpacity(selected ? 0.7 : 0.4),
+                    blurRadius: selected ? 14 : 8,
+                  ),
+                ],
+              ),
+              child: Center(
+                child: Text(friend.emoji,
+                    style: TextStyle(fontSize: selected ? 16 : 13)),
+              ),
+            ),
+            if (selected)
+              Container(
+                margin: const EdgeInsets.only(top: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                decoration: BoxDecoration(
+                  color: friend.color.withOpacity(0.9),
+                  borderRadius: BorderRadius.circular(6),
+                ),
+                child: Text(
+                  friend.handle.substring(1),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700),
+                ),
+              ),
+          ],
+        ),
+      ],
     );
+  }
+}
 
-    // Animated moving segment
-    final head = (progress * 1.4).clamp(0.0, 1.0);
-    final tail = (progress * 1.4 - 0.35).clamp(0.0, 1.0);
-    if (head > tail) {
-      final segment = metrics.extractPath(totalLen * tail, totalLen * head);
-      canvas.drawPath(
-        segment,
-        Paint()
-          ..color = color.withOpacity(0.9)
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.5
-          ..strokeCap = StrokeCap.round,
-      );
-    }
+// ─────────────────────────────────────────────────────────────────────────────
+// YOU pin widget
+// ─────────────────────────────────────────────────────────────────────────────
 
-    // Dot at current head position
-    if (head < 1.0) {
-      final tangent = metrics.getTangentForOffset(totalLen * head);
-      if (tangent != null) {
-        canvas.drawCircle(
-          tangent.position,
-          4,
-          Paint()..color = color,
-        );
-        canvas.drawCircle(
-          tangent.position,
-          7,
-          Paint()
-            ..color = color.withOpacity(0.3)
-            ..style = PaintingStyle.stroke
-            ..strokeWidth = 1.5,
-        );
-      }
-    }
+class _YouPin extends StatelessWidget {
+  final double pulse;
+  const _YouPin({required this.pulse});
+
+  @override
+  Widget build(BuildContext context) {
+    final ring =
+        (math.sin((pulse + 0.5) * 2 * math.pi) * 0.5 + 0.5) * 24 + 10;
+    return Stack(
+      alignment: Alignment.center,
+      children: [
+        Container(
+          width: ring,
+          height: ring,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AuraTheme.accent.withOpacity(0.25),
+          ),
+        ),
+        Container(
+          width: 18,
+          height: 18,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AuraTheme.accent,
+            border: Border.all(color: Colors.white, width: 2),
+            boxShadow: [
+              BoxShadow(
+                  color: AuraTheme.accent.withOpacity(0.7), blurRadius: 10)
+            ],
+          ),
+          child: const Center(
+            child: Text('YOU',
+                style: TextStyle(
+                    fontFamily: 'SpaceMono',
+                    color: Colors.white,
+                    fontSize: 5,
+                    fontWeight: FontWeight.w900,
+                    letterSpacing: 0.5)),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scan-line painter — HUD overlay drawn on top of the tile map
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ScanLinePainter extends CustomPainter {
+  final double progress;
+  const _ScanLinePainter({required this.progress});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final scanY = size.height * progress;
+    // Soft glow band
+    canvas.drawRect(
+      Rect.fromLTWH(0, scanY - 50, size.width, 100),
+      Paint()
+        ..shader = LinearGradient(
+          colors: [
+            Colors.transparent,
+            AuraTheme.accent.withOpacity(0.05),
+            AuraTheme.accent.withOpacity(0.12),
+            AuraTheme.accent.withOpacity(0.05),
+            Colors.transparent,
+          ],
+          stops: const [0, 0.3, 0.5, 0.7, 1],
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+        ).createShader(Rect.fromLTWH(0, scanY - 50, size.width, 100)),
+    );
+    // Sharp leading edge
+    canvas.drawLine(
+      Offset(0, scanY),
+      Offset(size.width, scanY),
+      Paint()
+        ..color = AuraTheme.accent.withOpacity(0.38)
+        ..strokeWidth = 1.0,
+    );
+    // Secondary trailing edge
+    canvas.drawLine(
+      Offset(0, scanY - 6),
+      Offset(size.width, scanY - 6),
+      Paint()
+        ..color = AuraTheme.accent.withOpacity(0.12)
+        ..strokeWidth = 0.5,
+    );
   }
 
   @override
-  bool shouldRepaint(_ArcPainter old) =>
-      old.progress != progress || old.toX != toX || old.toY != toY;
+  bool shouldRepaint(covariant _ScanLinePainter old) =>
+      old.progress != progress;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// HUD corner brackets
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _HudCorners extends StatelessWidget {
+  const _HudCorners();
+
+  Widget _corner() => CustomPaint(
+        size: const Size(22, 22),
+        painter: _CornerPainter(),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              _corner(),
+              Transform.scale(scaleX: -1, child: _corner()),
+            ],
+          ),
+          const Spacer(),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Transform.scale(scaleY: -1, child: _corner()),
+              Transform.scale(scaleX: -1, scaleY: -1, child: _corner()),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _CornerPainter extends CustomPainter {
+  const _CornerPainter();
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    const len = 18.0;
+    final paint = Paint()
+      ..color = AuraTheme.accent.withOpacity(0.65)
+      ..strokeWidth = 2.0
+      ..style = PaintingStyle.stroke
+      ..strokeCap = StrokeCap.square;
+    canvas.drawLine(Offset.zero, const Offset(len, 0), paint);
+    canvas.drawLine(Offset.zero, const Offset(0, len), paint);
+    canvas.drawCircle(
+        Offset.zero, 2.5, Paint()..color = AuraTheme.accent.withOpacity(0.9));
+  }
+
+  @override
+  bool shouldRepaint(covariant _CornerPainter old) => false;
 }
