@@ -47,12 +47,12 @@ class _MobileNavState extends State<MobileNav> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AuraTheme.background,
-      body: IndexedStack(index: _tab, children: const [
-        HomeScreen(),
-        CampfireScreen(),
-        PulseScreen(),
-        FindScreen(),
-        ProfileScreen(),
+      body: IndexedStack(index: _tab, children: [
+        const HomeScreen(),
+        const CampfireScreen(),
+        PulseScreen(isActive: _tab == 2),
+        const FindScreen(),
+        const ProfileScreen(),
       ]),
       bottomNavigationBar: _PremiumBottomNav(
         selectedIndex: _tab,
@@ -155,15 +155,53 @@ class WebShell extends StatefulWidget {
 
 class _WebShellState extends State<WebShell> {
   int _tab = 0;
+  bool _showPalette = false;
+  final _focusNode = FocusNode();
 
   static const _navItems = [
-    _NavItem(Icons.graphic_eq_rounded,            'Home'),
-    _NavItem(Icons.local_fire_department_rounded, 'Campfire'),
-    _NavItem(Icons.play_circle_rounded,           'Pulse'),
-    _NavItem(Icons.auto_awesome_rounded,          'Find'),
-    _NavItem(Icons.chat_bubble_rounded,           'Messages'),
-    _NavItem(Icons.person_rounded,                'Profile'),
+    _NavItem(Icons.graphic_eq_rounded,            'Home',     '/'),
+    _NavItem(Icons.local_fire_department_rounded, 'Campfire', 'C'),
+    _NavItem(Icons.play_circle_rounded,           'Pulse',    'P'),
+    _NavItem(Icons.auto_awesome_rounded,          'Find',     'F'),
+    _NavItem(Icons.chat_bubble_rounded,           'Messages', 'M'),
+    _NavItem(Icons.person_rounded,                'Profile',  'U'),
   ];
+
+  @override
+  void dispose() {
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  KeyEventResult _onKey(FocusNode _, KeyEvent event) {
+    if (event is! KeyDownEvent) return KeyEventResult.ignored;
+    final ctrl = HardwareKeyboard.instance.isControlPressed;
+    final meta = HardwareKeyboard.instance.isMetaPressed;
+    final key  = event.logicalKey;
+
+    // ⌘K / Ctrl+K → command palette
+    if ((ctrl || meta) && key == LogicalKeyboardKey.keyK) {
+      setState(() => _showPalette = !_showPalette);
+      return KeyEventResult.handled;
+    }
+    // Escape → close palette
+    if (key == LogicalKeyboardKey.escape && _showPalette) {
+      setState(() => _showPalette = false);
+      return KeyEventResult.handled;
+    }
+    // J/K navigation (when palette closed)
+    if (!_showPalette) {
+      if (key == LogicalKeyboardKey.keyJ) {
+        setState(() => _tab = (_tab + 1) % _navItems.length);
+        return KeyEventResult.handled;
+      }
+      if (key == LogicalKeyboardKey.keyK) {
+        setState(() => _tab = (_tab - 1 + _navItems.length) % _navItems.length);
+        return KeyEventResult.handled;
+      }
+    }
+    return KeyEventResult.ignored;
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -172,42 +210,57 @@ class _WebShellState extends State<WebShell> {
         ? state.displayName[0].toUpperCase()
         : 'Y';
 
-    return Scaffold(
-      backgroundColor: AuraTheme.background,
-      body: Row(
-        children: [
-          // ── Left sidebar ────────────────────────────────────────────
-          _Sidebar(
-            tab: _tab,
+    return Focus(
+      focusNode: _focusNode,
+      autofocus: true,
+      onKeyEvent: _onKey,
+      child: Stack(children: [
+        Scaffold(
+          backgroundColor: AuraTheme.background,
+          body: Row(children: [
+            // ── Left sidebar ──────────────────────────────────────────
+            _Sidebar(
+              tab: _tab,
+              items: _navItems,
+              initial: initial,
+              pfpFile: state.pfpFile,
+              onTabChange: (i) => setState(() { _tab = i; _focusNode.requestFocus(); }),
+              onSettings: () => Navigator.push(
+                context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen()),
+              ),
+              onCommandPalette: () => setState(() => _showPalette = !_showPalette),
+            ),
+
+            // ── Main content ──────────────────────────────────────────
+            Expanded(
+              child: Container(
+                color: AuraTheme.background,
+                child: IndexedStack(index: _tab, children: [
+                  const HomeScreen(),
+                  const CampfireScreen(),
+                  PulseScreen(isActive: _tab == 2),
+                  const FindScreen(),
+                  const MessagesScreen(),
+                  const ProfileScreen(),
+                ]),
+              ),
+            ),
+
+            // ── Right panel ───────────────────────────────────────────
+            _RightPanel(onVibeChange: () => setState(() {})),
+          ]),
+        ),
+
+        // ── Command palette overlay ───────────────────────────────────
+        if (_showPalette)
+          _CommandPalette(
             items: _navItems,
-            initial: initial,
-            pfpFile: state.pfpFile,
-            onTabChange: (i) => setState(() => _tab = i),
-            onSettings: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
+            currentTab: _tab,
+            onSelect: (i) => setState(() { _tab = i; _showPalette = false; _focusNode.requestFocus(); }),
+            onDismiss: () => setState(() { _showPalette = false; _focusNode.requestFocus(); }),
           ),
-
-          // ── Main content ─────────────────────────────────────────────
-          Expanded(
-            child: Container(
-              color: AuraTheme.background,
-              child: IndexedStack(index: _tab, children: const [
-                HomeScreen(),
-                CampfireScreen(),
-                PulseScreen(),
-                FindScreen(),
-                MessagesScreen(),
-                ProfileScreen(),
-              ]),
-            ),
-          ),
-
-          // ── Right panel ─────────────────────────────────────────────
-          _RightPanel(onVibeChange: () => setState(() {})),
-        ],
-      ),
+      ]),
     );
   }
 }
@@ -219,7 +272,8 @@ class _WebShellState extends State<WebShell> {
 class _NavItem {
   final IconData icon;
   final String label;
-  const _NavItem(this.icon, this.label);
+  final String shortcut;
+  const _NavItem(this.icon, this.label, [this.shortcut = '']);
 }
 
 class _Sidebar extends StatelessWidget {
@@ -229,6 +283,7 @@ class _Sidebar extends StatelessWidget {
   final dynamic pfpFile;
   final ValueChanged<int> onTabChange;
   final VoidCallback onSettings;
+  final VoidCallback onCommandPalette;
 
   const _Sidebar({
     required this.tab,
@@ -237,6 +292,7 @@ class _Sidebar extends StatelessWidget {
     required this.pfpFile,
     required this.onTabChange,
     required this.onSettings,
+    required this.onCommandPalette,
   });
 
   @override
@@ -265,6 +321,35 @@ class _Sidebar extends StatelessWidget {
               onTap: () => onTabChange(i),
             ),
           const Spacer(),
+          // ⌘K command palette button
+          Tooltip(
+            message: '⌘K / Ctrl+K  Command palette',
+            child: GestureDetector(
+              onTap: onCommandPalette,
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
+                width: 56,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AuraTheme.purple.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: AuraTheme.purple.withOpacity(0.25)),
+                ),
+                child: const Center(
+                  child: Text(
+                    '⌘K',
+                    style: TextStyle(
+                      fontFamily: 'SpaceMono',
+                      fontSize: 9,
+                      color: AuraTheme.purple,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
           // Settings
           _SidebarBtn(
             item: const _NavItem(Icons.settings_outlined, 'Settings'),
@@ -822,4 +907,343 @@ class _RightPanelState extends State<_RightPanel> {
           ),
         ),
       );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Command Palette (⌘K)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CommandPalette extends StatefulWidget {
+  final List<_NavItem> items;
+  final int currentTab;
+  final ValueChanged<int> onSelect;
+  final VoidCallback onDismiss;
+  const _CommandPalette({
+    required this.items,
+    required this.currentTab,
+    required this.onSelect,
+    required this.onDismiss,
+  });
+
+  @override
+  State<_CommandPalette> createState() => _CommandPaletteState();
+}
+
+class _CommandPaletteState extends State<_CommandPalette>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _anim;
+  late final Animation<double> _scale;
+  final _search = TextEditingController();
+  List<(int, _NavItem)> _results = [];
+
+  static const _quickActions = [
+    (Icons.settings_outlined, 'Settings', '⌘,'),
+    (Icons.edit_rounded,      'New Post',  'N'),
+    (Icons.search_rounded,    'Find People', '/'),
+    (Icons.bolt_rounded,      'Nudge Friend', '!'),
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _anim = AnimationController(vsync: this, duration: const Duration(milliseconds: 180))
+      ..forward();
+    _scale = CurvedAnimation(parent: _anim, curve: Curves.easeOutBack);
+    _results = widget.items.asMap().entries
+        .map((e) => (e.key, e.value)).toList();
+    _search.addListener(_filter);
+  }
+
+  @override
+  void dispose() {
+    _anim.dispose();
+    _search.dispose();
+    super.dispose();
+  }
+
+  void _filter() {
+    final q = _search.text.toLowerCase();
+    setState(() {
+      _results = widget.items.asMap().entries
+          .where((e) => e.value.label.toLowerCase().contains(q))
+          .map((e) => (e.key, e.value))
+          .toList();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: widget.onDismiss,
+      child: Container(
+        color: Colors.black.withOpacity(0.65),
+        child: Center(
+          child: ScaleTransition(
+            scale: _scale,
+            child: GestureDetector(
+              onTap: () {}, // prevent dismiss when tapping inside
+              child: Container(
+                width: 520,
+                constraints: const BoxConstraints(maxHeight: 480),
+                decoration: BoxDecoration(
+                  color: AuraTheme.card,
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: AuraTheme.purple.withOpacity(0.3)),
+                  boxShadow: [
+                    BoxShadow(
+                      color: AuraTheme.purple.withOpacity(0.2),
+                      blurRadius: 40,
+                      spreadRadius: 0,
+                    ),
+                  ],
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Search bar
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: AuraTheme.surface,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AuraTheme.purple.withOpacity(0.4)),
+                        ),
+                        child: Row(children: [
+                          const Padding(
+                            padding: EdgeInsets.only(left: 14),
+                            child: Icon(Icons.search_rounded,
+                                color: AuraTheme.purple, size: 18),
+                          ),
+                          Expanded(
+                            child: TextField(
+                              controller: _search,
+                              autofocus: true,
+                              style: const TextStyle(
+                                fontFamily: 'SpaceMono',
+                                fontSize: 13,
+                                color: AuraTheme.textPrimary,
+                              ),
+                              decoration: const InputDecoration(
+                                hintText: 'Navigate or search...',
+                                hintStyle: TextStyle(
+                                  fontFamily: 'SpaceMono',
+                                  fontSize: 13,
+                                  color: AuraTheme.textMuted,
+                                ),
+                                border: InputBorder.none,
+                                contentPadding: EdgeInsets.symmetric(
+                                    horizontal: 12, vertical: 14),
+                              ),
+                            ),
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 6, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: AuraTheme.surface,
+                                borderRadius: BorderRadius.circular(6),
+                                border: Border.all(
+                                    color: AuraTheme.textMuted.withOpacity(0.2)),
+                              ),
+                              child: const Text('ESC',
+                                  style: TextStyle(
+                                    fontFamily: 'SpaceMono',
+                                    fontSize: 9,
+                                    color: AuraTheme.textMuted,
+                                  )),
+                            ),
+                          ),
+                        ]),
+                      ),
+                    ),
+
+                    const SizedBox(height: 8),
+
+                    // Nav items
+                    if (_results.isNotEmpty)
+                      _PaletteSection(
+                        label: 'NAVIGATE',
+                        children: _results.map((r) {
+                          final active = r.$1 == widget.currentTab;
+                          return _PaletteRow(
+                            icon: r.$2.icon,
+                            label: r.$2.label,
+                            shortcut: r.$2.shortcut,
+                            active: active,
+                            onTap: () => widget.onSelect(r.$1),
+                          );
+                        }).toList(),
+                      ),
+
+                    // Quick actions
+                    if (_search.text.isEmpty)
+                      _PaletteSection(
+                        label: 'ACTIONS',
+                        children: _quickActions.map((a) => _PaletteRow(
+                          icon: a.$1,
+                          label: a.$2,
+                          shortcut: a.$3,
+                          active: false,
+                          onTap: widget.onDismiss,
+                        )).toList(),
+                      ),
+
+                    // Footer hint
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 10),
+                      decoration: BoxDecoration(
+                        border: Border(
+                            top: BorderSide(
+                                color: AuraTheme.textMuted.withOpacity(0.1))),
+                      ),
+                      child: Row(children: const [
+                        _KbdHint('↵', 'select'),
+                        SizedBox(width: 14),
+                        _KbdHint('↑↓', 'navigate'),
+                        SizedBox(width: 14),
+                        _KbdHint('ESC', 'close'),
+                        Spacer(),
+                        Text('J/K also navigates tabs',
+                            style: TextStyle(
+                              fontFamily: 'SpaceMono',
+                              fontSize: 8,
+                              color: AuraTheme.textMuted,
+                            )),
+                      ]),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _PaletteSection extends StatelessWidget {
+  final String label;
+  final List<Widget> children;
+  const _PaletteSection({required this.label, required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 4),
+          child: Text(label,
+              style: const TextStyle(
+                fontFamily: 'SpaceMono',
+                fontSize: 8,
+                letterSpacing: 2,
+                color: AuraTheme.textMuted,
+              )),
+        ),
+        ...children,
+      ],
+    );
+  }
+}
+
+class _PaletteRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String shortcut;
+  final bool active;
+  final VoidCallback onTap;
+  const _PaletteRow({
+    required this.icon,
+    required this.label,
+    required this.shortcut,
+    required this.active,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 8, vertical: 1),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
+        decoration: BoxDecoration(
+          color: active ? AuraTheme.purple.withOpacity(0.12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: active
+              ? Border.all(color: AuraTheme.purple.withOpacity(0.25))
+              : null,
+        ),
+        child: Row(children: [
+          Icon(icon,
+              size: 16,
+              color: active ? AuraTheme.purple : AuraTheme.textSecondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(label,
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: active ? AuraTheme.textPrimary : AuraTheme.textSecondary,
+                )),
+          ),
+          if (shortcut.isNotEmpty)
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+              decoration: BoxDecoration(
+                color: AuraTheme.surface,
+                borderRadius: BorderRadius.circular(5),
+                border: Border.all(color: AuraTheme.textMuted.withOpacity(0.15)),
+              ),
+              child: Text(shortcut,
+                  style: const TextStyle(
+                    fontFamily: 'SpaceMono',
+                    fontSize: 9,
+                    color: AuraTheme.textMuted,
+                  )),
+            ),
+        ]),
+      ),
+    );
+  }
+}
+
+class _KbdHint extends StatelessWidget {
+  final String key_;
+  final String label;
+  const _KbdHint(this.key_, this.label);
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(children: [
+      Container(
+        padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+        decoration: BoxDecoration(
+          color: AuraTheme.surface,
+          borderRadius: BorderRadius.circular(4),
+          border: Border.all(color: AuraTheme.textMuted.withOpacity(0.15)),
+        ),
+        child: Text(key_,
+            style: const TextStyle(
+              fontFamily: 'SpaceMono',
+              fontSize: 9,
+              color: AuraTheme.textMuted,
+            )),
+      ),
+      const SizedBox(width: 4),
+      Text(label,
+          style: const TextStyle(
+            fontFamily: 'SpaceMono',
+            fontSize: 9,
+            color: AuraTheme.textMuted,
+          )),
+    ]);
+  }
 }

@@ -17,6 +17,7 @@ class _Friend {
   final Color color;
   final double lat;
   final double lon;
+  final String pfpSeed; // Dicebear avatar seed
 
   const _Friend({
     required this.handle,
@@ -26,20 +27,24 @@ class _Friend {
     required this.color,
     required this.lat,
     required this.lon,
+    required this.pfpSeed,
   });
+
+  String get pfpUrl =>
+      'https://api.dicebear.com/7.x/avataaars/png?seed=$pfpSeed&size=80&backgroundColor=transparent';
 }
 
 const _friends = [
-  _Friend(handle: '@maya.k',  emoji: '🎧', song: 'Espresso',          city: 'New York',  color: Color(0xFFFF6B6B), lat: 40.7,  lon: -74.0),
-  _Friend(handle: '@zara.w',  emoji: '🌙', song: 'luther',            city: 'London',    color: Color(0xFF7C83FD), lat: 51.5,  lon: -0.1),
-  _Friend(handle: '@dev.s',   emoji: '🔥', song: 'APT.',              city: 'Mumbai',    color: Color(0xFF43E97B), lat: 19.1,  lon: 72.9),
-  _Friend(handle: '@rina.p',  emoji: '✨', song: 'Golden Hour',       city: 'Seoul',     color: Color(0xFFFAD961), lat: 37.6,  lon: 126.9),
-  _Friend(handle: '@jay.r',   emoji: '☀️', song: 'Die With A Smile',  city: 'Sydney',    color: Color(0xFF11998E), lat: -33.9, lon: 151.2),
-  _Friend(handle: '@sam.w',   emoji: '🎸', song: 'Blinding Lights',   city: 'LA',        color: Color(0xFFFC6076), lat: 34.1,  lon: -118.2),
-  _Friend(handle: '@leo.k',   emoji: '💜', song: 'Peaches',           city: 'Paris',     color: Color(0xFFA18CD1), lat: 48.9,  lon: 2.3),
-  _Friend(handle: '@ari.c',   emoji: '🌊', song: 'Levitating',        city: 'Toronto',   color: Color(0xFF4FACFE), lat: 43.7,  lon: -79.4),
-  _Friend(handle: '@mia.t',   emoji: '🌸', song: 'STAY',              city: 'Tokyo',     color: Color(0xFFF77062), lat: 35.7,  lon: 139.7),
-  _Friend(handle: '@kai.r',   emoji: '⚡', song: 'As It Was',         city: 'Berlin',    color: Color(0xFF667EEA), lat: 52.5,  lon: 13.4),
+  _Friend(handle: '@maya.k',  emoji: '🎧', song: 'Espresso',          city: 'New York',  color: Color(0xFFFF6B6B), lat: 40.7,  lon: -74.0,  pfpSeed: 'maya'),
+  _Friend(handle: '@zara.w',  emoji: '🌙', song: 'luther',            city: 'London',    color: Color(0xFF7C83FD), lat: 51.5,  lon: -0.1,   pfpSeed: 'zara'),
+  _Friend(handle: '@dev.s',   emoji: '🔥', song: 'APT.',              city: 'Mumbai',    color: Color(0xFF43E97B), lat: 19.1,  lon: 72.9,   pfpSeed: 'dev'),
+  _Friend(handle: '@rina.p',  emoji: '✨', song: 'Golden Hour',       city: 'Seoul',     color: Color(0xFFFAD961), lat: 37.6,  lon: 126.9,  pfpSeed: 'rina'),
+  _Friend(handle: '@jay.r',   emoji: '☀️', song: 'Die With A Smile',  city: 'Sydney',    color: Color(0xFF11998E), lat: -33.9, lon: 151.2,  pfpSeed: 'jay'),
+  _Friend(handle: '@sam.w',   emoji: '🎸', song: 'Blinding Lights',   city: 'LA',        color: Color(0xFFFC6076), lat: 34.1,  lon: -118.2, pfpSeed: 'sam'),
+  _Friend(handle: '@leo.k',   emoji: '💜', song: 'Peaches',           city: 'Paris',     color: Color(0xFFA18CD1), lat: 48.9,  lon: 2.3,    pfpSeed: 'leo'),
+  _Friend(handle: '@ari.c',   emoji: '🌊', song: 'Levitating',        city: 'Toronto',   color: Color(0xFF4FACFE), lat: 43.7,  lon: -79.4,  pfpSeed: 'ari'),
+  _Friend(handle: '@mia.t',   emoji: '🌸', song: 'STAY',              city: 'Tokyo',     color: Color(0xFFF77062), lat: 35.7,  lon: 139.7,  pfpSeed: 'mia'),
+  _Friend(handle: '@kai.r',   emoji: '⚡', song: 'As It Was',         city: 'Berlin',    color: Color(0xFF667EEA), lat: 52.5,  lon: 13.4,   pfpSeed: 'kai'),
 ];
 
 // "You" — Bangalore, India
@@ -306,6 +311,36 @@ class _VybeMapScreenState extends State<VybeMapScreen>
                   ),
                 ),
               ),
+
+              // ── Zoom controls ─────────────────────────────────────
+              Positioned(
+                right: 14, bottom: 30,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    _ZoomBtn(
+                      icon: Icons.add_rounded,
+                      onTap: () {
+                        final z = (_mapController.zoom + 0.8).clamp(1.2, 8.0);
+                        _mapController.move(_mapController.center, z);
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    _ZoomBtn(
+                      icon: Icons.remove_rounded,
+                      onTap: () {
+                        final z = (_mapController.zoom - 0.8).clamp(1.2, 8.0);
+                        _mapController.move(_mapController.center, z);
+                      },
+                    ),
+                    const SizedBox(height: 4),
+                    _ZoomBtn(
+                      icon: Icons.public_rounded,
+                      onTap: () => _mapController.move(const LatLng(20, 10), 2.2),
+                    ),
+                  ],
+                ),
+              ),
             ],
           ),
         ),
@@ -477,9 +512,19 @@ class _VybeMapScreenState extends State<VybeMapScreen>
                         color: f.color.withOpacity(0.2),
                         border: Border.all(
                             color: f.color.withOpacity(0.5), width: 1.5)),
-                    child: Center(
-                        child: Text(f.emoji,
-                            style: const TextStyle(fontSize: 20))),
+                    child: ClipOval(
+                      child: Image.network(
+                        f.pfpUrl,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Center(
+                            child: Text(f.emoji,
+                                style: const TextStyle(fontSize: 20))),
+                        loadingBuilder: (_, child, progress) =>
+                            progress == null ? child : Center(
+                              child: Text(f.emoji,
+                                  style: const TextStyle(fontSize: 20))),
+                      ),
+                    ),
                   ),
                   const SizedBox(height: 4),
                   Text(f.handle.substring(1),
@@ -616,9 +661,18 @@ class _InfoCardState extends State<_InfoCard>
                   borderRadius: BorderRadius.circular(14),
                   border: Border.all(
                       color: f.color.withOpacity(0.5), width: 1.5)),
-              child: Center(
-                  child: Text(f.emoji,
-                      style: const TextStyle(fontSize: 22))),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Image.network(
+                  f.pfpUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Text(f.emoji, style: const TextStyle(fontSize: 22))),
+                  loadingBuilder: (_, child, progress) =>
+                      progress == null ? child : Center(
+                        child: Text(f.emoji, style: const TextStyle(fontSize: 22))),
+                ),
+              ),
             ),
             const SizedBox(width: 12),
             Expanded(
@@ -770,15 +824,17 @@ class _FriendPin extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final ring = (math.sin(pulse * 2 * math.pi) * 0.5 + 0.5) * 18 + 8;
+    final size = selected ? 38.0 : 30.0;
     return Stack(
       alignment: Alignment.center,
       children: [
+        // Pulse ring
         Container(
-          width: ring,
-          height: ring,
+          width: ring + (selected ? 14 : 0),
+          height: ring + (selected ? 14 : 0),
           decoration: BoxDecoration(
             shape: BoxShape.circle,
-            color: friend.color.withOpacity(0.22),
+            color: friend.color.withOpacity(selected ? 0.28 : 0.18),
           ),
         ),
         Column(
@@ -786,31 +842,42 @@ class _FriendPin extends StatelessWidget {
           children: [
             AnimatedContainer(
               duration: const Duration(milliseconds: 200),
-              width: selected ? 36 : 30,
-              height: selected ? 36 : 30,
+              width: size,
+              height: size,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
-                color: selected ? friend.color : friend.color.withOpacity(0.85),
-                border: selected
-                    ? Border.all(color: Colors.white, width: 2.5)
-                    : null,
+                color: friend.color.withOpacity(0.85),
+                border: Border.all(
+                  color: selected ? Colors.white : friend.color.withOpacity(0.5),
+                  width: selected ? 2.5 : 1.5,
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: friend.color.withOpacity(selected ? 0.7 : 0.4),
-                    blurRadius: selected ? 14 : 8,
+                    color: friend.color.withOpacity(selected ? 0.7 : 0.35),
+                    blurRadius: selected ? 16 : 8,
                   ),
                 ],
               ),
-              child: Center(
-                child: Text(friend.emoji,
-                    style: TextStyle(fontSize: selected ? 16 : 13)),
+              child: ClipOval(
+                child: Image.network(
+                  friend.pfpUrl,
+                  fit: BoxFit.cover,
+                  errorBuilder: (_, __, ___) => Center(
+                    child: Text(friend.emoji,
+                        style: TextStyle(fontSize: selected ? 16 : 13)),
+                  ),
+                  loadingBuilder: (_, child, progress) =>
+                      progress == null ? child : Center(
+                        child: Text(friend.emoji,
+                            style: TextStyle(fontSize: selected ? 16 : 13)),
+                      ),
+                ),
               ),
             ),
             if (selected)
               Container(
                 margin: const EdgeInsets.only(top: 2),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1),
                 decoration: BoxDecoration(
                   color: friend.color.withOpacity(0.9),
                   borderRadius: BorderRadius.circular(6),
@@ -826,6 +893,39 @@ class _FriendPin extends StatelessWidget {
           ],
         ),
       ],
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Zoom control button
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _ZoomBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _ZoomBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: const Color(0xFF060614).withOpacity(0.85),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: AuraTheme.accent.withOpacity(0.4), width: 1),
+          boxShadow: [
+            BoxShadow(
+              color: AuraTheme.accent.withOpacity(0.15),
+              blurRadius: 8,
+            ),
+          ],
+        ),
+        child: Icon(icon, color: AuraTheme.accent, size: 18),
+      ),
     );
   }
 }

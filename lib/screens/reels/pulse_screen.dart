@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
+import 'package:video_player/video_player.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
 import '../../models/song_battle_model.dart';
@@ -67,6 +68,88 @@ class PulseCard {
     this.dropLabel,
   });
 }
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Drop model — short video post (Drops 💧 tab)
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Drop {
+  final String handle;
+  final String displayName;
+  final String avatarEmoji;
+  final Color accentColor;
+  final String caption;
+  final List<String> hashtags;
+  final String song;
+  final String artist;
+  final String videoUrl;
+  final int likes;
+  final int comments;
+  final int shares;
+
+  const _Drop({
+    required this.handle,
+    required this.displayName,
+    required this.avatarEmoji,
+    required this.accentColor,
+    required this.caption,
+    required this.hashtags,
+    required this.song,
+    required this.artist,
+    required this.videoUrl,
+    required this.likes,
+    required this.comments,
+    required this.shares,
+  });
+}
+
+const _seedDrops = [
+  _Drop(
+    handle: '@maya.k', displayName: 'Maya K', avatarEmoji: '🎧',
+    accentColor: Color(0xFFFF6B6B),
+    caption: 'espresso season ☕ nothing hits different rn',
+    hashtags: ['#espresso', '#sabrinacarpenter', '#vibes'],
+    song: 'Espresso', artist: 'Sabrina Carpenter',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+    likes: 12400, comments: 847, shares: 234,
+  ),
+  _Drop(
+    handle: '@zara.w', displayName: 'Zara W', avatarEmoji: '🌙',
+    accentColor: Color(0xFF7C83FD),
+    caption: '3am and this song has me in a chokehold 💔',
+    hashtags: ['#luther', '#kendrick', '#3amfeels'],
+    song: 'luther', artist: 'Kendrick Lamar & SZA',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+    likes: 8910, comments: 640, shares: 182,
+  ),
+  _Drop(
+    handle: '@rina.p', displayName: 'Rina P', avatarEmoji: '✨',
+    accentColor: Color(0xFFFAD961),
+    caption: 'golden hour hit different today. the vibes were immaculate 🌅',
+    hashtags: ['#goldenhour', '#jvke', '#maincharacter'],
+    song: 'Golden Hour', artist: 'JVKE',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4',
+    likes: 22100, comments: 1203, shares: 567,
+  ),
+  _Drop(
+    handle: '@dev.s', displayName: 'Dev S', avatarEmoji: '🔥',
+    accentColor: Color(0xFF43E97B),
+    caption: 'apt apt apt this is literally my whole personality now 🪷',
+    hashtags: ['#APT', '#rosé', '#brunomars'],
+    song: 'APT.', artist: 'ROSÉ & Bruno Mars',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyrides.mp4',
+    likes: 31500, comments: 2100, shares: 890,
+  ),
+  _Drop(
+    handle: '@mia.t', displayName: 'Mia T', avatarEmoji: '🌸',
+    accentColor: Color(0xFFF77062),
+    caption: 'dying with a smile tho 😭 this duo was not necessary',
+    hashtags: ['#diewithasmile', '#ladygaga', '#brunomars'],
+    song: 'Die With A Smile', artist: 'Lady Gaga & Bruno Mars',
+    videoUrl: 'https://storage.googleapis.com/gtv-videos-bucket/sample/SubaruOutbackOnStreetAndDirt.mp4',
+    likes: 19800, comments: 934, shares: 445,
+  ),
+];
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Seed Data
@@ -318,7 +401,8 @@ class _ParticleSystem extends ChangeNotifier {
 // ─────────────────────────────────────────────────────────────────────────────
 
 class PulseScreen extends StatefulWidget {
-  const PulseScreen({super.key});
+  final bool isActive;
+  const PulseScreen({super.key, this.isActive = true});
   @override
   State<PulseScreen> createState() => _PulseScreenState();
 }
@@ -326,18 +410,36 @@ class PulseScreen extends StatefulWidget {
 class _PulseScreenState extends State<PulseScreen> {
   final _player = AudioPlayer();
   final _pageCtrl = PageController();
-  int _tab = 0;
+  int _tab = 0;           // 0=For You, 1=Orbit, 2=Drops
   int _currentIndex = 0;
+  int _dropIndex = 0;     // current drop card index
+  int _playSeq = 0;       // sequence number to cancel stale _playCard calls
   final Set<int> _fired = {};
 
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _playCard(0));
+    if (widget.isActive) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => _playCard(0));
+    }
+  }
+
+  @override
+  void didUpdateWidget(PulseScreen old) {
+    super.didUpdateWidget(old);
+    if (!widget.isActive && old.isActive) {
+      // Switched away from Pulse tab — stop all audio immediately
+      _playSeq++;
+      _player.stop();
+    } else if (widget.isActive && !old.isActive) {
+      // Returned to Pulse tab — resume music (unless on Drops tab)
+      if (_tab != 2) _playCard(_currentIndex);
+    }
   }
 
   @override
   void dispose() {
+    _playSeq++;
     _player.dispose();
     _pageCtrl.dispose();
     super.dispose();
@@ -364,9 +466,11 @@ class _PulseScreenState extends State<PulseScreen> {
   }
 
   Future<void> _playCard(int index) async {
+    final seq = ++_playSeq;
     final card = _seedCards[index];
     try {
       await _player.stop();
+      if (seq != _playSeq || !mounted) return; // cancelled by newer call
       // Use hardcoded URL if available, otherwise fetch from iTunes
       String? url = card.previewUrl;
       if (url == null || url.isEmpty) {
@@ -377,6 +481,7 @@ class _PulseScreenState extends State<PulseScreen> {
           if (url != null) _resolvedUrls[index] = url;
         }
       }
+      if (seq != _playSeq || !mounted) return; // cancelled during fetch
       if (url != null && url.isNotEmpty) {
         await _player.setUrl(url);
         await _player.setLoopMode(LoopMode.one);
@@ -387,7 +492,19 @@ class _PulseScreenState extends State<PulseScreen> {
 
   void _onPageChanged(int index) {
     setState(() => _currentIndex = index);
-    _playCard(index);
+    if (_tab != 2) _playCard(index);
+  }
+
+  void _switchTab(int t) {
+    if (t == 2 && _tab != 2) {
+      // Going to Drops — kill music audio
+      _playSeq++;
+      _player.stop();
+    } else if (t != 2 && _tab == 2) {
+      // Coming back from Drops — resume music
+      _playCard(_currentIndex);
+    }
+    setState(() => _tab = t);
   }
 
   void _showSearchSheet() {
@@ -396,6 +513,15 @@ class _PulseScreenState extends State<PulseScreen> {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const _PulseSearchSheet(),
+    );
+  }
+
+  void _showPostDropSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => const _PostDropSheet(),
     );
   }
 
@@ -414,10 +540,13 @@ class _PulseScreenState extends State<PulseScreen> {
         elevation: 0,
         title: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
           _TabChip(label: 'For You', selected: _tab == 0,
-              onTap: () => setState(() => _tab = 0)),
-          const SizedBox(width: 12),
-          _TabChip(label: 'Your Orbit', selected: _tab == 1,
-              onTap: () => setState(() => _tab = 1)),
+              onTap: () => _switchTab(0)),
+          const SizedBox(width: 8),
+          _TabChip(label: 'Orbit', selected: _tab == 1,
+              onTap: () => _switchTab(1)),
+          const SizedBox(width: 8),
+          _TabChip(label: 'Drops 💧', selected: _tab == 2,
+              onTap: () => _switchTab(2)),
         ]),
         actions: [
           IconButton(icon: const Icon(Icons.search_rounded, color: Colors.white),
@@ -438,86 +567,116 @@ class _PulseScreenState extends State<PulseScreen> {
         ),
       ),
       body: Stack(children: [
-        PageView.builder(
-          controller: _pageCtrl,
-          scrollDirection: Axis.vertical,
-          itemCount: _seedCards.length,
-          onPageChanged: _onPageChanged,
-          itemBuilder: (_, i) => _PulseCardWidget(
-            card: _seedCards[i],
-            index: i,
-            isActive: _currentIndex == i,
-            fired: _fired.contains(i),
-            onFire: () => _toggleFire(i),
-            player: _player,
+        // ── Drops tab — full-screen vertical video feed ──
+        if (_tab == 2)
+          _DropsView(
+            drops: _seedDrops,
+            currentIndex: _dropIndex,
+            onPageChanged: (i) => setState(() => _dropIndex = i),
+          )
+        else
+          PageView.builder(
+            controller: _pageCtrl,
+            scrollDirection: Axis.vertical,
+            itemCount: _seedCards.length,
+            onPageChanged: _onPageChanged,
+            itemBuilder: (_, i) => _PulseCardWidget(
+              card: _seedCards[i],
+              index: i,
+              isActive: _currentIndex == i,
+              fired: _fired.contains(i),
+              onFire: () => _toggleFire(i),
+              player: _player,
+            ),
           ),
-        ),
-        if (_currentIndex == 0)
+        if (_tab != 2 && _currentIndex == 0)
           const Positioned(bottom: 100, left: 0, right: 0, child: _ScrollHint()),
-        // Pending battle invite badge
-        Positioned(
-          top: kToolbarHeight + MediaQuery.of(context).padding.top + 8,
-          left: 0, right: 0,
-          child: _PendingBattlesBanner(),
-        ),
+        // Pending battle invite badge (only on music tabs)
+        if (_tab != 2)
+          Positioned(
+            top: kToolbarHeight + MediaQuery.of(context).padding.top + 8,
+            left: 0, right: 0,
+            child: _PendingBattlesBanner(),
+          ),
       ]),
       floatingActionButton: Padding(
         padding: const EdgeInsets.only(bottom: 20),
-        child: Column(mainAxisSize: MainAxisSize.min, children: [
-          // Orbit Moment FAB
-          GestureDetector(
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const OrbitMomentScreen())),
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: Colors.white.withOpacity(0.25), width: 1.5),
-              ),
-              child: const Center(
-                child: Text('📸', style: TextStyle(fontSize: 20)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Battle FAB
-          GestureDetector(
-            onTap: () => showStartBattleSheet(context),
-            child: Container(
-              width: 44, height: 44,
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.1),
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: Colors.white.withOpacity(0.25), width: 1.5),
-              ),
-              child: const Center(
-                child: Text('⚔️', style: TextStyle(fontSize: 20)),
-              ),
-            ),
-          ),
-          const SizedBox(height: 10),
-          // Create Pulse FAB
-          GestureDetector(
-            onTap: () => Navigator.push(context,
-                MaterialPageRoute(builder: (_) => const CreatePulseScreen())),
-            child: Container(
-              width: 52, height: 52,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                    colors: [AuraTheme.accent, AuraTheme.accentLight],
-                    begin: Alignment.topLeft, end: Alignment.bottomRight),
-                shape: BoxShape.circle,
-                boxShadow: [BoxShadow(
-                    color: AuraTheme.accent.withOpacity(0.5),
-                    blurRadius: 16, offset: const Offset(0, 4))],
-              ),
-              child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
-            ),
-          ),
-        ]),
+        child: _tab == 2
+            // ── Drops tab FABs ──
+            ? Column(mainAxisSize: MainAxisSize.min, children: [
+                GestureDetector(
+                  onTap: () => _showPostDropSheet(context),
+                  child: Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [Color(0xFF4FACFE), Color(0xFF00F2FE)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight),
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(
+                          color: const Color(0xFF4FACFE).withOpacity(0.5),
+                          blurRadius: 16, offset: const Offset(0, 4))],
+                    ),
+                    child: const Center(
+                      child: Text('💧', style: TextStyle(fontSize: 22)),
+                    ),
+                  ),
+                ),
+              ])
+            // ── Music feed FABs ──
+            : Column(mainAxisSize: MainAxisSize.min, children: [
+                GestureDetector(
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const OrbitMomentScreen())),
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.25), width: 1.5),
+                    ),
+                    child: const Center(
+                      child: Text('📸', style: TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => showStartBattleSheet(context),
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.25), width: 1.5),
+                    ),
+                    child: const Center(
+                      child: Text('⚔️', style: TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const CreatePulseScreen())),
+                  child: Container(
+                    width: 52, height: 52,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                          colors: [AuraTheme.accent, AuraTheme.accentLight],
+                          begin: Alignment.topLeft, end: Alignment.bottomRight),
+                      shape: BoxShape.circle,
+                      boxShadow: [BoxShadow(
+                          color: AuraTheme.accent.withOpacity(0.5),
+                          blurRadius: 16, offset: const Offset(0, 4))],
+                    ),
+                    child: const Icon(Icons.add_rounded, color: Colors.white, size: 28),
+                  ),
+                ),
+              ]),
       ),
     );
   }
@@ -1938,6 +2097,623 @@ class _PulseSearchSheetState extends State<_PulseSearchSheet> {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Drops View — vertical PageView of short video cards
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DropsView extends StatefulWidget {
+  final List<_Drop> drops;
+  final int currentIndex;
+  final ValueChanged<int> onPageChanged;
+
+  const _DropsView({
+    required this.drops,
+    required this.currentIndex,
+    required this.onPageChanged,
+  });
+
+  @override
+  State<_DropsView> createState() => _DropsViewState();
+}
+
+class _DropsViewState extends State<_DropsView> {
+  late final PageController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = PageController(initialPage: widget.currentIndex);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return PageView.builder(
+      controller: _ctrl,
+      scrollDirection: Axis.vertical,
+      itemCount: widget.drops.length,
+      onPageChanged: widget.onPageChanged,
+      itemBuilder: (_, i) => _DropCard(
+        drop: widget.drops[i],
+        isActive: widget.currentIndex == i,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Drop Card — single full-screen video post
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DropCard extends StatefulWidget {
+  final _Drop drop;
+  final bool isActive;
+
+  const _DropCard({required this.drop, required this.isActive});
+
+  @override
+  State<_DropCard> createState() => _DropCardState();
+}
+
+class _DropCardState extends State<_DropCard>
+    with SingleTickerProviderStateMixin {
+  VideoPlayerController? _vc;
+  bool _vcReady = false;
+  bool _liked = false;
+  late final AnimationController _heartCtrl;
+  bool _showHeart = false;
+  int _likeCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    _likeCount = widget.drop.likes;
+    _heartCtrl = AnimationController(
+        vsync: this, duration: const Duration(milliseconds: 600));
+    if (widget.isActive) _initVideo();
+  }
+
+  @override
+  void didUpdateWidget(_DropCard old) {
+    super.didUpdateWidget(old);
+    if (widget.isActive && !old.isActive) {
+      _initVideo();
+    } else if (!widget.isActive && old.isActive) {
+      _vc?.pause();
+      _vc?.dispose();
+      setState(() { _vc = null; _vcReady = false; });
+    }
+  }
+
+  Future<void> _initVideo() async {
+    final vc = VideoPlayerController.networkUrl(
+      Uri.parse(widget.drop.videoUrl),
+    );
+    try {
+      await vc.initialize();
+      if (!mounted) { vc.dispose(); return; }
+      setState(() { _vc = vc; _vcReady = true; });
+      vc.setLooping(true);
+      vc.play();
+    } catch (_) {
+      vc.dispose();
+    }
+  }
+
+  @override
+  void dispose() {
+    _vc?.dispose();
+    _heartCtrl.dispose();
+    super.dispose();
+  }
+
+  void _toggleLike() {
+    HapticFeedback.lightImpact();
+    setState(() {
+      _liked = !_liked;
+      _likeCount += _liked ? 1 : -1;
+      if (_liked) {
+        _showHeart = true;
+        _heartCtrl.forward(from: 0).then((_) {
+          if (mounted) setState(() => _showHeart = false);
+        });
+      }
+    });
+  }
+
+  void _togglePlay() {
+    if (_vc == null) return;
+    setState(() {
+      if (_vc!.value.isPlaying) {
+        _vc!.pause();
+      } else {
+        _vc!.play();
+      }
+    });
+  }
+
+  String _fmt(int n) {
+    if (n >= 1000000) return '${(n / 1000000).toStringAsFixed(1)}M';
+    if (n >= 1000) return '${(n / 1000).toStringAsFixed(1)}k';
+    return '$n';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final drop = widget.drop;
+    final size = MediaQuery.of(context).size;
+
+    return GestureDetector(
+      onTap: _togglePlay,
+      onDoubleTap: _toggleLike,
+      child: Stack(fit: StackFit.expand, children: [
+
+        // ── Video or placeholder background ──────────────────────────
+        if (_vcReady && _vc != null)
+          FittedBox(
+            fit: BoxFit.cover,
+            child: SizedBox(
+              width: _vc!.value.size.width,
+              height: _vc!.value.size.height,
+              child: VideoPlayer(_vc!),
+            ),
+          )
+        else
+          // Gradient placeholder while video loads
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  drop.accentColor.withOpacity(0.7),
+                  drop.accentColor.withOpacity(0.3),
+                  Colors.black87,
+                ],
+              ),
+            ),
+            child: Center(
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text('💧', style: const TextStyle(fontSize: 64)),
+                const SizedBox(height: 16),
+                const SizedBox(
+                  width: 24, height: 24,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white38,
+                  ),
+                ),
+              ]),
+            ),
+          ),
+
+        // ── Bottom gradient ──────────────────────────────────────────
+        Positioned(
+          bottom: 0, left: 0, right: 0,
+          height: size.height * 0.55,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.transparent, Colors.black.withOpacity(0.92)],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ),
+
+        // ── Top gradient ─────────────────────────────────────────────
+        Positioned(
+          top: 0, left: 0, right: 0, height: 180,
+          child: Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [Colors.black.withOpacity(0.5), Colors.transparent],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+        ),
+
+        // ── Drop badge top-left ──────────────────────────────────────
+        Positioned(
+          top: 100, left: 16,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 5),
+            decoration: BoxDecoration(
+              color: Colors.black.withOpacity(0.5),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: drop.accentColor.withOpacity(0.6)),
+            ),
+            child: Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('💧', style: const TextStyle(fontSize: 12)),
+              const SizedBox(width: 5),
+              Text('Drop',
+                  style: TextStyle(
+                    color: drop.accentColor,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 11,
+                    letterSpacing: 0.5,
+                  )),
+            ]),
+          ),
+        ),
+
+        // ── Pause indicator ──────────────────────────────────────────
+        if (_vc != null && !_vc!.value.isPlaying && _vcReady)
+          Center(
+            child: Container(
+              width: 64, height: 64,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.black.withOpacity(0.4),
+              ),
+              child: const Icon(Icons.play_arrow_rounded,
+                  color: Colors.white, size: 40),
+            ),
+          ),
+
+        // ── Double-tap heart animation ───────────────────────────────
+        if (_showHeart)
+          Center(
+            child: AnimatedBuilder(
+              animation: _heartCtrl,
+              builder: (_, __) {
+                final t = _heartCtrl.value;
+                return Opacity(
+                  opacity: t < 0.7 ? 1.0 : 1 - (t - 0.7) / 0.3,
+                  child: Transform.scale(
+                    scale: 0.5 + t * 0.8,
+                    child: const Text('❤️',
+                        style: TextStyle(fontSize: 80)),
+                  ),
+                );
+              },
+            ),
+          ),
+
+        // ── Right action column ──────────────────────────────────────
+        Positioned(
+          right: 14, bottom: 100,
+          child: Column(children: [
+            // Like
+            GestureDetector(
+              onTap: _toggleLike,
+              child: Column(children: [
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 200),
+                  child: Text(
+                    _liked ? '❤️' : '🤍',
+                    key: ValueKey(_liked),
+                    style: const TextStyle(fontSize: 30),
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(_fmt(_likeCount),
+                    style: const TextStyle(color: Colors.white,
+                        fontSize: 11, fontWeight: FontWeight.w600)),
+              ]),
+            ),
+            const SizedBox(height: 22),
+            // Comments
+            _ActionBtn(
+              child: const Icon(Icons.chat_bubble_outline_rounded,
+                  color: Colors.white, size: 28),
+              label: _fmt(drop.comments),
+              onTap: () {},
+            ),
+            const SizedBox(height: 22),
+            // Share
+            _ActionBtn(
+              child: const Icon(Icons.near_me_outlined, color: Colors.white, size: 28),
+              label: _fmt(drop.shares),
+              onTap: () {
+                HapticFeedback.lightImpact();
+                Share.share('💧 ${drop.caption}\n\n${drop.hashtags.join(' ')}\n\nvia AURA');
+              },
+            ),
+            const SizedBox(height: 22),
+            // Spinning vinyl with song
+            _SpinningVinyl(accentColor: drop.accentColor,
+                isPlaying: _vc?.value.isPlaying ?? false),
+          ]),
+        ),
+
+        // ── Bottom-left user info ────────────────────────────────────
+        Positioned(
+          left: 14, right: 80, bottom: 60,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Username + follow
+              Row(children: [
+                Container(
+                  width: 36, height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: drop.accentColor.withOpacity(0.8),
+                    border: Border.all(color: Colors.white, width: 1.5),
+                  ),
+                  child: Center(child: Text(drop.avatarEmoji,
+                      style: const TextStyle(fontSize: 17))),
+                ),
+                const SizedBox(width: 8),
+                Text(drop.handle,
+                    style: const TextStyle(color: Colors.white,
+                        fontWeight: FontWeight.w800, fontSize: 14)),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 3),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: Colors.white.withOpacity(0.7)),
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                  child: const Text('+ follow',
+                      style: TextStyle(color: Colors.white, fontSize: 11,
+                          fontWeight: FontWeight.w700)),
+                ),
+              ]),
+              const SizedBox(height: 8),
+              // Caption
+              Text(drop.caption,
+                  style: const TextStyle(color: Colors.white,
+                      fontSize: 14, height: 1.4, fontWeight: FontWeight.w500),
+                  maxLines: 2, overflow: TextOverflow.ellipsis),
+              const SizedBox(height: 5),
+              // Hashtags
+              Wrap(
+                spacing: 6,
+                children: drop.hashtags.map((h) => Text(h,
+                    style: TextStyle(color: drop.accentColor,
+                        fontSize: 12, fontWeight: FontWeight.w600))).toList(),
+              ),
+              const SizedBox(height: 8),
+              // Song strip
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.45),
+                  borderRadius: BorderRadius.circular(18),
+                  border: Border.all(color: Colors.white.withOpacity(0.12)),
+                ),
+                child: Row(mainAxisSize: MainAxisSize.min, children: [
+                  Text('🎵', style: const TextStyle(fontSize: 11)),
+                  const SizedBox(width: 6),
+                  Text('${drop.song} · ${drop.artist}',
+                      style: const TextStyle(color: Colors.white,
+                          fontSize: 11, fontWeight: FontWeight.w600)),
+                ]),
+              ),
+            ],
+          ),
+        ),
+
+        // ── Video progress bar at very bottom ────────────────────────
+        if (_vcReady && _vc != null)
+          Positioned(
+            bottom: 0, left: 0, right: 0,
+            child: ValueListenableBuilder<VideoPlayerValue>(
+              valueListenable: _vc!,
+              builder: (_, val, __) {
+                final progress = val.duration.inMilliseconds > 0
+                    ? val.position.inMilliseconds / val.duration.inMilliseconds
+                    : 0.0;
+                return LinearProgressIndicator(
+                  value: progress.clamp(0.0, 1.0),
+                  backgroundColor: Colors.white.withOpacity(0.15),
+                  valueColor: AlwaysStoppedAnimation<Color>(drop.accentColor),
+                  minHeight: 2,
+                );
+              },
+            ),
+          ),
+      ]),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Spinning vinyl for Drops sidebar
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _SpinningVinyl extends StatefulWidget {
+  final Color accentColor;
+  final bool isPlaying;
+  const _SpinningVinyl({required this.accentColor, required this.isPlaying});
+
+  @override
+  State<_SpinningVinyl> createState() => _SpinningVinylState();
+}
+
+class _SpinningVinylState extends State<_SpinningVinyl>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _spin;
+
+  @override
+  void initState() {
+    super.initState();
+    _spin = AnimationController(
+        vsync: this, duration: const Duration(seconds: 3));
+    if (widget.isPlaying) _spin.repeat();
+  }
+
+  @override
+  void didUpdateWidget(_SpinningVinyl old) {
+    super.didUpdateWidget(old);
+    if (widget.isPlaying && !_spin.isAnimating) {
+      _spin.repeat();
+    } else if (!widget.isPlaying && _spin.isAnimating) {
+      _spin.stop();
+    }
+  }
+
+  @override
+  void dispose() {
+    _spin.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(children: [
+      AnimatedBuilder(
+        animation: _spin,
+        builder: (_, __) => Transform.rotate(
+          angle: _spin.value * 2 * math.pi,
+          child: Container(
+            width: 44, height: 44,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: const Color(0xFF111111),
+              border: Border.all(color: Colors.white24, width: 1),
+            ),
+            child: Center(
+              child: Container(
+                width: 16, height: 16,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: widget.accentColor,
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+      const SizedBox(height: 3),
+      const Text('sound', style: TextStyle(color: Colors.white54,
+          fontSize: 9, fontWeight: FontWeight.w600)),
+    ]);
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Post a Drop sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PostDropSheet extends StatelessWidget {
+  const _PostDropSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: EdgeInsets.only(
+        left: 24, right: 24, top: 24,
+        bottom: MediaQuery.of(context).padding.bottom + 24,
+      ),
+      decoration: const BoxDecoration(
+        color: Color(0xFF0D0D1A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+      ),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(width: 36, height: 4,
+              decoration: BoxDecoration(color: Colors.white24,
+                  borderRadius: BorderRadius.circular(2))),
+          const SizedBox(height: 20),
+          const Text('💧', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 8),
+          const Text('Post a Drop',
+              style: TextStyle(color: Colors.white,
+                  fontWeight: FontWeight.w900, fontSize: 22)),
+          const SizedBox(height: 4),
+          Text('Share a short video with your orbit',
+              style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 13)),
+          const SizedBox(height: 28),
+          _DropOption(
+            emoji: '📹',
+            title: 'Record a Drop',
+            subtitle: 'Shoot a new video right now',
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('📹 Camera — coming soon!'),
+                behavior: SnackBarBehavior.floating,
+              ));
+            },
+          ),
+          const SizedBox(height: 12),
+          _DropOption(
+            emoji: '🎞️',
+            title: 'Choose from Gallery',
+            subtitle: 'Pick a video you already have',
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('🎞️ Gallery picker — coming soon!'),
+                behavior: SnackBarBehavior.floating,
+              ));
+            },
+          ),
+          const SizedBox(height: 12),
+          _DropOption(
+            emoji: '✨',
+            title: 'Create with Effects',
+            subtitle: 'AR filters + music sync',
+            onTap: () {
+              Navigator.pop(context);
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                content: Text('✨ Effects studio — coming soon!'),
+                behavior: SnackBarBehavior.floating,
+              ));
+            },
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DropOption extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+
+  const _DropOption({
+    required this.emoji, required this.title,
+    required this.subtitle, required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: Colors.white.withOpacity(0.05),
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.08)),
+        ),
+        child: Row(children: [
+          Text(emoji, style: const TextStyle(fontSize: 26)),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Text(title, style: const TextStyle(color: Colors.white,
+                  fontWeight: FontWeight.w700, fontSize: 15)),
+              const SizedBox(height: 2),
+              Text(subtitle, style: TextStyle(
+                  color: Colors.white.withOpacity(0.45), fontSize: 12)),
+            ]),
+          ),
+          Icon(Icons.chevron_right_rounded,
+              color: Colors.white.withOpacity(0.3), size: 20),
+        ]),
       ),
     );
   }
