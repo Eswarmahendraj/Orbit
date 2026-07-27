@@ -4,6 +4,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../../theme/aura_theme.dart';
 import '../../widgets/now_playing_bar.dart';
+import '../messages/chat_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Friend location data
@@ -11,16 +12,18 @@ import '../../widgets/now_playing_bar.dart';
 
 class _Friend {
   final String handle;
+  final String displayName;
   final String emoji;
   final String song;
   final String city;
   final Color color;
   final double lat;
   final double lon;
-  final String pfpSeed; // Dicebear avatar seed
+  final String pfpSeed;
 
   const _Friend({
     required this.handle,
+    required this.displayName,
     required this.emoji,
     required this.song,
     required this.city,
@@ -35,16 +38,16 @@ class _Friend {
 }
 
 const _friends = [
-  _Friend(handle: '@maya.k',  emoji: '🎧', song: 'Espresso',          city: 'New York',  color: Color(0xFFFF6B6B), lat: 40.7,  lon: -74.0,  pfpSeed: 'maya'),
-  _Friend(handle: '@zara.w',  emoji: '🌙', song: 'luther',            city: 'London',    color: Color(0xFF7C83FD), lat: 51.5,  lon: -0.1,   pfpSeed: 'zara'),
-  _Friend(handle: '@dev.s',   emoji: '🔥', song: 'APT.',              city: 'Mumbai',    color: Color(0xFF43E97B), lat: 19.1,  lon: 72.9,   pfpSeed: 'dev'),
-  _Friend(handle: '@rina.p',  emoji: '✨', song: 'Golden Hour',       city: 'Seoul',     color: Color(0xFFFAD961), lat: 37.6,  lon: 126.9,  pfpSeed: 'rina'),
-  _Friend(handle: '@jay.r',   emoji: '☀️', song: 'Die With A Smile',  city: 'Sydney',    color: Color(0xFF11998E), lat: -33.9, lon: 151.2,  pfpSeed: 'jay'),
-  _Friend(handle: '@sam.w',   emoji: '🎸', song: 'Blinding Lights',   city: 'LA',        color: Color(0xFFFC6076), lat: 34.1,  lon: -118.2, pfpSeed: 'sam'),
-  _Friend(handle: '@leo.k',   emoji: '💜', song: 'Peaches',           city: 'Paris',     color: Color(0xFFA18CD1), lat: 48.9,  lon: 2.3,    pfpSeed: 'leo'),
-  _Friend(handle: '@ari.c',   emoji: '🌊', song: 'Levitating',        city: 'Toronto',   color: Color(0xFF4FACFE), lat: 43.7,  lon: -79.4,  pfpSeed: 'ari'),
-  _Friend(handle: '@mia.t',   emoji: '🌸', song: 'STAY',              city: 'Tokyo',     color: Color(0xFFF77062), lat: 35.7,  lon: 139.7,  pfpSeed: 'mia'),
-  _Friend(handle: '@kai.r',   emoji: '⚡', song: 'As It Was',         city: 'Berlin',    color: Color(0xFF667EEA), lat: 52.5,  lon: 13.4,   pfpSeed: 'kai'),
+  _Friend(handle: '@maya.k',  displayName: 'Maya K',  emoji: '🎧', song: 'Espresso',          city: 'New York',  color: Color(0xFFFF6B6B), lat: 40.7,  lon: -74.0,  pfpSeed: 'maya'),
+  _Friend(handle: '@zara.w',  displayName: 'Zara W',  emoji: '🌙', song: 'luther',            city: 'London',    color: Color(0xFF7C83FD), lat: 51.5,  lon: -0.1,   pfpSeed: 'zara'),
+  _Friend(handle: '@dev.s',   displayName: 'Dev S',   emoji: '🔥', song: 'APT.',              city: 'Mumbai',    color: Color(0xFF43E97B), lat: 19.1,  lon: 72.9,   pfpSeed: 'dev'),
+  _Friend(handle: '@rina.p',  displayName: 'Rina P',  emoji: '✨', song: 'Golden Hour',       city: 'Seoul',     color: Color(0xFFFAD961), lat: 37.6,  lon: 126.9,  pfpSeed: 'rina'),
+  _Friend(handle: '@jay.r',   displayName: 'Jay R',   emoji: '☀️', song: 'Die With A Smile',  city: 'Sydney',    color: Color(0xFF11998E), lat: -33.9, lon: 151.2,  pfpSeed: 'jay'),
+  _Friend(handle: '@sam.w',   displayName: 'Sam W',   emoji: '🎸', song: 'Blinding Lights',   city: 'LA',        color: Color(0xFFFC6076), lat: 34.1,  lon: -118.2, pfpSeed: 'sam'),
+  _Friend(handle: '@leo.k',   displayName: 'Leo K',   emoji: '💜', song: 'Peaches',           city: 'Paris',     color: Color(0xFFA18CD1), lat: 48.9,  lon: 2.3,    pfpSeed: 'leo'),
+  _Friend(handle: '@ari.c',   displayName: 'Ari C',   emoji: '🌊', song: 'Levitating',        city: 'Toronto',   color: Color(0xFF4FACFE), lat: 43.7,  lon: -79.4,  pfpSeed: 'ari'),
+  _Friend(handle: '@mia.t',   displayName: 'Mia T',   emoji: '🌸', song: 'STAY',              city: 'Tokyo',     color: Color(0xFFF77062), lat: 35.7,  lon: 139.7,  pfpSeed: 'mia'),
+  _Friend(handle: '@kai.r',   displayName: 'Kai R',   emoji: '⚡', song: 'As It Was',         city: 'Berlin',    color: Color(0xFF667EEA), lat: 52.5,  lon: 13.4,   pfpSeed: 'kai'),
 ];
 
 // "You" — Bangalore, India
@@ -756,50 +759,95 @@ class _InfoCardState extends State<_InfoCard>
             ]),
           ),
           const SizedBox(height: 10),
-          // ── Jam Together button ─────────────────────────────────
-          GestureDetector(
-            onTap: () {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                content: Text(
-                    '🎵 Listening Party with ${f.handle} — coming soon!'),
-                backgroundColor: f.color.withOpacity(0.85),
-                behavior: SnackBarBehavior.floating,
-                duration: const Duration(seconds: 2),
-              ));
-            },
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 9),
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [
-                    f.color.withOpacity(0.35),
-                    f.color.withOpacity(0.15),
-                  ],
-                ),
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                    color: f.color.withOpacity(0.45), width: 1.2),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.headphones_rounded,
-                      color: f.color, size: 14),
-                  const SizedBox(width: 6),
-                  Text(
-                    'Jam Together',
-                    style: TextStyle(
-                      color: f.color,
-                      fontWeight: FontWeight.w800,
-                      fontSize: 12,
-                      letterSpacing: 0.3,
+          // ── Action buttons row ──────────────────────────────────
+          Row(children: [
+            // Jam Together
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text(
+                        '🎵 Listening Party with ${f.handle} — coming soon!'),
+                    backgroundColor: f.color.withOpacity(0.85),
+                    behavior: SnackBarBehavior.floating,
+                    duration: const Duration(seconds: 2),
+                  ));
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      colors: [
+                        f.color.withOpacity(0.35),
+                        f.color.withOpacity(0.15),
+                      ],
                     ),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: f.color.withOpacity(0.45), width: 1.2),
                   ),
-                ],
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.headphones_rounded,
+                          color: f.color, size: 13),
+                      const SizedBox(width: 5),
+                      Text('Jam',
+                          style: TextStyle(
+                            color: f.color,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            letterSpacing: 0.3,
+                          )),
+                    ],
+                  ),
+                ),
               ),
             ),
-          ),
+            const SizedBox(width: 8),
+            // Message / DM
+            Expanded(
+              child: GestureDetector(
+                onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ChatScreen(
+                        peerAuraName: f.displayName,
+                        peerId: f.handle,
+                        peerColor: f.color,
+                        tenureEmoji: f.emoji,
+                      ),
+                    ),
+                  );
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 9),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withOpacity(0.07),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.18), width: 1.2),
+                  ),
+                  child: const Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.chat_bubble_outline_rounded,
+                          color: Colors.white70, size: 13),
+                      SizedBox(width: 5),
+                      Text('Message',
+                          style: TextStyle(
+                            color: Colors.white70,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 12,
+                            letterSpacing: 0.3,
+                          )),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ]),
         ],
       ),
     );
