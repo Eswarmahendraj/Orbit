@@ -14,6 +14,9 @@ import '../../services/song_battle_service.dart';
 import '../pulse/song_battle_sheet.dart';
 import '../reels/create_pulse_screen.dart';
 import '../social/orbit_moment_screen.dart';
+import 'meme_studio_screen.dart';
+import 'remix_drop_screen.dart';
+import 'trending_sounds_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data Model
@@ -604,6 +607,43 @@ class _PulseScreenState extends State<PulseScreen> {
         child: _tab == 2
             // ── Drops tab FABs ──
             ? Column(mainAxisSize: MainAxisSize.min, children: [
+                // Trending Sounds
+                GestureDetector(
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const TrendingSoundsScreen())),
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.25), width: 1.5),
+                    ),
+                    child: const Center(
+                      child: Text('🔥', style: TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Meme Studio
+                GestureDetector(
+                  onTap: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const MemeStudioScreen())),
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.25), width: 1.5),
+                    ),
+                    child: const Center(
+                      child: Text('🎭', style: TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Post Drop
                 GestureDetector(
                   onTap: () => _showPostDropSheet(context),
                   child: Container(
@@ -2421,6 +2461,27 @@ class _DropCardState extends State<_DropCard>
               onTap: () {
                 HapticFeedback.lightImpact();
                 Share.share('💧 ${drop.caption}\n\n${drop.hashtags.join(' ')}\n\nvia AURA');
+              },
+            ),
+            const SizedBox(height: 22),
+            // Remix
+            _ActionBtn(
+              child: const Text('🔁', style: TextStyle(fontSize: 26)),
+              label: 'Remix',
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.push(context, MaterialPageRoute(
+                  builder: (_) => RemixDropScreen(
+                    handle: drop.handle.replaceFirst('@', ''),
+                    displayName: drop.displayName,
+                    avatarEmoji: drop.avatarEmoji,
+                    accentColor: drop.accentColor,
+                    caption: drop.caption,
+                    song: drop.song,
+                    artist: drop.artist,
+                    videoUrl: drop.videoUrl,
+                  ),
+                ));
               },
             ),
             const SizedBox(height: 22),

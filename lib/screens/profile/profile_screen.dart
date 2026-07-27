@@ -2037,6 +2037,56 @@ class _ProfileScreenState extends State<ProfileScreen>
 
               const SizedBox(height: 10),
 
+              // ── ✦ CREATOR badge + stats ────────────────────────────
+              Row(mainAxisSize: MainAxisSize.min, children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  decoration: BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF6B35), Color(0xFFFC466B)],
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [BoxShadow(
+                      color: const Color(0xFFFF6B35).withOpacity(0.35),
+                      blurRadius: 10,
+                    )],
+                  ),
+                  child: const Row(mainAxisSize: MainAxisSize.min, children: [
+                    Text('✦', style: TextStyle(color: Colors.white, fontSize: 10)),
+                    SizedBox(width: 5),
+                    Text('CREATOR',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.w900,
+                            letterSpacing: 1.2)),
+                  ]),
+                ),
+              ]),
+
+              const SizedBox(height: 10),
+
+              // ── Creator stats row ──────────────────────────────────
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _CreatorStat(value: '12.4k', label: 'views',
+                      color: const Color(0xFFFF6B35)),
+                  Container(width: 1, height: 24,
+                      color: Colors.white.withOpacity(0.1),
+                      margin: const EdgeInsets.symmetric(horizontal: 16)),
+                  _CreatorStat(value: '2.1k', label: 'fires',
+                      color: const Color(0xFFFC466B)),
+                  Container(width: 1, height: 24,
+                      color: Colors.white.withOpacity(0.1),
+                      margin: const EdgeInsets.symmetric(horizontal: 16)),
+                  _CreatorStat(value: '23', label: 'posts',
+                      color: AuraTheme.accent),
+                ],
+              ),
+
+              const SizedBox(height: 12),
+
               // Bio
               GestureDetector(
                 onTap: () async {
@@ -3535,5 +3585,39 @@ class _ActionBtn extends StatelessWidget {
         ),
       ]),
     ),
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Creator stat chip used in profile header
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _CreatorStat extends StatelessWidget {
+  final String value;
+  final String label;
+  final Color color;
+  const _CreatorStat({required this.value, required this.label, required this.color});
+
+  @override
+  Widget build(BuildContext context) => Column(
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      ShaderMask(
+        shaderCallback: (b) => LinearGradient(
+          colors: [color, color.withOpacity(0.7)],
+        ).createShader(b),
+        child: Text(value,
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w900,
+                fontSize: 15)),
+      ),
+      const SizedBox(height: 1),
+      Text(label,
+          style: TextStyle(
+              color: Colors.white.withOpacity(0.35),
+              fontSize: 10,
+              fontWeight: FontWeight.w600)),
+    ],
   );
 }
