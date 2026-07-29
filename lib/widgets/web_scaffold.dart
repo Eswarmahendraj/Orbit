@@ -11,6 +11,7 @@ import '../screens/messages/messages_screen.dart';
 import '../screens/settings/settings_screen.dart';
 import '../screens/home/vibe_picker_sheet.dart';
 import '../screens/reels/pulse_screen.dart';
+import '../screens/pocket/pocket_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Top-level responsive wrapper
@@ -323,6 +324,30 @@ class _Sidebar extends StatelessWidget {
               onTap: () => onTabChange(i),
             ),
           const Spacer(),
+          // The Pocket
+          Tooltip(
+            message: 'The Pocket — private spaces',
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const PocketScreen())),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
+                width: 56,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AuraTheme.cyan.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: AuraTheme.cyan.withOpacity(0.2)),
+                ),
+                child: const Center(
+                  child: Icon(Icons.bubble_chart_rounded,
+                      color: AuraTheme.cyan, size: 20),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
           // ⌘K command palette button
           Tooltip(
             message: '⌘K / Ctrl+K  Command palette',
@@ -1108,6 +1133,17 @@ class _CommandPaletteState extends State<_CommandPalette>
                             shortcut: 'U',
                             active: false,
                             onTap: () => widget.onSelect(5), // Profile tab
+                          ),
+                          _PaletteRow(
+                            icon: Icons.bubble_chart_rounded,
+                            label: 'The Pocket',
+                            shortcut: 'O',
+                            active: false,
+                            onTap: () {
+                              widget.onDismiss();
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => const PocketScreen()));
+                            },
                           ),
                         ],
                       ),

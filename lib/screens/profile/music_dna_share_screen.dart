@@ -247,12 +247,12 @@ class _DnaCard extends StatelessWidget {
                     shaderCallback: (b) => const LinearGradient(
                       colors: [AuraTheme.purple, AuraTheme.cyan],
                     ).createShader(b),
-                    child: const Text('AURA',
+                    child: const Text('✦ ORBIT',
                         style: TextStyle(
                             fontWeight: FontWeight.w900,
-                            fontSize: 18,
+                            fontSize: 16,
                             color: Colors.white,
-                            letterSpacing: 4)),
+                            letterSpacing: 3)),
                   ),
                   const Spacer(),
                   Text(username,
