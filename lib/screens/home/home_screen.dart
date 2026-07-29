@@ -1755,9 +1755,6 @@ class _PostCardState extends State<_PostCard>
                                 moodEmoji: p.moodEmoji,
                                 songTitle: p.songTitle,
                                 artistName: p.artistName,
-                                artUrl: p.artUrl,
-                                previewUrl: p.previewUrl,
-                                moodTags: p.moodTag != null ? [p.moodTag!] : null,
                               ))),
               child: CircleAvatar(
                 radius: 20,
