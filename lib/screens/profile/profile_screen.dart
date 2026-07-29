@@ -1713,7 +1713,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final songEmoji = post['songEmoji'] as String? ?? '🎵';
 
     Widget? media;
-    if (photoPath != null && photoPath.isNotEmpty) {
+    if (photoPath != null && photoPath.isNotEmpty && !kIsWeb) {
       final f = File(photoPath);
       if (f.existsSync()) media = Image.file(f, fit: BoxFit.cover);
     }
@@ -1857,18 +1857,14 @@ class _ProfileScreenState extends State<ProfileScreen>
                 tooltip: 'Share profile',
                 onPressed: _showQrSheet,
               ),
-              IconButton(
-                icon: const Icon(Icons.map_outlined, size: 22),
-                color: AuraTheme.textSecondary,
-                onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const VybeMapScreen())),
-              ),
-              IconButton(
-                icon: const Icon(Icons.settings_outlined, size: 22),
-                color: AuraTheme.textSecondary,
-                onPressed: () => Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const SettingsScreen())),
-              ),
+              // Settings only shown on mobile — web sidebar already has it
+              if (!kIsWeb)
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined, size: 22),
+                  color: AuraTheme.textSecondary,
+                  onPressed: () => Navigator.push(context,
+                      MaterialPageRoute(builder: (_) => const SettingsScreen())),
+                ),
               Container(
                 margin: const EdgeInsets.only(right: 12),
                 child: GestureDetector(

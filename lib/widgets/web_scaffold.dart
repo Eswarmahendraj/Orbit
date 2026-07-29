@@ -52,6 +52,7 @@ class _MobileNavState extends State<MobileNav> {
         const CampfireScreen(),
         PulseScreen(isActive: _tab == 2),
         const FindScreen(),
+        const MessagesScreen(),
         const ProfileScreen(),
       ]),
       bottomNavigationBar: _PremiumBottomNav(
@@ -71,11 +72,12 @@ class _PremiumBottomNav extends StatelessWidget {
   const _PremiumBottomNav({required this.selectedIndex, required this.onTap});
 
   static const _items = [
-    (Icons.graphic_eq_rounded,         'home'),
+    (Icons.graphic_eq_rounded,            'home'),
     (Icons.local_fire_department_rounded, 'campfire'),
-    (Icons.play_circle_rounded,          'pulse'),
-    (Icons.auto_awesome_rounded,         'find'),
-    (Icons.person_rounded,               'self'),
+    (Icons.play_circle_rounded,           'pulse'),
+    (Icons.auto_awesome_rounded,          'find'),
+    (Icons.chat_bubble_rounded,           'messages'),
+    (Icons.person_rounded,                'self'),
   ];
 
   @override
@@ -1080,17 +1082,6 @@ class _CommandPaletteState extends State<_CommandPalette>
                         label: 'ACTIONS',
                         children: [
                           _PaletteRow(
-                            icon: Icons.settings_outlined,
-                            label: 'Settings',
-                            shortcut: '⌘,',
-                            active: false,
-                            onTap: () {
-                              widget.onDismiss();
-                              Navigator.of(context).push(MaterialPageRoute(
-                                  builder: (_) => const SettingsScreen()));
-                            },
-                          ),
-                          _PaletteRow(
                             icon: Icons.edit_rounded,
                             label: 'New Post',
                             shortcut: 'N',
@@ -1105,11 +1096,18 @@ class _CommandPaletteState extends State<_CommandPalette>
                             onTap: () => widget.onSelect(3), // Find tab
                           ),
                           _PaletteRow(
-                            icon: Icons.bolt_rounded,
-                            label: 'Nudge Friend',
-                            shortcut: '!',
+                            icon: Icons.chat_bubble_rounded,
+                            label: 'Messages',
+                            shortcut: 'M',
                             active: false,
                             onTap: () => widget.onSelect(4), // Messages tab
+                          ),
+                          _PaletteRow(
+                            icon: Icons.person_rounded,
+                            label: 'My Profile',
+                            shortcut: 'U',
+                            active: false,
+                            onTap: () => widget.onSelect(5), // Profile tab
                           ),
                         ],
                       ),
