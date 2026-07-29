@@ -37,7 +37,6 @@ dependencies:
   cached_network_image: ^3.3.1
   image_picker: ^1.0.7
   permission_handler: ^11.3.0
-  connectivity_plus: ^5.0.2
   video_player: ^2.8.6
   video_thumbnail: ^0.5.3
   path_provider: ^2.1.2
@@ -52,6 +51,9 @@ dependencies:
 
   # External sharing
   share_plus: ^10.0.0
+
+  # Album art color extraction
+  palette_generator: ^0.3.3
 
   # Speech-to-text (Voice → Playlist)
   speech_to_text: ^6.6.2

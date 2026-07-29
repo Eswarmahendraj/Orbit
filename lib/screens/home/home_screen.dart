@@ -30,6 +30,8 @@ import '../social/sound_room_screen.dart';
 import '../social/vibe_match_screen.dart';
 import '../social/orbit_receipts_screen.dart';
 import '../social/streak_chain_screen.dart';
+import '../social/vibe_check_ai_screen.dart';
+import '../../services/album_theme_service.dart';
 
 // ── Data models ────────────────────────────────────────────────
 
@@ -642,7 +644,7 @@ class _FeedTabState extends State<_FeedTab>
           _sotdCard(state),
           _dailyDropBanner(context),
           _confessionsTeaser(),
-          _discoverRow(context),
+          _playZone(context),
           if (hot.isNotEmpty) _hotRightNow(hot),
           if (match != null) _matchCard(match),
           if (state.streakCount > 0 && !_postedToday()) _streakCard(state),
@@ -974,22 +976,53 @@ class _FeedTabState extends State<_FeedTab>
   }
 
   // ── Discover Row ───────────────────────────────────────────
-  Widget _discoverRow(BuildContext ctx) {
-    final items = [
-      ('🚩', 'red flag?', () => Navigator.push(ctx,
+  Widget _playZone(BuildContext ctx) {
+    // ── Featured games — 2×2 gradient cards ──────────────────────────────────
+    final featured = [
+      (
+        emoji: '⚔️',
+        title: 'Song Battle',
+        sub: 'who wins?',
+        colors: [const Color(0xFFFF6B00), const Color(0xFFFF2D9B)],
+        onTap: () => Navigator.push(
+            ctx, MaterialPageRoute(builder: (_) => const SongBattleScreen())),
+      ),
+      (
+        emoji: '✦',
+        title: 'Vibe Check AI',
+        sub: 'AI reads your soul',
+        colors: [const Color(0xFF7C3AED), const Color(0xFF22D3EE)],
+        onTap: () => Navigator.push(ctx,
+            MaterialPageRoute(builder: (_) => const VibeCheckAiScreen())),
+      ),
+      (
+        emoji: '🔥',
+        title: 'Music Roast',
+        sub: 'get dragged',
+        colors: [const Color(0xFFFF4500), const Color(0xFFFF8C00)],
+        onTap: () => Navigator.push(
+            ctx, MaterialPageRoute(builder: (_) => const MusicRoastScreen())),
+      ),
+      (
+        emoji: '💫',
+        title: 'Vibe Match',
+        sub: 'find your twin',
+        colors: [const Color(0xFFEC4899), const Color(0xFF7C3AED)],
+        onTap: () => Navigator.push(
+            ctx, MaterialPageRoute(builder: (_) => const VibeMatchScreen())),
+      ),
+    ];
+
+    // ── Secondary quick-access chips ─────────────────────────────────────────
+    final chips = [
+      ('🚩', 'red flag', () => Navigator.push(ctx,
           MaterialPageRoute(builder: (_) => const RedFlagScreen()))),
-      ('🔥', 'roast me', () => Navigator.push(ctx,
-          MaterialPageRoute(builder: (_) => const MusicRoastScreen()))),
-      ('🧾', 'receipt', () => Navigator.push(ctx,
-          MaterialPageRoute(builder: (_) => const SongReceiptScreen()))),
       ('👁️', 'blindspot', () => Navigator.push(ctx,
           MaterialPageRoute(builder: (_) => const BlindspotScreen()))),
-      ('🤫', 'song secret', () => Navigator.push(ctx,
+      ('🤫', 'secret', () => Navigator.push(ctx,
           MaterialPageRoute(builder: (_) => const SongSecretScreen()))),
       ('🎙️', 'sound room', () => Navigator.push(ctx,
           MaterialPageRoute(builder: (_) => const SoundRoomListScreen()))),
-      ('💫', 'vibe match', () => Navigator.push(ctx,
-          MaterialPageRoute(builder: (_) => const VibeMatchScreen()))),
       ('🎯', 'song dare', () => Navigator.push(ctx,
           MaterialPageRoute(builder: (_) => const SongDareScreen()))),
       ('💬', 'hot takes', () => Navigator.push(ctx,
@@ -1002,38 +1035,137 @@ class _FeedTabState extends State<_FeedTab>
           MaterialPageRoute(builder: (_) => const OrbitReceiptsScreen()))),
       ('🔗', 'streaks', () => Navigator.push(ctx,
           MaterialPageRoute(builder: (_) => const StreakChainScreen()))),
+      ('🧾', 'receipt', () => Navigator.push(ctx,
+          MaterialPageRoute(builder: (_) => const SongReceiptScreen()))),
     ];
-    return SizedBox(
-      height: 76,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-        itemCount: items.length,
-        separatorBuilder: (_, __) => const SizedBox(width: 10),
-        itemBuilder: (_, i) {
-          final (emoji, label, onTap) = items[i];
-          return GestureDetector(
-            onTap: onTap,
-            child: Container(
-              width: 76,
-              decoration: BoxDecoration(
-                color: AuraTheme.card,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withOpacity(0.08)),
-              ),
-              child: Column(mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                Text(emoji, style: const TextStyle(fontSize: 24)),
-                const SizedBox(height: 4),
-                Text(label,
-                    style: TextStyle(color: Colors.white.withOpacity(0.6),
-                        fontSize: 10, fontWeight: FontWeight.w600)),
-              ]),
+
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      // ── Section header ────────────────────────────────────────────────────
+      Padding(
+        padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
+        child: ShaderMask(
+          shaderCallback: (b) => const LinearGradient(
+            colors: [AuraTheme.purple, AuraTheme.cyan],
+          ).createShader(b),
+          child: const Text(
+            'play zone ✦',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              fontSize: 16,
+              color: Colors.white,
+              letterSpacing: 0.3,
             ),
-          );
-        },
+          ),
+        ),
       ),
-    );
+
+      // ── 2×2 featured grid ────────────────────────────────────────────────
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        child: GridView.count(
+          crossAxisCount: 2,
+          shrinkWrap: true,
+          physics: const NeverScrollableScrollPhysics(),
+          crossAxisSpacing: 10,
+          mainAxisSpacing: 10,
+          childAspectRatio: 1.65,
+          children: featured
+              .map((f) => GestureDetector(
+                    onTap: f.onTap,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: f.colors,
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(18),
+                        boxShadow: [
+                          BoxShadow(
+                            color: f.colors[0].withOpacity(0.28),
+                            blurRadius: 14,
+                            offset: const Offset(0, 5),
+                          ),
+                        ],
+                      ),
+                      padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(f.emoji,
+                              style: const TextStyle(fontSize: 26)),
+                          Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  f.title,
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontWeight: FontWeight.w800,
+                                    fontSize: 13,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                Text(
+                                  f.sub,
+                                  style: TextStyle(
+                                    color: Colors.white.withOpacity(0.65),
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w500,
+                                  ),
+                                ),
+                              ]),
+                        ],
+                      ),
+                    ),
+                  ))
+              .toList(),
+        ),
+      ),
+
+      const SizedBox(height: 10),
+
+      // ── Secondary chips row ──────────────────────────────────────────────
+      SizedBox(
+        height: 68,
+        child: ListView.separated(
+          scrollDirection: Axis.horizontal,
+          padding: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+          itemCount: chips.length,
+          separatorBuilder: (_, __) => const SizedBox(width: 8),
+          itemBuilder: (_, i) {
+            final (emoji, label, onTap) = chips[i];
+            return GestureDetector(
+              onTap: onTap,
+              child: Container(
+                width: 72,
+                decoration: BoxDecoration(
+                  color: AuraTheme.card,
+                  borderRadius: BorderRadius.circular(14),
+                  border: Border.all(color: Colors.white.withOpacity(0.08)),
+                ),
+                child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(emoji, style: const TextStyle(fontSize: 22)),
+                      const SizedBox(height: 3),
+                      Text(
+                        label,
+                        style: TextStyle(
+                          color: Colors.white.withOpacity(0.55),
+                          fontSize: 10,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                    ]),
+              ),
+            );
+          },
+        ),
+      ),
+      const SizedBox(height: 4),
+    ]);
   }
 
   // ── Hot Right Now ──────────────────────────────────────────
@@ -1372,6 +1504,7 @@ class _PostCardState extends State<_PostCard>
   final _player = AudioPlayer();
   bool _playing = false;
   bool _showBurst = false;
+  Color? _albumColor; // Extracted from album art
 
   late final AnimationController _burstCtrl;
   late final Animation<double> _burstAnim;
@@ -1394,6 +1527,15 @@ class _PostCardState extends State<_PostCard>
         vsync: this, duration: const Duration(milliseconds: 650));
     _burstAnim = Tween(begin: 0.0, end: 1.0).animate(
         CurvedAnimation(parent: _burstCtrl, curve: Curves.easeOut));
+    _extractAlbumColor();
+  }
+
+  Future<void> _extractAlbumColor() async {
+    final color = await AlbumThemeService.extractColor(
+      widget.post.artUrl,
+      fallback: widget.post.userColor,
+    );
+    if (mounted) setState(() => _albumColor = color);
   }
 
   @override
@@ -1563,6 +1705,8 @@ class _PostCardState extends State<_PostCard>
     final moodMatch = !p.isOwn && p.mood == widget.userMood;
     final syncLevel = OrbitState().syncLevels[p.handle];
     final state = OrbitState();
+    // Album-art derived color — falls back to user color while loading
+    final cardColor = _albumColor ?? p.userColor;
 
     return GestureDetector(
       onLongPress: _showMenu,
@@ -1573,16 +1717,16 @@ class _PostCardState extends State<_PostCard>
           borderRadius: BorderRadius.circular(18),
           border: Border.all(
             color: p.isOwn
-                ? AuraTheme.accent.withOpacity(0.3)
-                : p.userColor.withOpacity(0.12),
+                ? AuraTheme.accent.withOpacity(0.35)
+                : cardColor.withOpacity(0.2),
             width: 1,
           ),
           boxShadow: [
             BoxShadow(
               color: p.isOwn
-                  ? AuraTheme.accent.withOpacity(0.08)
-                  : p.userColor.withOpacity(0.06),
-              blurRadius: 16,
+                  ? AuraTheme.accent.withOpacity(0.1)
+                  : cardColor.withOpacity(0.12),
+              blurRadius: 18,
               offset: const Offset(0, 4),
             ),
           ],
@@ -1717,8 +1861,8 @@ class _PostCardState extends State<_PostCard>
                   boxShadow: _playing
                       ? [
                           BoxShadow(
-                            color: p.userColor.withOpacity(0.4),
-                            blurRadius: 12,
+                            color: cardColor.withOpacity(0.5),
+                            blurRadius: 16,
                             spreadRadius: 2,
                           )
                         ]
@@ -1772,13 +1916,13 @@ class _PostCardState extends State<_PostCard>
                   width: 36,
                   height: 36,
                   decoration: BoxDecoration(
-                    color: _playing ? p.userColor : AuraTheme.accent,
+                    color: _playing ? cardColor : AuraTheme.accent,
                     shape: BoxShape.circle,
                     boxShadow: [
                       BoxShadow(
-                        color: (_playing ? p.userColor : AuraTheme.accent)
-                            .withOpacity(0.45),
-                        blurRadius: 12,
+                        color: (_playing ? cardColor : AuraTheme.accent)
+                            .withOpacity(0.5),
+                        blurRadius: 14,
                         spreadRadius: 0,
                       ),
                     ],

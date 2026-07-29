@@ -43,7 +43,20 @@ class _MusicDnaShareScreenState extends State<MusicDnaShareScreen>
     _Genre('Hip-Hop',  0.60, Color(0xFFE879F9)),
   ];
 
-  static const _vibeLabel = 'bedroom pop dreamer';
+  // Map mood → vibe label for dynamic card content
+  static const _moodToVibe = {
+    'chill': 'lo-fi philosopher',
+    'hyped': 'hyperpop menace',
+    'nostalgic': 'dark academia girlie',
+    'sad': 'sad indie hour',
+    'romantic': 'bedroom pop dreamer',
+    'cozy': 'cottagecore bard',
+    'euphoric': 'main character syndrome',
+    'focused': 'night shift philosopher',
+  };
+
+  String get _vibeLabel =>
+      _moodToVibe[_state.mood] ?? 'bedroom pop dreamer';
   static const _topTrack  = 'Golden Hour — JVKE';
   static const _topArtist = 'Phoebe Bridgers';
 
@@ -301,7 +314,7 @@ class _DnaCard extends StatelessWidget {
                   const SizedBox(width: 8),
                   _StatChip(label: 'top artist', value: topArtist, color: AuraTheme.accent),
                 ]),
-                const SizedBox(height: 20),
+                const SizedBox(height: 16),
                 // Genre pills
                 Wrap(
                   spacing: 6,
@@ -324,6 +337,41 @@ class _DnaCard extends StatelessWidget {
                     ),
                   )).toList(),
                 ),
+                const SizedBox(height: 14),
+                // Footer identity bar
+                Container(
+                  height: 1,
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(colors: [
+                      Colors.transparent,
+                      Colors.white.withOpacity(0.12),
+                      Colors.transparent,
+                    ]),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Row(children: [
+                  ShaderMask(
+                    shaderCallback: (b) => const LinearGradient(
+                      colors: [AuraTheme.purple, AuraTheme.cyan],
+                    ).createShader(b),
+                    child: const Text('✦ ORBIT',
+                        style: TextStyle(
+                            fontWeight: FontWeight.w900,
+                            fontSize: 11,
+                            color: Colors.white,
+                            letterSpacing: 3)),
+                  ),
+                  const Spacer(),
+                  Text(
+                    '@$username',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.45),
+                        fontSize: 11,
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: 0.3),
+                  ),
+                ]),
               ],
             ),
           ),

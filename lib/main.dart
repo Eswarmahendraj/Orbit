@@ -4,6 +4,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
+import 'config/api_config.dart';
 import 'models/orbit_state.dart';
 import 'services/spotify_service.dart';
 import 'services/apple_music_service.dart';
@@ -27,6 +28,7 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await ApiConfig.loadKey();    // restore saved Claude API key
   await OrbitState().load();
   await SpotifyService().load(); // restore saved Spotify tokens
   await AppleMusicService().load(); // check saved Apple Music auth (iOS only)

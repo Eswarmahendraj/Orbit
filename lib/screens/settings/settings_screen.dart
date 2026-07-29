@@ -4,8 +4,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../main.dart' show themeNotifier, fontScaleNotifier;
 import '../../models/orbit_state.dart';
 import '../../services/theme_service.dart';
+import '../../config/api_config.dart';
 import '../../theme/aura_theme.dart';
 import '../home/vibe_picker_sheet.dart';
+import '../social/vibe_check_ai_screen.dart';
 import 'theme_picker_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -500,6 +502,169 @@ class _SettingsScreenState extends State<SettingsScreen> {
     );
   }
 
+  // ── AI Features section ───────────────────────────────────────────────────
+
+  Widget _aiSection() => Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _section('ai features ✦'),
+          // Status tile
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: ApiConfig.isConfigured
+                    ? [
+                        AuraTheme.purple.withOpacity(0.15),
+                        AuraTheme.cyan.withOpacity(0.1),
+                      ]
+                    : [
+                        Colors.orange.withOpacity(0.1),
+                        Colors.orangeAccent.withOpacity(0.06),
+                      ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(
+                color: ApiConfig.isConfigured
+                    ? AuraTheme.purple.withOpacity(0.3)
+                    : Colors.orange.withOpacity(0.3),
+              ),
+            ),
+            child: Row(children: [
+              Text(ApiConfig.isConfigured ? '✦' : '🔑',
+                  style: const TextStyle(fontSize: 22)),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(
+                    ApiConfig.isConfigured
+                        ? 'AI is live ✦'
+                        : 'AI not yet activated',
+                    style: TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: ApiConfig.isConfigured
+                          ? AuraTheme.cyan
+                          : Colors.orangeAccent,
+                    ),
+                  ),
+                  Text(
+                    ApiConfig.isConfigured
+                        ? 'Claude is powering your Vibe Check & captions'
+                        : 'Add your Claude API key to unlock AI features',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.5), fontSize: 12),
+                  ),
+                ]),
+              ),
+            ]),
+          ),
+          _tile(
+            title: 'Vibe Check AI',
+            subtitle: 'AI reads your music personality',
+            trailing: const Icon(Icons.auto_awesome_rounded,
+                color: AuraTheme.purple, size: 20),
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const VibeCheckAiScreen())),
+          ),
+          _tile(
+            title: 'Set Claude API key',
+            subtitle: 'Get a free key at console.anthropic.com',
+            trailing: const Icon(Icons.key_rounded,
+                color: AuraTheme.textMuted, size: 20),
+            onTap: () => _showApiKeyDialog(),
+          ),
+        ],
+      );
+
+  void _showApiKeyDialog() {
+    final ctrl = TextEditingController(
+        text: ApiConfig.isConfigured ? ApiConfig.claudeApiKey : '');
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AuraTheme.card,
+        shape:
+            RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Row(children: [
+          Text('✦ ', style: TextStyle(fontSize: 20)),
+          Text('Claude API Key',
+              style: TextStyle(fontWeight: FontWeight.w800, fontSize: 18)),
+        ]),
+        content: Column(mainAxisSize: MainAxisSize.min, children: [
+          Text(
+            'Get a free key at console.anthropic.com\n\nThis key unlocks Vibe Check AI, AI captions, and meme suggestions.',
+            style: TextStyle(
+                color: Colors.white.withOpacity(0.55), fontSize: 13),
+          ),
+          const SizedBox(height: 16),
+          TextField(
+            controller: ctrl,
+            obscureText: true,
+            style: const TextStyle(fontSize: 13),
+            decoration: InputDecoration(
+              hintText: 'sk-ant-...',
+              hintStyle:
+                  TextStyle(color: Colors.white.withOpacity(0.25)),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.05),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    BorderSide(color: Colors.white.withOpacity(0.1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    BorderSide(color: Colors.white.withOpacity(0.1)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+                borderSide:
+                    const BorderSide(color: AuraTheme.purple, width: 1.5),
+              ),
+            ),
+          ),
+        ]),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancel',
+                style: TextStyle(color: AuraTheme.textMuted)),
+          ),
+          if (ApiConfig.isConfigured)
+            TextButton(
+              onPressed: () async {
+                await ApiConfig.clearKey();
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (mounted) setState(() {});
+              },
+              child: const Text('Remove',
+                  style: TextStyle(color: Colors.redAccent)),
+            ),
+          FilledButton(
+            style: FilledButton.styleFrom(
+              backgroundColor: AuraTheme.purple,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
+            ),
+            onPressed: () async {
+              await ApiConfig.saveKey(ctrl.text);
+              if (ctx.mounted) Navigator.pop(ctx);
+              if (mounted) setState(() {});
+            },
+            child: const Text('Save'),
+          ),
+        ],
+      ),
+    );
+  }
+
   // ── Support section ───────────────────────────────────────────────────────
 
   Widget _supportSection() => Column(
@@ -818,6 +983,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       body: ListView(
         children: [
           _vibeSection(),
+          const Divider(indent: 20, endIndent: 20),
+          _aiSection(),
           const Divider(indent: 20, endIndent: 20),
           _privacySection(),
           const Divider(indent: 20, endIndent: 20),
