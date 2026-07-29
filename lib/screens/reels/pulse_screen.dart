@@ -17,6 +17,7 @@ import '../social/orbit_moment_screen.dart';
 import 'meme_studio_screen.dart';
 import 'remix_drop_screen.dart';
 import 'trending_sounds_screen.dart';
+import '../../services/ai_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Data Model
@@ -2178,6 +2179,9 @@ class _DropsViewState extends State<_DropsView> {
 
   @override
   Widget build(BuildContext context) {
+    if (widget.drops.isEmpty) {
+      return _DropsEmptyState();
+    }
     return PageView.builder(
       controller: _ctrl,
       scrollDirection: Axis.vertical,
@@ -2186,6 +2190,91 @@ class _DropsViewState extends State<_DropsView> {
       itemBuilder: (_, i) => _DropCard(
         drop: widget.drops[i],
         isActive: widget.currentIndex == i,
+      ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Drops empty state
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _DropsEmptyState extends StatefulWidget {
+  @override State<_DropsEmptyState> createState() => _DropsEmptyStateState();
+}
+
+class _DropsEmptyStateState extends State<_DropsEmptyState>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _pulse;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this,
+        duration: const Duration(seconds: 2))..repeat(reverse: true);
+    _pulse = CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut);
+  }
+
+  @override
+  void dispose() { _ctrl.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      color: AuraTheme.background,
+      child: Center(
+        child: Column(mainAxisSize: MainAxisSize.min, children: [
+          AnimatedBuilder(
+            animation: _pulse,
+            builder: (_, __) => Transform.scale(
+              scale: 1.0 + _pulse.value * 0.12,
+              child: Container(
+                width: 100, height: 100,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AuraTheme.accent.withOpacity(0.08),
+                  boxShadow: [BoxShadow(
+                    color: AuraTheme.accent.withOpacity(0.15 + _pulse.value * 0.1),
+                    blurRadius: 30,
+                  )],
+                ),
+                child: const Center(
+                  child: Text('💧', style: TextStyle(fontSize: 44)),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 24),
+          const Text('Be the first to drop',
+              style: TextStyle(color: Colors.white,
+                  fontSize: 20, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text('No drops yet. Share a short video\nwith your orbit.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.4), fontSize: 14, height: 1.5)),
+          const SizedBox(height: 28),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 13),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                  colors: [AuraTheme.accent, AuraTheme.purple]),
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [BoxShadow(
+                color: AuraTheme.accent.withOpacity(0.35),
+                blurRadius: 16,
+              )],
+            ),
+            child: const Row(mainAxisSize: MainAxisSize.min, children: [
+              Text('💧', style: TextStyle(fontSize: 16)),
+              SizedBox(width: 8),
+              Text('Post a Drop',
+                  style: TextStyle(color: Colors.white,
+                      fontWeight: FontWeight.w800, fontSize: 15)),
+            ]),
+          ),
+        ]),
       ),
     );
   }
@@ -2255,6 +2344,16 @@ class _DropCardState extends State<_DropCard>
     _vc?.dispose();
     _heartCtrl.dispose();
     super.dispose();
+  }
+
+  void _showComments(BuildContext ctx, _Drop drop) {
+    HapticFeedback.selectionClick();
+    showModalBottomSheet(
+      context: ctx,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (_) => _CommentsSheet(drop: drop),
+    );
   }
 
   void _toggleLike() {
@@ -2451,7 +2550,7 @@ class _DropCardState extends State<_DropCard>
               child: const Icon(Icons.chat_bubble_outline_rounded,
                   color: Colors.white, size: 28),
               label: _fmt(drop.comments),
-              onTap: () {},
+              onTap: () => _showComments(context, drop),
             ),
             const SizedBox(height: 22),
             // Share
@@ -2664,75 +2763,342 @@ class _SpinningVinylState extends State<_SpinningVinyl>
 // Post a Drop sheet
 // ─────────────────────────────────────────────────────────────────────────────
 
-class _PostDropSheet extends StatelessWidget {
+class _PostDropSheet extends StatefulWidget {
   const _PostDropSheet();
+  @override State<_PostDropSheet> createState() => _PostDropSheetState();
+}
+
+class _PostDropSheetState extends State<_PostDropSheet> {
+  final _captionCtrl = TextEditingController();
+  final _songCtrl    = TextEditingController();
+  bool _showSongField  = false;
+  bool _aiLoading      = false;
+  CaptionResult? _aiResult;
+  int?  _pickedCaption;
+
+  @override
+  void dispose() {
+    _captionCtrl.dispose();
+    _songCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _aiSuggest() async {
+    final song = _songCtrl.text.trim();
+    if (song.isEmpty) {
+      setState(() { _showSongField = true; _aiResult = null; });
+      return;
+    }
+    HapticFeedback.mediumImpact();
+    setState(() { _aiLoading = true; _aiResult = null; _pickedCaption = null; });
+    try {
+      final result = await AiService.instance.suggestCaption(
+        song:   song,
+        artist: 'Unknown',
+      );
+      if (mounted) setState(() { _aiResult = result; _aiLoading = false; });
+    } catch (_) {
+      if (mounted) setState(() => _aiLoading = false);
+    }
+  }
+
+  void _pickCaption(int i) {
+    _captionCtrl.text = _aiResult!.captions[i];
+    HapticFeedback.selectionClick();
+    setState(() => _pickedCaption = i);
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: EdgeInsets.only(
-        left: 24, right: 24, top: 24,
-        bottom: MediaQuery.of(context).padding.bottom + 24,
-      ),
-      decoration: const BoxDecoration(
-        color: Color(0xFF0D0D1A),
-        borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-      ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(width: 36, height: 4,
-              decoration: BoxDecoration(color: Colors.white24,
-                  borderRadius: BorderRadius.circular(2))),
-          const SizedBox(height: 20),
-          const Text('💧', style: TextStyle(fontSize: 40)),
-          const SizedBox(height: 8),
-          const Text('Post a Drop',
-              style: TextStyle(color: Colors.white,
-                  fontWeight: FontWeight.w900, fontSize: 22)),
-          const SizedBox(height: 4),
-          Text('Share a short video with your orbit',
-              style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 13)),
-          const SizedBox(height: 28),
-          _DropOption(
-            emoji: '📹',
-            title: 'Record a Drop',
-            subtitle: 'Shoot a new video right now',
-            onTap: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('📹 Camera — coming soon!'),
-                behavior: SnackBarBehavior.floating,
-              ));
-            },
-          ),
-          const SizedBox(height: 12),
-          _DropOption(
-            emoji: '🎞️',
-            title: 'Choose from Gallery',
-            subtitle: 'Pick a video you already have',
-            onTap: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('🎞️ Gallery picker — coming soon!'),
-                behavior: SnackBarBehavior.floating,
-              ));
-            },
-          ),
-          const SizedBox(height: 12),
-          _DropOption(
-            emoji: '✨',
-            title: 'Create with Effects',
-            subtitle: 'AR filters + music sync',
-            onTap: () {
-              Navigator.pop(context);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                content: Text('✨ Effects studio — coming soon!'),
-                behavior: SnackBarBehavior.floating,
-              ));
-            },
-          ),
-        ],
+    return SingleChildScrollView(
+      child: Container(
+        padding: EdgeInsets.only(
+          left: 24, right: 24, top: 24,
+          bottom: MediaQuery.of(context).padding.bottom + 24,
+        ),
+        decoration: const BoxDecoration(
+          color: Color(0xFF0D0D1A),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Handle
+            Center(child: Container(width: 36, height: 4,
+                decoration: BoxDecoration(color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2)))),
+            const SizedBox(height: 20),
+            const Center(child: Text('💧', style: TextStyle(fontSize: 40))),
+            const SizedBox(height: 8),
+            const Center(child: Text('Post a Drop',
+                style: TextStyle(color: Colors.white,
+                    fontWeight: FontWeight.w900, fontSize: 22))),
+            const SizedBox(height: 4),
+            Center(child: Text('Share a short video with your orbit',
+                style: TextStyle(color: Colors.white.withOpacity(0.45), fontSize: 13))),
+            const SizedBox(height: 24),
+
+            // ── Caption field + AI button ──────────────────────────────────
+            Text('CAPTION',
+                style: TextStyle(
+                    color: Colors.white.withOpacity(0.35),
+                    fontSize: 9, fontWeight: FontWeight.w800, letterSpacing: 1.5)),
+            const SizedBox(height: 6),
+            Row(children: [
+              Expanded(
+                child: TextField(
+                  controller: _captionCtrl,
+                  style: const TextStyle(color: Colors.white, fontSize: 13),
+                  maxLines: 2,
+                  minLines: 1,
+                  textCapitalization: TextCapitalization.sentences,
+                  decoration: InputDecoration(
+                    hintText: 'Write a caption or tap ✨ for AI suggestions',
+                    hintStyle: TextStyle(
+                        color: Colors.white.withOpacity(0.22), fontSize: 12),
+                    filled: true,
+                    fillColor: Colors.white.withOpacity(0.05),
+                    contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 11),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(
+                          color: AuraTheme.accent, width: 1.5),
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(width: 10),
+              // ✨ AI button
+              GestureDetector(
+                onTap: _aiLoading ? null : _aiSuggest,
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 200),
+                  width: 50, height: 50,
+                  decoration: BoxDecoration(
+                    gradient: !_aiLoading
+                        ? const LinearGradient(
+                            colors: [AuraTheme.purple, AuraTheme.cyan],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight)
+                        : null,
+                    color: _aiLoading ? Colors.white.withOpacity(0.06) : null,
+                    borderRadius: BorderRadius.circular(14),
+                    boxShadow: !_aiLoading ? [BoxShadow(
+                      color: AuraTheme.purple.withOpacity(0.35),
+                      blurRadius: 12,
+                    )] : null,
+                  ),
+                  child: Center(
+                    child: _aiLoading
+                        ? const SizedBox(
+                            width: 18, height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Text('✨', style: TextStyle(fontSize: 20)),
+                  ),
+                ),
+              ),
+            ]),
+
+            // ── Song field (expands when ✨ tapped with no song) ──────────
+            if (_showSongField) ...[
+              const SizedBox(height: 10),
+              Row(children: [
+                Expanded(
+                  child: TextField(
+                    controller: _songCtrl,
+                    style: const TextStyle(color: Colors.white, fontSize: 13),
+                    textCapitalization: TextCapitalization.words,
+                    decoration: InputDecoration(
+                      hintText: 'Song name? (e.g. Espresso)',
+                      hintStyle: TextStyle(
+                          color: Colors.white.withOpacity(0.25), fontSize: 12),
+                      prefixIcon: const Padding(
+                        padding: EdgeInsets.only(left: 12, right: 8),
+                        child: Text('🎵', style: TextStyle(fontSize: 16)),
+                      ),
+                      prefixIconConstraints:
+                          const BoxConstraints(minWidth: 0, minHeight: 0),
+                      filled: true,
+                      fillColor: Colors.white.withOpacity(0.05),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 11),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.1)),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: BorderSide(
+                            color: Colors.white.withOpacity(0.1)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(
+                            color: AuraTheme.cyan, width: 1.5),
+                      ),
+                    ),
+                    onSubmitted: (_) => _aiSuggest(),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                GestureDetector(
+                  onTap: _aiSuggest,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AuraTheme.cyan.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                          color: AuraTheme.cyan.withOpacity(0.4)),
+                    ),
+                    child: const Text('Go',
+                        style: TextStyle(
+                            color: AuraTheme.cyan,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 13)),
+                  ),
+                ),
+              ]),
+            ],
+
+            // ── AI caption chips ──────────────────────────────────────────
+            if (_aiResult != null) ...[
+              const SizedBox(height: 12),
+              Text('TAP A CAPTION TO USE IT',
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.3),
+                      fontSize: 9, fontWeight: FontWeight.w800,
+                      letterSpacing: 1.2)),
+              const SizedBox(height: 8),
+              ...List.generate(_aiResult!.captions.length, (i) {
+                final picked = _pickedCaption == i;
+                return GestureDetector(
+                  onTap: () => _pickCaption(i),
+                  child: AnimatedContainer(
+                    duration: const Duration(milliseconds: 180),
+                    margin: const EdgeInsets.only(bottom: 7),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 11),
+                    decoration: BoxDecoration(
+                      color: picked
+                          ? AuraTheme.purple.withOpacity(0.15)
+                          : Colors.white.withOpacity(0.04),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(
+                        color: picked
+                            ? AuraTheme.purple.withOpacity(0.6)
+                            : Colors.white.withOpacity(0.08),
+                        width: picked ? 1.5 : 1,
+                      ),
+                    ),
+                    child: Row(children: [
+                      Expanded(
+                        child: Text(_aiResult!.captions[i],
+                            style: TextStyle(
+                                color: picked ? Colors.white : Colors.white70,
+                                fontSize: 12, height: 1.4)),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        picked
+                            ? Icons.check_circle_rounded
+                            : Icons.add_circle_outline_rounded,
+                        color: picked ? AuraTheme.purple : Colors.white24,
+                        size: 16,
+                      ),
+                    ]),
+                  ),
+                );
+              }),
+              // Hashtag chips
+              if (_aiResult!.hashtags.isNotEmpty) ...[
+                const SizedBox(height: 4),
+                Wrap(
+                  spacing: 6, runSpacing: 6,
+                  children: _aiResult!.hashtags.map((h) => GestureDetector(
+                    onTap: () {
+                      final cur = _captionCtrl.text;
+                      if (!cur.contains(h)) {
+                        _captionCtrl.text =
+                            cur.isEmpty ? h : '$cur $h';
+                      }
+                      HapticFeedback.selectionClick();
+                    },
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(
+                        color: AuraTheme.cyan.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: AuraTheme.cyan.withOpacity(0.25)),
+                      ),
+                      child: Text(h,
+                          style: const TextStyle(
+                              color: AuraTheme.cyan,
+                              fontSize: 10,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  )).toList(),
+                ),
+              ],
+            ],
+
+            const SizedBox(height: 20),
+            // ── Post options ──────────────────────────────────────────────
+            _DropOption(
+              emoji: '📹',
+              title: 'Record a Drop',
+              subtitle: 'Shoot a new video right now',
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('📹 Camera — coming soon!'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              },
+            ),
+            const SizedBox(height: 10),
+            _DropOption(
+              emoji: '🎞️',
+              title: 'Choose from Gallery',
+              subtitle: 'Pick a video you already have',
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('🎞️ Gallery picker — coming soon!'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              },
+            ),
+            const SizedBox(height: 10),
+            _DropOption(
+              emoji: '✨',
+              title: 'Create with Effects',
+              subtitle: 'AR filters + music sync',
+              onTap: () {
+                Navigator.pop(context);
+                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                  content: Text('✨ Effects studio — coming soon!'),
+                  behavior: SnackBarBehavior.floating,
+                ));
+              },
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -2776,6 +3142,350 @@ class _DropOption extends StatelessWidget {
               color: Colors.white.withOpacity(0.3), size: 20),
         ]),
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Comments Sheet
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _Comment {
+  final String handle;
+  final String avatarEmoji;
+  final Color color;
+  final String text;
+  final String time;
+  int likes;
+  bool liked;
+  bool isReply;
+  final String? replyTo;
+
+  _Comment({
+    required this.handle, required this.avatarEmoji, required this.color,
+    required this.text, required this.time, this.likes = 0,
+    this.liked = false, this.isReply = false, this.replyTo,
+  });
+}
+
+class _CommentsSheet extends StatefulWidget {
+  final _Drop drop;
+  const _CommentsSheet({required this.drop});
+  @override State<_CommentsSheet> createState() => _CommentsSheetState();
+}
+
+class _CommentsSheetState extends State<_CommentsSheet> {
+  final _ctrl = TextEditingController();
+  final _focusNode = FocusNode();
+  String? _replyingTo;
+  late final List<_Comment> _comments;
+
+  @override
+  void initState() {
+    super.initState();
+    // Seed mock comments based on the drop
+    _comments = [
+      _Comment(handle: '@maya.k', avatarEmoji: '🌸', color: const Color(0xFFFF8C42),
+          text: 'this drop is literally everything 🔥', time: '2m', likes: 48),
+      _Comment(handle: '@zara.w', avatarEmoji: '🌙', color: const Color(0xFF6C63FF),
+          text: 'the way this song hits different at 3am 😭', time: '5m', likes: 31),
+      _Comment(handle: '@dev.s', avatarEmoji: '⚡', color: const Color(0xFF4FACFE),
+          text: 'bro posted and CHOSE VIOLENCE', time: '8m', likes: 22),
+      _Comment(handle: '@rina.p', avatarEmoji: '✨', color: const Color(0xFF43E97B),
+          text: 'not me adding this to my playlist immediately',
+          time: '12m', likes: 17,
+          isReply: true, replyTo: '@maya.k'),
+      _Comment(handle: '@jay.r', avatarEmoji: '🎸', color: const Color(0xFFE17055),
+          text: 'collab?? 👀', time: '18m', likes: 9),
+      _Comment(handle: '@leo.m', avatarEmoji: '💙', color: const Color(0xFF74B9FF),
+          text: 'the production on this is INSANE', time: '24m', likes: 14),
+      _Comment(handle: '@orbit.user', avatarEmoji: '🎵', color: const Color(0xFF7C3AED),
+          text: '${widget.drop.song} really said let me ruin your day 😂', time: '31m', likes: 6),
+    ];
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    _focusNode.dispose();
+    super.dispose();
+  }
+
+  void _send() {
+    final text = _ctrl.text.trim();
+    if (text.isEmpty) return;
+    HapticFeedback.mediumImpact();
+    setState(() {
+      _comments.insert(0, _Comment(
+        handle: '@you',
+        avatarEmoji: '😊',
+        color: AuraTheme.accent,
+        text: _replyingTo != null ? '${_replyingTo!} $text' : text,
+        time: 'now',
+        likes: 0,
+        isReply: _replyingTo != null,
+        replyTo: _replyingTo,
+      ));
+      _replyingTo = null;
+      _ctrl.clear();
+    });
+    _focusNode.unfocus();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+    return Container(
+      height: MediaQuery.of(context).size.height * 0.78 + bottom,
+      decoration: const BoxDecoration(
+        color: Color(0xFF0D0D1A),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Column(children: [
+        // Handle
+        const SizedBox(height: 10),
+        Center(child: Container(
+          width: 36, height: 4,
+          decoration: BoxDecoration(
+              color: Colors.white24, borderRadius: BorderRadius.circular(2)),
+        )),
+        // Header
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+          child: Row(children: [
+            const Text('💬', style: TextStyle(fontSize: 18)),
+            const SizedBox(width: 8),
+            Text('${_comments.length} comments',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontWeight: FontWeight.w800,
+                    fontSize: 16)),
+            const Spacer(),
+            // Song pill
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+              decoration: BoxDecoration(
+                color: widget.drop.accentColor.withOpacity(0.12),
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                    color: widget.drop.accentColor.withOpacity(0.35)),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                Text(widget.drop.avatarEmoji,
+                    style: const TextStyle(fontSize: 11)),
+                const SizedBox(width: 5),
+                Text(widget.drop.song,
+                    style: TextStyle(
+                        color: widget.drop.accentColor,
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700)),
+              ]),
+            ),
+          ]),
+        ),
+        const Divider(color: Color(0xFF1A1A2E), thickness: 1, height: 1),
+
+        // Comments list
+        Expanded(
+          child: ListView.builder(
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            itemCount: _comments.length,
+            itemBuilder: (_, i) {
+              final c = _comments[i];
+              return GestureDetector(
+                onTap: () => setState(() => _replyingTo = c.handle),
+                child: AnimatedContainer(
+                  duration: const Duration(milliseconds: 150),
+                  margin: EdgeInsets.only(
+                      left: c.isReply ? 52 : 16,
+                      right: 16,
+                      bottom: 14),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Avatar
+                      Container(
+                        width: 34, height: 34,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: c.color.withOpacity(0.15),
+                          border: Border.all(
+                              color: c.color.withOpacity(0.4)),
+                        ),
+                        child: Center(child: Text(c.avatarEmoji,
+                            style: const TextStyle(fontSize: 15))),
+                      ),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                          Row(children: [
+                            Text(c.handle,
+                                style: TextStyle(
+                                    color: c.color,
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 12)),
+                            const SizedBox(width: 6),
+                            Text(c.time,
+                                style: TextStyle(
+                                    color: Colors.white.withOpacity(0.3),
+                                    fontSize: 10)),
+                          ]),
+                          const SizedBox(height: 3),
+                          Text(c.text,
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 13,
+                                  height: 1.4)),
+                          const SizedBox(height: 5),
+                          Row(children: [
+                            GestureDetector(
+                              onTap: () {
+                                HapticFeedback.selectionClick();
+                                setState(() {
+                                  c.liked = !c.liked;
+                                  c.likes += c.liked ? 1 : -1;
+                                });
+                              },
+                              child: Row(children: [
+                                Text(c.liked ? '❤️' : '🤍',
+                                    style: const TextStyle(fontSize: 12)),
+                                const SizedBox(width: 4),
+                                if (c.likes > 0)
+                                  Text('${c.likes}',
+                                      style: TextStyle(
+                                          color: Colors.white.withOpacity(0.4),
+                                          fontSize: 11)),
+                              ]),
+                            ),
+                            const SizedBox(width: 16),
+                            GestureDetector(
+                              onTap: () => setState(() => _replyingTo = c.handle),
+                              child: Text('Reply',
+                                  style: TextStyle(
+                                      color: Colors.white.withOpacity(0.35),
+                                      fontSize: 11,
+                                      fontWeight: FontWeight.w600)),
+                            ),
+                          ]),
+                        ]),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+
+        // Reply indicator
+        if (_replyingTo != null)
+          Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+            decoration: BoxDecoration(
+              color: AuraTheme.accent.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(
+                  color: AuraTheme.accent.withOpacity(0.3)),
+            ),
+            child: Row(children: [
+              Text('Replying to $_replyingTo',
+                  style: const TextStyle(
+                      color: AuraTheme.accent,
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600)),
+              const Spacer(),
+              GestureDetector(
+                onTap: () => setState(() => _replyingTo = null),
+                child: const Icon(Icons.close_rounded,
+                    color: AuraTheme.accent, size: 14),
+              ),
+            ]),
+          ),
+        if (_replyingTo != null) const SizedBox(height: 6),
+
+        // Comment input
+        Container(
+          padding: EdgeInsets.fromLTRB(
+              16, 10, 16, MediaQuery.of(context).padding.bottom + 12),
+          decoration: const BoxDecoration(
+            border: Border(top: BorderSide(color: Color(0xFF1A1A2E))),
+          ),
+          child: Row(children: [
+            // Your avatar
+            Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: AuraTheme.accent.withOpacity(0.15),
+                border: Border.all(
+                    color: AuraTheme.accent.withOpacity(0.4)),
+              ),
+              child: const Center(
+                  child: Text('😊', style: TextStyle(fontSize: 15))),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: TextField(
+                controller: _ctrl,
+                focusNode: _focusNode,
+                style: const TextStyle(color: Colors.white, fontSize: 13),
+                textCapitalization: TextCapitalization.sentences,
+                onSubmitted: (_) => _send(),
+                decoration: InputDecoration(
+                  hintText: _replyingTo != null
+                      ? 'Reply to $_replyingTo…'
+                      : 'Add a comment…',
+                  hintStyle: TextStyle(
+                      color: Colors.white.withOpacity(0.25),
+                      fontSize: 13),
+                  filled: true,
+                  fillColor: Colors.white.withOpacity(0.05),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 14, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(
+                        color: Colors.white.withOpacity(0.08)),
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: BorderSide(
+                        color: Colors.white.withOpacity(0.08)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(22),
+                    borderSide: const BorderSide(
+                        color: AuraTheme.accent, width: 1.5),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 8),
+            // Send
+            GestureDetector(
+              onTap: _send,
+              child: Container(
+                width: 38, height: 38,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: const LinearGradient(
+                    colors: [AuraTheme.accent, AuraTheme.purple],
+                  ),
+                  boxShadow: [BoxShadow(
+                    color: AuraTheme.accent.withOpacity(0.35),
+                    blurRadius: 8,
+                  )],
+                ),
+                child: const Icon(Icons.send_rounded,
+                    color: Colors.white, size: 17),
+              ),
+            ),
+          ]),
+        ),
+      ]),
     );
   }
 }

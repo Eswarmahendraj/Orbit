@@ -7,6 +7,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../theme/aura_theme.dart';
 import '../../services/social_service.dart';
 import '../profile/other_profile_screen.dart';
+import '../social/vibe_check_ai_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../widgets/orb_skeleton.dart';
 import '../../widgets/orb_empty_state.dart';
@@ -446,6 +447,29 @@ class _FindScreenState extends State<FindScreen>
                         .toList(),
                   ),
                   const SizedBox(height: 24),
+
+                  // ── Vibe Check AI ─────────────────────────────────────
+                  const Text(
+                    'AI_TOOLS',
+                    style: TextStyle(
+                      fontFamily: 'SpaceMono',
+                      fontWeight: FontWeight.w700,
+                      fontSize: 10,
+                      letterSpacing: 2.5,
+                      color: AuraTheme.textMuted,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  _AiToolCard(
+                    emoji: '🤖',
+                    title: 'Vibe Check',
+                    subtitle: 'Describe your mood — AI gives you a music personality + playlist',
+                    colors: [Color(0xFF7C3AED), Color(0xFF4FACFE)],
+                    onTap: () => Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => const VibeCheckAiScreen())),
+                  ),
+                  const SizedBox(height: 24),
+
                   // ── Orbit Signals ────────────────────────────────────
                   const Text(
                     'ORBIT_SIGNALS',
@@ -1130,4 +1154,78 @@ class _RadarPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _RadarPainter old) => old.sweep != sweep;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// AI tool card — used in browse mode
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _AiToolCard extends StatelessWidget {
+  final String emoji;
+  final String title;
+  final String subtitle;
+  final List<Color> colors;
+  final VoidCallback onTap;
+
+  const _AiToolCard({
+    required this.emoji,
+    required this.title,
+    required this.subtitle,
+    required this.colors,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            colors: [
+              colors[0].withOpacity(0.18),
+              colors[1].withOpacity(0.08),
+            ],
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+          ),
+          borderRadius: BorderRadius.circular(18),
+          border: Border.all(color: colors[0].withOpacity(0.35)),
+        ),
+        child: Row(children: [
+          Container(
+            width: 48, height: 48,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: colors[0].withOpacity(0.15),
+              border: Border.all(color: colors[0].withOpacity(0.4)),
+            ),
+            child: Center(child: Text(emoji,
+                style: const TextStyle(fontSize: 22))),
+          ),
+          const SizedBox(width: 14),
+          Expanded(child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(title,
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14)),
+              const SizedBox(height: 3),
+              Text(subtitle,
+                  style: TextStyle(
+                      color: Colors.white.withOpacity(0.45),
+                      fontSize: 11),
+                  maxLines: 2),
+            ],
+          )),
+          Icon(Icons.chevron_right_rounded,
+              color: colors[0].withOpacity(0.6), size: 20),
+        ]),
+      ),
+    );
+  }
 }

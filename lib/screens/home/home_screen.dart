@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -293,6 +294,26 @@ class _FeedTabState extends State<_FeedTab>
     if (mounted) setState(() {});
   }
 
+  void _openStory(BuildContext ctx, _Story s) {
+    HapticFeedback.selectionClick();
+    showGeneralDialog(
+      context: ctx,
+      barrierDismissible: true,
+      barrierLabel: 'story',
+      barrierColor: Colors.transparent,
+      transitionDuration: const Duration(milliseconds: 250),
+      pageBuilder: (_, __, ___) => _StoryViewer(story: s),
+      transitionBuilder: (_, anim, __, child) => FadeTransition(
+        opacity: CurvedAnimation(parent: anim, curve: Curves.easeOut),
+        child: ScaleTransition(
+          scale: Tween(begin: 0.95, end: 1.0)
+              .animate(CurvedAnimation(parent: anim, curve: Curves.easeOut)),
+          child: child,
+        ),
+      ),
+    );
+  }
+
   Future<void> _openCreate() async {
     final created = await Navigator.push<bool>(
         context, MaterialPageRoute(builder: (_) => const CreateVybeScreen()));
@@ -479,21 +500,7 @@ class _FeedTabState extends State<_FeedTab>
           ),
           // Friend bubbles
           ..._stories.map((s) => GestureDetector(
-                onTap: () => Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => OtherProfileScreen(
-                      name: s.name,
-                      handle: s.handle,
-                      userColor: s.color,
-                      initial: s.initial,
-                      mood: 'chill',
-                      moodEmoji: '☀️',
-                      songTitle: s.nowSong ?? 'Golden Hour',
-                      artistName: 'JVKE',
-                    ),
-                  ),
-                ),
+                onTap: () => _openStory(context, s),
                 child: Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 6),
                   child: Column(
@@ -1900,4 +1907,239 @@ class _PostCardState extends State<_PostCard>
       height: 44,
       color: p.userColor.withOpacity(0.15),
       child: Icon(Icons.music_note_rounded, color: p.userColor, size: 22));
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Story Viewer overlay
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _StoryViewer extends StatefulWidget {
+  final _Story story;
+  const _StoryViewer({required this.story});
+  @override State<_StoryViewer> createState() => _StoryViewerState();
+}
+
+class _StoryViewerState extends State<_StoryViewer>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _progress;
+
+  @override
+  void initState() {
+    super.initState();
+    _progress = AnimationController(
+        vsync: this, duration: const Duration(seconds: 5))
+      ..forward();
+    _progress.addStatusListener((s) {
+      if (s == AnimationStatus.completed && mounted) {
+        Navigator.of(context).pop();
+      }
+    });
+  }
+
+  @override
+  void dispose() { _progress.dispose(); super.dispose(); }
+
+  @override
+  Widget build(BuildContext context) {
+    final s = widget.story;
+    return GestureDetector(
+      onTap: () => Navigator.of(context).pop(),
+      child: Scaffold(
+        backgroundColor: Colors.black,
+        body: Stack(fit: StackFit.expand, children: [
+          // Gradient background
+          Container(
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  s.color.withOpacity(0.9),
+                  Colors.black.withOpacity(0.95),
+                ],
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+              ),
+            ),
+          ),
+
+          // Subtle pattern
+          Opacity(
+            opacity: 0.06,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: RadialGradient(
+                  colors: [Colors.white, Colors.transparent],
+                  center: Alignment.topLeft,
+                  radius: 1.2,
+                ),
+              ),
+            ),
+          ),
+
+          SafeArea(
+            child: Column(children: [
+              // Progress bar
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: AnimatedBuilder(
+                    animation: _progress,
+                    builder: (_, __) => LinearProgressIndicator(
+                      value: _progress.value,
+                      backgroundColor: Colors.white.withOpacity(0.2),
+                      valueColor: AlwaysStoppedAnimation(Colors.white),
+                      minHeight: 3,
+                    ),
+                  ),
+                ),
+              ),
+
+              // User header
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
+                child: Row(children: [
+                  Container(
+                    width: 42, height: 42,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: s.color.withOpacity(0.2),
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.6), width: 2),
+                    ),
+                    child: Center(
+                      child: Text(s.initial,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w800,
+                              fontSize: 18)),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                      Text(s.handle,
+                          style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 14)),
+                      if (s.live)
+                        Row(children: [
+                          Container(
+                            width: 6, height: 6,
+                            margin: const EdgeInsets.only(right: 4),
+                            decoration: const BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: Color(0xFF43E97B),
+                            ),
+                          ),
+                          const Text('LIVE',
+                              style: TextStyle(
+                                  color: Color(0xFF43E97B),
+                                  fontSize: 9,
+                                  fontWeight: FontWeight.w800,
+                                  letterSpacing: 1)),
+                        ]),
+                    ]),
+                  ),
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).pop(),
+                    child: const Icon(Icons.close_rounded,
+                        color: Colors.white70, size: 22),
+                  ),
+                ]),
+              ),
+
+              const Spacer(),
+
+              // Music card
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.black.withOpacity(0.4),
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(
+                        color: Colors.white.withOpacity(0.12)),
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Album art placeholder
+                      Container(
+                        width: 120, height: 120,
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(16),
+                          gradient: LinearGradient(
+                            colors: [s.color, s.color.withOpacity(0.4)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
+                          ),
+                        ),
+                        child: Center(
+                          child: Icon(Icons.music_note_rounded,
+                              color: Colors.white.withOpacity(0.8), size: 52),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      if (s.nowSong != null) ...[
+                        Text(s.nowSong!,
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        Text('${s.name} is listening now',
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 12)),
+                      ] else ...[
+                        Text('${s.name}\'s orbit',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900)),
+                        const SizedBox(height: 4),
+                        Text(s.handle,
+                            style: TextStyle(
+                                color: Colors.white.withOpacity(0.5),
+                                fontSize: 12)),
+                      ],
+                      const SizedBox(height: 16),
+                      // Waveform placeholder
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(20, (i) {
+                          final h = 4.0 + (math.sin(i * 0.8) * 10).abs();
+                          return Container(
+                            width: 3, height: h,
+                            margin: const EdgeInsets.symmetric(horizontal: 1.5),
+                            decoration: BoxDecoration(
+                              color: s.color.withOpacity(0.6),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          );
+                        }),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+
+              // Tap hint
+              Padding(
+                padding: const EdgeInsets.only(bottom: 24),
+                child: Text('tap anywhere to close',
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.3),
+                        fontSize: 11)),
+              ),
+            ]),
+          ),
+        ]),
+      ),
+    );
+  }
 }

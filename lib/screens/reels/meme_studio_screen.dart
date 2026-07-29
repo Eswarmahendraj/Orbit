@@ -2,6 +2,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/aura_theme.dart';
+import '../../services/ai_service.dart';
 
 // ── Trending sounds available in Meme Studio ─────────────────────────────────
 class _Sound {
@@ -75,6 +76,7 @@ class _MemeStudioScreenState extends State<MemeStudioScreen>
   final _captionCtrl = TextEditingController();
 
   late final AnimationController _glowCtrl;
+  bool _aiSuggesting = false;
 
   @override
   void initState() {
@@ -152,6 +154,8 @@ class _MemeStudioScreenState extends State<MemeStudioScreen>
                 styleIndex: _styleIndex,
                 onStyleChange: (i) => setState(() => _styleIndex = i),
                 accent: _accent,
+                aiSuggesting: _aiSuggesting,
+                onAiSuggest: _sound != null ? _aiSuggestText : null,
                 onNext: () => setState(() => _step = 3),
                 onBack: () => setState(() => _step = 1),
               ),
@@ -170,6 +174,28 @@ class _MemeStudioScreenState extends State<MemeStudioScreen>
         ),
       ),
     );
+  }
+
+  Future<void> _aiSuggestText() async {
+    if (_sound == null || _aiSuggesting) return;
+    HapticFeedback.selectionClick();
+    setState(() => _aiSuggesting = true);
+    try {
+      final result = await AiService.instance.suggestMemeText(
+        song:   _sound!.song,
+        artist: _sound!.artist,
+      );
+      if (mounted) {
+        setState(() {
+          _topCtrl.text = result.top;
+          _botCtrl.text = result.bottom;
+          _aiSuggesting = false;
+        });
+        HapticFeedback.mediumImpact();
+      }
+    } catch (_) {
+      if (mounted) setState(() => _aiSuggesting = false);
+    }
   }
 
   void _onPost() {
@@ -428,6 +454,8 @@ class _TextEditor extends StatelessWidget {
   final int styleIndex;
   final ValueChanged<int> onStyleChange;
   final Color accent;
+  final bool aiSuggesting;
+  final VoidCallback? onAiSuggest;
   final VoidCallback onNext;
   final VoidCallback onBack;
 
@@ -435,6 +463,7 @@ class _TextEditor extends StatelessWidget {
     required this.topCtrl, required this.botCtrl,
     required this.captionCtrl, required this.styleIndex,
     required this.onStyleChange, required this.accent,
+    this.aiSuggesting = false, this.onAiSuggest,
     required this.onNext, required this.onBack,
   });
 
@@ -452,8 +481,58 @@ class _TextEditor extends StatelessWidget {
           const Text('Add the text 📝',
               style: TextStyle(color: Colors.white,
                   fontWeight: FontWeight.w900, fontSize: 20)),
+          const Spacer(),
+          // ✨ AI Suggest button
+          GestureDetector(
+            onTap: aiSuggesting ? null : onAiSuggest,
+            child: AnimatedContainer(
+              duration: const Duration(milliseconds: 200),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+              decoration: BoxDecoration(
+                gradient: onAiSuggest != null && !aiSuggesting
+                    ? LinearGradient(
+                        colors: [accent.withOpacity(0.8), accent.withOpacity(0.4)])
+                    : null,
+                color: onAiSuggest == null || aiSuggesting
+                    ? Colors.white.withOpacity(0.06)
+                    : null,
+                borderRadius: BorderRadius.circular(20),
+                border: Border.all(
+                  color: onAiSuggest != null && !aiSuggesting
+                      ? accent.withOpacity(0.5)
+                      : Colors.white.withOpacity(0.12),
+                ),
+              ),
+              child: Row(mainAxisSize: MainAxisSize.min, children: [
+                if (aiSuggesting)
+                  SizedBox(
+                    width: 12, height: 12,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 1.5, color: accent),
+                  )
+                else
+                  const Text('✨', style: TextStyle(fontSize: 12)),
+                const SizedBox(width: 5),
+                Text(
+                  aiSuggesting ? 'Writing…' : 'AI Suggest',
+                  style: TextStyle(
+                    color: onAiSuggest != null && !aiSuggesting
+                        ? Colors.white
+                        : Colors.white38,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ]),
+            ),
+          ),
         ]),
-        const SizedBox(height: 20),
+        const SizedBox(height: 6),
+        if (onAiSuggest == null)
+          Text('← pick a sound first to get AI suggestions',
+              style: TextStyle(
+                  color: Colors.white.withOpacity(0.3), fontSize: 10)),
+        const SizedBox(height: 16),
 
         // Top text
         _MemeTextField(

@@ -53,6 +53,9 @@ dependencies:
   # External sharing
   share_plus: ^10.0.0
 
+  # Speech-to-text (Voice → Playlist)
+  speech_to_text: ^6.6.2
+
   # Spotify OAuth + crypto
   flutter_web_auth_2: ^4.0.0
   crypto: ^3.0.3

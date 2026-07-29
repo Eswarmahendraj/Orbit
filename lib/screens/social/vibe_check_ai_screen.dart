@@ -2,6 +2,8 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../theme/aura_theme.dart';
+import '../../services/ai_service.dart';
+import '../../config/api_config.dart';
 
 // ── Mood option model ─────────────────────────────────────────────────────────
 class _Mood {
@@ -113,9 +115,20 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
   ];
 
   final _selected = <int>{};
-  _Result? _result;
+  VibeResult? _result;
   bool _loading = false;
   int _page = 0; // 0 = mood picker, 1 = loading, 2 = result
+  final _freeTextCtrl = TextEditingController();
+  String _errorMsg = '';
+
+  Color _hexToColor(String hex) {
+    try {
+      final h = hex.replaceAll('#', '').padLeft(6, '0');
+      return Color(int.parse('FF$h', radix: 16));
+    } catch (_) {
+      return AuraTheme.purple;
+    }
+  }
 
   @override
   void initState() {
@@ -130,25 +143,32 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
     _bg.dispose();
     _pulse.dispose();
     _reveal.dispose();
+    _freeTextCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _analyzeVibe() async {
-    if (_selected.isEmpty) return;
+    final hasInput = _selected.isNotEmpty || _freeTextCtrl.text.trim().isNotEmpty;
+    if (!hasInput) return;
     HapticFeedback.mediumImpact();
-    setState(() { _page = 1; _loading = true; });
+    setState(() { _page = 1; _loading = true; _errorMsg = ''; });
 
-    // Simulate AI processing (would call real API in production)
-    await Future.delayed(const Duration(milliseconds: 2200));
+    final moodTags = _selected.map((i) => _moods[i].tags).expand((t) => t).toList();
 
-    // Deterministic result from selection pattern
-    final idx = _selected.fold(0, (sum, i) => sum + i) % _results.length;
-    _result = _results[idx];
-
-    if (mounted) {
-      setState(() { _page = 2; _loading = false; });
-      _reveal.forward(from: 0);
-      HapticFeedback.heavyImpact();
+    try {
+      final result = await AiService.instance.analyzeVibe(
+        moodTags: moodTags,
+        freeText: _freeTextCtrl.text.trim(),
+      );
+      if (mounted) {
+        setState(() { _result = result; _page = 2; _loading = false; });
+        _reveal.forward(from: 0);
+        HapticFeedback.heavyImpact();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() { _page = 0; _loading = false; _errorMsg = 'Something went wrong. Try again.'; });
+      }
     }
   }
 
@@ -217,14 +237,77 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
             ),
             const SizedBox(height: 8),
             Text(
-              'pick everything you\'re feeling rn',
+              'pick your vibe or just type it',
               style: TextStyle(
                   color: Colors.white.withOpacity(0.45),
                   fontSize: 14),
             ),
           ]),
         ),
-        const SizedBox(height: 24),
+        const SizedBox(height: 16),
+
+        // ── Free-text input ───────────────────────────────────────────
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: TextField(
+            controller: _freeTextCtrl,
+            onChanged: (_) => setState(() {}),
+            style: const TextStyle(color: Colors.white, fontSize: 14),
+            maxLines: 2,
+            minLines: 1,
+            textCapitalization: TextCapitalization.sentences,
+            decoration: InputDecoration(
+              hintText: 'e.g. "kinda sad but make it a banger"',
+              hintStyle: TextStyle(color: Colors.white.withOpacity(0.25), fontSize: 13),
+              filled: true,
+              fillColor: Colors.white.withOpacity(0.05),
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide(color: Colors.white.withOpacity(0.1)),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: const BorderSide(color: AuraTheme.purple, width: 1.5),
+              ),
+              suffixIcon: _freeTextCtrl.text.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear_rounded, size: 16),
+                      color: Colors.white38,
+                      onPressed: () => setState(() => _freeTextCtrl.clear()),
+                    )
+                  : null,
+            ),
+          ),
+        ),
+
+        // ── API key notice (shown only if not configured) ────────────
+        if (!ApiConfig.isConfigured)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: Row(children: [
+              const Icon(Icons.info_outline_rounded, size: 12, color: Colors.amber),
+              const SizedBox(width: 6),
+              Expanded(child: Text(
+                'Add your Claude API key in lib/config/api_config.dart to enable real AI',
+                style: TextStyle(color: Colors.amber.withOpacity(0.7), fontSize: 10),
+              )),
+            ]),
+          ),
+
+        // ── Error message ────────────────────────────────────────────
+        if (_errorMsg.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+            child: Text(_errorMsg,
+                style: const TextStyle(color: Colors.redAccent, fontSize: 12)),
+          ),
+
+        const SizedBox(height: 16),
         // Mood grid
         Expanded(
           child: GridView.builder(
@@ -290,37 +373,47 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
         // Analyse button
         Padding(
           padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
-          child: GestureDetector(
-            onTap: _selected.isEmpty ? null : _analyzeVibe,
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: double.infinity,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              decoration: BoxDecoration(
-                gradient: _selected.isNotEmpty
-                    ? const LinearGradient(
-                        colors: [AuraTheme.purple, AuraTheme.cyan])
-                    : null,
-                color: _selected.isEmpty
-                    ? Colors.white.withOpacity(0.06)
-                    : null,
-                borderRadius: BorderRadius.circular(18),
-              ),
-              child: Text(
-                _selected.isEmpty
-                    ? 'pick at least one vibe'
-                    : 'read my vibe ✦',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: _selected.isEmpty
-                      ? Colors.white30
-                      : Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 16,
+          child: Builder(builder: (context) {
+            final canAnalyze = _selected.isNotEmpty || _freeTextCtrl.text.trim().isNotEmpty;
+            return GestureDetector(
+              onTap: canAnalyze ? _analyzeVibe : null,
+              child: AnimatedContainer(
+                duration: const Duration(milliseconds: 200),
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 16),
+                decoration: BoxDecoration(
+                  gradient: canAnalyze
+                      ? const LinearGradient(
+                          colors: [AuraTheme.purple, AuraTheme.cyan])
+                      : null,
+                  color: canAnalyze ? null : Colors.white.withOpacity(0.06),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: canAnalyze ? [const BoxShadow(
+                    color: AuraTheme.purple,
+                    blurRadius: 20,
+                    offset: Offset(0, 4),
+                  )] : null,
                 ),
+                child: Row(mainAxisAlignment: MainAxisAlignment.center, children: [
+                  Text(
+                    canAnalyze ? '✦' : '✦',
+                    style: TextStyle(
+                        color: canAnalyze ? Colors.white : Colors.white24,
+                        fontSize: 16),
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    canAnalyze ? 'read my vibe ✦' : 'pick a mood or type something',
+                    style: TextStyle(
+                      color: canAnalyze ? Colors.white : Colors.white30,
+                      fontWeight: FontWeight.w800,
+                      fontSize: 16,
+                    ),
+                  ),
+                ]),
               ),
-            ),
-          ),
+            );
+          }),
         ),
       ],
     );
@@ -397,6 +490,7 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
                   _page = 0;
                   _selected.clear();
                   _result = null;
+                  _errorMsg = '';
                   _reveal.reset();
                 }),
               ),
@@ -423,7 +517,7 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
                 const SizedBox(height: 6),
                 ShaderMask(
                   shaderCallback: (b) => LinearGradient(
-                    colors: [r.color, AuraTheme.purple],
+                    colors: [_hexToColor(r.color), AuraTheme.purple],
                   ).createShader(b),
                   child: Text(
                     r.label,
@@ -443,10 +537,10 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
             Container(
               padding: const EdgeInsets.all(18),
               decoration: BoxDecoration(
-                color: r.color.withOpacity(0.08),
+                color: _hexToColor(r.color).withOpacity(0.08),
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
-                    color: r.color.withOpacity(0.25), width: 1.5),
+                    color: _hexToColor(r.color).withOpacity(0.25), width: 1.5),
               ),
               child: Text(
                 r.description,
@@ -461,7 +555,7 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
             Text(
               'your vibe playlist ✦',
               style: TextStyle(
-                  color: r.color,
+                  color: _hexToColor(r.color),
                   fontWeight: FontWeight.w800,
                   fontSize: 14,
                   letterSpacing: 0.3),
@@ -474,7 +568,7 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
                 color: AuraTheme.card,
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(
-                    color: r.color.withOpacity(0.2)),
+                    color: _hexToColor(r.color).withOpacity(0.2)),
               ),
               child: Row(children: [
                 Container(
@@ -482,12 +576,12 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
                   height: 32,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: r.color.withOpacity(0.15),
+                    color: _hexToColor(r.color).withOpacity(0.15),
                   ),
                   child: Center(
                       child: Text('${e.key + 1}',
                           style: TextStyle(
-                              color: r.color,
+                              color: _hexToColor(r.color),
                               fontWeight: FontWeight.w800,
                               fontSize: 12))),
                 ),
@@ -500,7 +594,7 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
                           fontSize: 13)),
                 ),
                 Icon(Icons.play_circle_outline_rounded,
-                    color: r.color.withOpacity(0.6), size: 20),
+                    color: _hexToColor(r.color).withOpacity(0.6), size: 20),
               ]),
             )),
             const SizedBox(height: 20),
