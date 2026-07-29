@@ -936,12 +936,7 @@ class _CommandPaletteState extends State<_CommandPalette>
   final _search = TextEditingController();
   List<(int, _NavItem)> _results = [];
 
-  static const _quickActions = [
-    (Icons.settings_outlined, 'Settings', '⌘,'),
-    (Icons.edit_rounded,      'New Post',  'N'),
-    (Icons.search_rounded,    'Find People', '/'),
-    (Icons.bolt_rounded,      'Nudge Friend', '!'),
-  ];
+  // Quick actions built in build() so they have context + callbacks
 
   @override
   void initState() {
@@ -1083,13 +1078,40 @@ class _CommandPaletteState extends State<_CommandPalette>
                     if (_search.text.isEmpty)
                       _PaletteSection(
                         label: 'ACTIONS',
-                        children: _quickActions.map((a) => _PaletteRow(
-                          icon: a.$1,
-                          label: a.$2,
-                          shortcut: a.$3,
-                          active: false,
-                          onTap: widget.onDismiss,
-                        )).toList(),
+                        children: [
+                          _PaletteRow(
+                            icon: Icons.settings_outlined,
+                            label: 'Settings',
+                            shortcut: '⌘,',
+                            active: false,
+                            onTap: () {
+                              widget.onDismiss();
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => const SettingsScreen()));
+                            },
+                          ),
+                          _PaletteRow(
+                            icon: Icons.edit_rounded,
+                            label: 'New Post',
+                            shortcut: 'N',
+                            active: false,
+                            onTap: () => widget.onSelect(2), // Pulse tab
+                          ),
+                          _PaletteRow(
+                            icon: Icons.search_rounded,
+                            label: 'Find People',
+                            shortcut: '/',
+                            active: false,
+                            onTap: () => widget.onSelect(3), // Find tab
+                          ),
+                          _PaletteRow(
+                            icon: Icons.bolt_rounded,
+                            label: 'Nudge Friend',
+                            shortcut: '!',
+                            active: false,
+                            onTap: () => widget.onSelect(4), // Messages tab
+                          ),
+                        ],
                       ),
 
                     // Footer hint
