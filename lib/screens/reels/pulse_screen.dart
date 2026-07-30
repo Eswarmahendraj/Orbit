@@ -2352,7 +2352,7 @@ class _DropCardState extends State<_DropCard>
       context: ctx,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _DropCommentsSheet(drop: drop),
+      builder: (_) => _CommentsSheet(drop: drop),
     );
   }
 
@@ -3168,13 +3168,13 @@ class _Comment {
   });
 }
 
-class _DropCommentsSheet extends StatefulWidget {
+class _CommentsSheet extends StatefulWidget {
   final _Drop drop;
-  const _DropCommentsSheet({required this.drop});
-  @override State<_DropCommentsSheet> createState() => _DropCommentsSheetState();
+  const _CommentsSheet({required this.drop});
+  @override State<_CommentsSheet> createState() => _CommentsSheetState();
 }
 
-class _DropCommentsSheetState extends State<_DropCommentsSheet> {
+class _CommentsSheetState extends State<_CommentsSheet> {
   final _ctrl = TextEditingController();
   final _focusNode = FocusNode();
   String? _replyingTo;

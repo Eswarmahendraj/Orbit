@@ -18,17 +18,17 @@ class _TrendSound {
 }
 
 const _trending = [
-  _TrendSound('Espresso',         'Sabrina Carpenter', Color(0xFFFF6B35), '☕', 8421,  12.4),
-  _TrendSound('luther',           'Kendrick & SZA',    Color(0xFF7C83FD), '💜', 6203,  8.1),
-  _TrendSound('APT.',             'ROSÉ & Bruno Mars', Color(0xFFFC466B), '🪷', 5891,  5.7),
+  _TrendSound('Espresso',         'Sabrina Carpenter', Color(0xFFFF6B35), '☕', 8421,  +12.4),
+  _TrendSound('luther',           'Kendrick & SZA',    Color(0xFF7C83FD), '💜', 6203,  +8.1),
+  _TrendSound('APT.',             'ROSÉ & Bruno Mars', Color(0xFFFC466B), '🪷', 5891,  +5.7),
   _TrendSound('Golden Hour',      'JVKE',              Color(0xFFF7971E), '🌅', 4320,  -2.3),
-  _TrendSound('Die With A Smile', 'Lady Gaga & Bruno', Color(0xFFE96C9D), '😭', 3874,  19.2),
-  _TrendSound('Blinding Lights',  'The Weeknd',        Color(0xFFFF0080), '⚡', 3102,  1.4),
+  _TrendSound('Die With A Smile', 'Lady Gaga & Bruno', Color(0xFFE96C9D), '😭', 3874,  +19.2),
+  _TrendSound('Blinding Lights',  'The Weeknd',        Color(0xFFFF0080), '⚡', 3102,  +1.4),
   _TrendSound('good 4 u',         'Olivia Rodrigo',    Color(0xFF43E97B), '🔪', 2944,  -0.8),
-  _TrendSound('As It Was',        'Harry Styles',      Color(0xFF4FACFE), '🌊', 2711,  3.6),
+  _TrendSound('As It Was',        'Harry Styles',      Color(0xFF4FACFE), '🌊', 2711,  +3.6),
   _TrendSound('Heat Waves',       'Glass Animals',     Color(0xFF56CCF2), '🌊', 2403,  -4.1),
-  _TrendSound('Dynamite',         'BTS',               Color(0xFFFF6B6B), '💥', 2187,  22.9),
-  _TrendSound('Levitating',       'Dua Lipa',          Color(0xFFB24AFF), '🪐', 1934,  6.3),
+  _TrendSound('Dynamite',         'BTS',               Color(0xFFFF6B6B), '💥', 2187,  +22.9),
+  _TrendSound('Levitating',       'Dua Lipa',          Color(0xFFB24AFF), '🪐', 1934,  +6.3),
   _TrendSound('Stay',             'Kid LAROI & Bieber',Color(0xFF00F0FF), '🤍', 1721,  -1.5),
 ];
 

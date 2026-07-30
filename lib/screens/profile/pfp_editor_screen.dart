@@ -284,6 +284,7 @@ class _PfpEditorScreenState extends State<PfpEditorScreen>
             ),
           ),
         ],
+        children: [img],
       ),
     );
   }

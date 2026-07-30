@@ -323,18 +323,18 @@ class _CreatePostScreenState extends State<CreatePostScreen> {
     if (_selectedType == 'photo') {
       if (_photo == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: const Text('Pick a photo first')));
+            const SnackBar(content: Text('Pick a photo first')));
         return;
       }
       if (_song == null) {
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: const Text("Add a song — it's what makes it ✨")));
+            const SnackBar(content: Text('Add a song — it\'s what makes it ✨')));
         return;
       }
     } else if (_textCtrl.text.trim().isEmpty &&
         _selectedType != 'video' && _selectedType != 'reel') {
       ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: const Text('Add some content first')));
+          const SnackBar(content: Text('Add some content first')));
       return;
     }
 
