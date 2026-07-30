@@ -12,6 +12,7 @@ import '../screens/settings/settings_screen.dart';
 import '../screens/home/vibe_picker_sheet.dart';
 import '../screens/reels/pulse_screen.dart';
 import '../screens/pocket/pocket_screen.dart';
+import '../screens/ai/voice_playlist_screen.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Top-level responsive wrapper
@@ -343,6 +344,30 @@ class _Sidebar extends StatelessWidget {
                 child: const Center(
                   child: Icon(Icons.bubble_chart_rounded,
                       color: AuraTheme.cyan, size: 20),
+                ),
+              ),
+            ),
+          ),
+          const SizedBox(height: 4),
+          // Voice Playlist
+          Tooltip(
+            message: 'Voice Playlist — AI picks your vibe',
+            child: GestureDetector(
+              onTap: () => Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const VoicePlaylistScreen())),
+              child: Container(
+                margin: const EdgeInsets.symmetric(vertical: 3, horizontal: 10),
+                width: 56,
+                height: 38,
+                decoration: BoxDecoration(
+                  color: AuraTheme.purple.withOpacity(0.08),
+                  borderRadius: BorderRadius.circular(10),
+                  border:
+                      Border.all(color: AuraTheme.purple.withOpacity(0.2)),
+                ),
+                child: const Center(
+                  child: Icon(Icons.mic_rounded,
+                      color: AuraTheme.purple, size: 20),
                 ),
               ),
             ),
@@ -1143,6 +1168,17 @@ class _CommandPaletteState extends State<_CommandPalette>
                               widget.onDismiss();
                               Navigator.of(context).push(MaterialPageRoute(
                                   builder: (_) => const PocketScreen()));
+                            },
+                          ),
+                          _PaletteRow(
+                            icon: Icons.mic_rounded,
+                            label: 'Voice Playlist',
+                            shortcut: 'V',
+                            active: false,
+                            onTap: () {
+                              widget.onDismiss();
+                              Navigator.of(context).push(MaterialPageRoute(
+                                  builder: (_) => const VoicePlaylistScreen()));
                             },
                           ),
                         ],
