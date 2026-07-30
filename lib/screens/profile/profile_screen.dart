@@ -28,7 +28,6 @@ import '../social/vybe_map_screen.dart';
 import '../settings/settings_screen.dart';
 import '../home/vibe_picker_sheet.dart';
 import 'era_picker_sheet.dart';
-import 'weekly_wrapped_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -1560,39 +1559,6 @@ class _ProfileScreenState extends State<ProfileScreen>
                     'pinned song'),
               ),
             ]),
-            const SizedBox(height: 12),
-            GestureDetector(
-              onTap: () {
-                HapticFeedback.selectionClick();
-                Navigator.push(context,
-                    MaterialPageRoute(builder: (_) => const WeeklyWrappedScreen()));
-              },
-              child: Container(
-                width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 10),
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    colors: [Color(0xFF7C3AED), Color(0xFF06B6D4)],
-                  ),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text('✦', style: TextStyle(color: Colors.white, fontSize: 12)),
-                    SizedBox(width: 6),
-                    Text('weekly wrapped',
-                        style: TextStyle(
-                            color: Colors.white,
-                            fontWeight: FontWeight.w700,
-                            fontSize: 12,
-                            letterSpacing: 0.5)),
-                    SizedBox(width: 6),
-                    Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
-                  ],
-                ),
-              ),
-            ),
           ],
         ),
       ),

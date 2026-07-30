@@ -655,25 +655,14 @@ class _PersonTileState extends State<_PersonTile> {
 
   @override
   Widget build(BuildContext context) {
-    final c = widget.person.color;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
+        color: AuraTheme.card,
         borderRadius: BorderRadius.circular(16),
-        gradient: LinearGradient(
-          colors: [c.withOpacity(0.35), c.withOpacity(0.12)],
-          begin: Alignment.centerLeft,
-          end: Alignment.centerRight,
-        ),
       ),
-      padding: const EdgeInsets.all(1.5),
-      child: Container(
-        padding: const EdgeInsets.all(11),
-        decoration: BoxDecoration(
-          color: AuraTheme.card.withOpacity(0.92),
-          borderRadius: BorderRadius.circular(14.5),
-        ),
-        child: Row(
+      child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.push(
@@ -737,7 +726,6 @@ class _PersonTileState extends State<_PersonTile> {
             ),
           ),
         ],
-      ),
       ),
     );
   }

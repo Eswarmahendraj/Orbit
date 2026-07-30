@@ -5,7 +5,6 @@ import 'package:just_audio/just_audio.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/orbit_state.dart';
 import '../../theme/aura_theme.dart';
-import '../../services/album_theme_service.dart';
 import '../home/dm_screen.dart';
 
 enum _SyncState { idle, pending, synced }
@@ -28,7 +27,6 @@ class OtherProfileScreen extends StatefulWidget {
   final String songTitle;
   final String artistName;
   final String? previewUrl;
-  final String? artUrl;
   final List<String>? moodTags;
   final String? pfpUrl;
 
@@ -43,7 +41,6 @@ class OtherProfileScreen extends StatefulWidget {
     required this.songTitle,
     required this.artistName,
     this.previewUrl,
-    this.artUrl,
     this.moodTags,
     this.pfpUrl,
   });
@@ -59,9 +56,6 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
   _SyncState _syncState = _SyncState.idle;
   bool _isPlaying = false;
   final _player = AudioPlayer();
-  Color? _albumColor;
-
-  Color get _accentColor => _albumColor ?? widget.userColor;
 
   final List<Map<String, dynamic>> _mutuals = const [
     {'initial': 'M', 'color': Color(0xFFFF4500)},
@@ -82,16 +76,6 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
     if (level != null) _syncState = _SyncState.synced;
     // Animate compatibility ring in after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) => _compatAnim.forward());
-    // Extract album art color
-    _extractAccentColor();
-  }
-
-  Future<void> _extractAccentColor() async {
-    final color = await AlbumThemeService.extractColor(
-      widget.artUrl,
-      fallback: widget.userColor,
-    );
-    if (mounted) setState(() => _albumColor = color);
   }
 
   @override
@@ -389,7 +373,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                     builder: (context, child) => CustomPaint(
                       painter: _RingPainter(
                           progress: _ringAnim.value,
-                          color: _accentColor),
+                          color: widget.userColor),
                       child: child,
                     ),
                     child: Container(
@@ -398,7 +382,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                       margin: const EdgeInsets.all(4),
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        color: _accentColor.withOpacity(0.15),
+                        color: widget.userColor.withOpacity(0.15),
                       ),
                       clipBehavior: Clip.antiAlias,
                       child: widget.pfpUrl != null
@@ -409,7 +393,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                                 child: Text(
                                   widget.initial,
                                   style: TextStyle(
-                                      color: _accentColor,
+                                      color: widget.userColor,
                                       fontSize: 36,
                                       fontWeight: FontWeight.w800),
                                 ),
@@ -418,7 +402,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                                 child: Text(
                                   widget.initial,
                                   style: TextStyle(
-                                      color: _accentColor,
+                                      color: widget.userColor,
                                       fontSize: 36,
                                       fontWeight: FontWeight.w800),
                                 ),
@@ -428,7 +412,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                               child: Text(
                                 widget.initial,
                                 style: TextStyle(
-                                    color: _accentColor,
+                                    color: widget.userColor,
                                     fontSize: 36,
                                     fontWeight: FontWeight.w800),
                               ),
@@ -470,7 +454,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
                 _CompatibilityRing(
                   score: _computeCompatibility(),
                   label: _compatLabel(_computeCompatibility()),
-                  color: _accentColor,
+                  color: widget.userColor,
                   animation: _compatAnim,
                 ),
                 const SizedBox(height: 16),
@@ -660,7 +644,7 @@ class _OtherProfileScreenState extends State<OtherProfileScreen>
               delegate: SliverChildBuilderDelegate(
                 (context, i) => Container(
                   decoration: BoxDecoration(
-                    color: _accentColor
+                    color: widget.userColor
                         .withOpacity(0.08 + (i % 3) * 0.04),
                     borderRadius: BorderRadius.circular(12),
                   ),

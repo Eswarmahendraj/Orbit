@@ -563,29 +563,24 @@ class _FeedTabState extends State<_FeedTab>
                               ),
                             ),
                           ),
-                        // Live waveform badge replaces static green dot
                         if (s.live)
                           Positioned(
-                            right: -2,
-                            bottom: -2,
+                            right: 0,
+                            bottom: 0,
                             child: Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 4, vertical: 3),
+                              width: 16,
+                              height: 16,
                               decoration: BoxDecoration(
-                                color: s.color,
-                                borderRadius: BorderRadius.circular(6),
+                                color: const Color(0xFF00D26A),
+                                shape: BoxShape.circle,
                                 border: Border.all(
-                                    color: AuraTheme.background, width: 1.5),
+                                    color: AuraTheme.background, width: 2),
                                 boxShadow: [
                                   BoxShadow(
-                                    color: s.color.withOpacity(0.5),
+                                    color: const Color(0xFF00D26A).withOpacity(0.6),
                                     blurRadius: 6,
                                   ),
                                 ],
-                              ),
-                              child: Transform.scale(
-                                scale: 0.7,
-                                child: const _NowPlayingBars(),
                               ),
                             ),
                           ),
@@ -1760,9 +1755,6 @@ class _PostCardState extends State<_PostCard>
                                 moodEmoji: p.moodEmoji,
                                 songTitle: p.songTitle,
                                 artistName: p.artistName,
-                                artUrl: p.artUrl,
-                                previewUrl: p.previewUrl,
-                                moodTags: p.moodTag != null ? [p.moodTag!] : null,
                               ))),
               child: CircleAvatar(
                 radius: 20,
@@ -2260,14 +2252,8 @@ class _StoryViewerState extends State<_StoryViewer>
                                 fontSize: 12)),
                       ],
                       const SizedBox(height: 16),
-                      // Animated waveform (live) or static bars (non-live)
-                      if (s.live)
-                        Transform.scale(
-                          scale: 2.2,
-                          child: const _NowPlayingBars(),
-                        )
-                      else
-                        Row(
+                      // Waveform placeholder
+                      Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: List.generate(20, (i) {
                           final h = 4.0 + (math.sin(i * 0.8) * 10).abs();
@@ -2275,7 +2261,7 @@ class _StoryViewerState extends State<_StoryViewer>
                             width: 3, height: h,
                             margin: const EdgeInsets.symmetric(horizontal: 1.5),
                             decoration: BoxDecoration(
-                              color: s.color.withOpacity(0.4),
+                              color: s.color.withOpacity(0.6),
                               borderRadius: BorderRadius.circular(2),
                             ),
                           );
