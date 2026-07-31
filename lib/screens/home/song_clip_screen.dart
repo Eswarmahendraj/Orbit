@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import '../../services/audio_player_service.dart';
 import '../../models/orbit_state.dart';
 import '../../theme/aura_theme.dart';
 
@@ -36,7 +37,7 @@ class _SongClipScreenState extends State<SongClipScreen> {
   List<double> _wave = [];
 
   // ── Playback ───────────────────────────────────────────────────
-  final _player = AudioPlayer();
+  AudioPlayer get _player => AudioPlayerService.i.player;
   bool _playing = false;
   double _playPos = 0; // seconds into preview, for progress display
   Timer? _stopTimer;
@@ -45,7 +46,7 @@ class _SongClipScreenState extends State<SongClipScreen> {
   @override
   void dispose() {
     _searchCtrl.dispose();
-    _player.dispose();
+    AudioPlayerService.i.stopIfOwner('song_clip');
     _stopTimer?.cancel();
     _posTimer?.cancel();
     super.dispose();
@@ -104,9 +105,8 @@ class _SongClipScreenState extends State<SongClipScreen> {
     setState(() { _playing = true; _playPos = _range.start; });
 
     try {
-      await _player.setUrl(url);
+      await AudioPlayerService.i.play(url, owner: 'song_clip');
       await _player.seek(Duration(milliseconds: (_range.start * 1000).round()));
-      await _player.play();
 
       final clipMs = ((_range.end - _range.start) * 1000).round();
 

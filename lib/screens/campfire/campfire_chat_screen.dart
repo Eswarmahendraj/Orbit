@@ -1,8 +1,10 @@
 import 'dart:io';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
+import '../../services/audio_player_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:convert';
 import '../../models/orbit_state.dart';
@@ -81,7 +83,6 @@ class CampfireChatScreen extends StatefulWidget {
 class _CampfireChatScreenState extends State<CampfireChatScreen> {
   final _controller = TextEditingController();
   final _scrollController = ScrollController();
-  final _audioPlayer = AudioPlayer();
   String? _playingId;
   bool _passcodeUnlocked = false;
   String _pinInput = '';
@@ -114,7 +115,7 @@ class _CampfireChatScreenState extends State<CampfireChatScreen> {
   void dispose() {
     _controller.dispose();
     _scrollController.dispose();
-    _audioPlayer.dispose();
+    AudioPlayerService.i.stopIfOwner('campfire_chat');
     super.dispose();
   }
 
@@ -185,14 +186,13 @@ class _CampfireChatScreenState extends State<CampfireChatScreen> {
 
   Future<void> _togglePlay(String id, String? url) async {
     if (_playingId == id) {
-      await _audioPlayer.pause();
+      await AudioPlayerService.i.pause();
       setState(() => _playingId = null);
     } else {
       setState(() => _playingId = id);
       if (url != null) {
         try {
-          await _audioPlayer.setUrl(url);
-          await _audioPlayer.play();
+          await AudioPlayerService.i.play(url, owner: 'campfire_chat');
         } catch (_) {
           setState(() => _playingId = null);
         }
@@ -333,54 +333,113 @@ class _CampfireChatScreenState extends State<CampfireChatScreen> {
     return Scaffold(
       backgroundColor: AuraTheme.background,
       appBar: AppBar(
+        backgroundColor: AuraTheme.background.withOpacity(0.93),
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              size: 16, color: AuraTheme.textSecondary),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: GestureDetector(
           onTap: _showGroupDetails,
-          child: Row(
-            children: [
-              Text(widget.group.emoji, style: const TextStyle(fontSize: 20)),
-              const SizedBox(width: 8),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(widget.group.name,
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15)),
-                      const SizedBox(width: 4),
-                      const Icon(Icons.keyboard_arrow_down_rounded,
-                          size: 16, color: AuraTheme.textMuted),
-                    ],
+          child: Row(children: [
+            // Ember glow avatar
+            Container(
+              width: 36, height: 36,
+              decoration: BoxDecoration(
+                color: widget.group.bgColor.withOpacity(0.15),
+                shape: BoxShape.circle,
+                border: Border.all(
+                  color: const Color(0xFFFF6B00).withOpacity(0.4),
+                  width: 1.5,
+                ),
+                boxShadow: [
+                  BoxShadow(
+                    color: const Color(0xFFFF6B00).withOpacity(0.2),
+                    blurRadius: 8, spreadRadius: 0,
                   ),
-                  const Text('4 in orbit',
-                      style: TextStyle(color: AuraTheme.textMuted, fontSize: 11)),
                 ],
               ),
-            ],
-          ),
+              child: Center(
+                child: Text(widget.group.emoji,
+                    style: const TextStyle(fontSize: 16)),
+              ),
+            ),
+            const SizedBox(width: 10),
+            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+              Row(children: [
+                ShaderMask(
+                  shaderCallback: (b) => const LinearGradient(
+                    colors: [Color(0xFFFF6B00), Color(0xFFFFB347)],
+                  ).createShader(b),
+                  child: Text(
+                    widget.group.name,
+                    style: const TextStyle(
+                      fontWeight: FontWeight.w800,
+                      fontSize: 14,
+                      color: Colors.white,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 4),
+                const Icon(Icons.keyboard_arrow_down_rounded,
+                    size: 14, color: AuraTheme.textMuted),
+              ]),
+              const Text(
+                '4 IN_ORBIT',
+                style: TextStyle(
+                  fontFamily: 'SpaceMono',
+                  color: AuraTheme.textMuted,
+                  fontSize: 8,
+                  letterSpacing: 1,
+                ),
+              ),
+            ]),
+          ]),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.call_rounded),
+            icon: const Icon(Icons.call_rounded,
+                color: AuraTheme.textSecondary, size: 20),
             onPressed: () => _startGroupCall(video: false),
-            tooltip: 'Voice call',
           ),
           IconButton(
-            icon: const Icon(Icons.videocam_rounded),
+            icon: const Icon(Icons.videocam_rounded,
+                color: AuraTheme.textSecondary, size: 20),
             onPressed: () => _startGroupCall(video: true),
-            tooltip: 'Video call',
           ),
           IconButton(
-            icon: const Icon(Icons.group_outlined),
+            icon: const Icon(Icons.group_outlined,
+                color: AuraTheme.textSecondary, size: 20),
             onPressed: _showPeopleSheet,
           ),
         ],
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(1),
+          child: Container(
+            height: 1,
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(colors: [
+                Color(0xFFFF6B00), Color(0xFFFF4500), Colors.transparent,
+              ]),
+            ),
+          ),
+        ),
       ),
-      body: Column(
-        children: [
+
+      body: Stack(children: [
+        // ── Ambient fire particles ─────────────────────────────────────
+        Positioned.fill(child: _FireBackground()),
+
+        // ── Messages + input ──────────────────────────────────────────
+        Column(children: [
+          // Active member speaking strip
+          _SpeakerStrip(),
+
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
               itemCount: _messages.length,
               itemBuilder: (context, i) {
                 final msg = _messages[i];
@@ -437,8 +496,8 @@ class _CampfireChatScreenState extends State<CampfireChatScreen> {
             onDMTap: () => _showPeopleDMPicker(),
             onPartyTap: _openListeningParty,
           ),
-        ],
-      ),
+        ]),
+      ]),
     );
   }
 
@@ -857,47 +916,108 @@ class _TextBubble extends StatelessWidget {
   final ChatMessage message;
   const _TextBubble({required this.message});
 
+  bool get _isSpeaker =>
+      message.senderName == 'Maya' || message.senderName == 'Alex';
+
   @override
   Widget build(BuildContext context) {
+    final incoming = !message.isMe && _isSpeaker;
     return Padding(
       padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment:
-            message.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        crossAxisAlignment: message.isMe
+            ? CrossAxisAlignment.end
+            : CrossAxisAlignment.start,
         children: [
+          // [INCOMING_TRANSMISSION] tag for active speakers
+          if (incoming)
+            Padding(
+              padding: const EdgeInsets.only(left: 36, bottom: 3),
+              child: Text(
+                '[INCOMING_TRANSMISSION // ${message.senderName.toUpperCase()}]',
+                style: const TextStyle(
+                  fontFamily: 'SpaceMono',
+                  fontSize: 7,
+                  color: Color(0xFFFF6B00),
+                  letterSpacing: 0.5,
+                ),
+              ),
+            ),
+          Row(
+            mainAxisAlignment:
+                message.isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
           if (!message.isMe) ...[
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: message.senderColor.withOpacity(0.15),
-              child: Text(message.senderInitial,
-                  style: TextStyle(color: message.senderColor,
-                      fontSize: 11, fontWeight: FontWeight.w700)),
+            _SpeakingAvatar(
+              initial: message.senderInitial,
+              color: message.senderColor,
+              isSpeaking: _isSpeaker,
             ),
             const SizedBox(width: 8),
           ],
+          Column(
+            crossAxisAlignment: message.isMe
+                ? CrossAxisAlignment.end
+                : CrossAxisAlignment.start,
+            children: [
           Container(
             constraints: BoxConstraints(
-                maxWidth: MediaQuery.of(context).size.width * 0.65),
+                maxWidth: MediaQuery.of(context).size.width * 0.62),
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
-              color: message.isMe ? AuraTheme.accent : AuraTheme.card,
-              borderRadius: BorderRadius.circular(18).copyWith(
-                bottomRight: message.isMe ? const Radius.circular(4) : const Radius.circular(18),
-                bottomLeft: message.isMe ? const Radius.circular(18) : const Radius.circular(4),
-              ),
-            ),
+            decoration: message.isMe
+                ? BoxDecoration(
+                    gradient: const LinearGradient(
+                      colors: [Color(0xFFFF6B00), Color(0xFFFF4500)],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(18).copyWith(
+                      bottomRight: const Radius.circular(4),
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: const Color(0xFFFF6B00).withOpacity(0.25),
+                        blurRadius: 10, offset: const Offset(0, 3),
+                      ),
+                    ],
+                  )
+                : BoxDecoration(
+                    color: AuraTheme.card,
+                    borderRadius: BorderRadius.circular(18).copyWith(
+                      bottomLeft: const Radius.circular(4),
+                    ),
+                    border: const Border(
+                      left: BorderSide(color: Color(0xFFFF6B00), width: 2.5),
+                    ),
+                  ),
             child: Text(
               message.text ?? '',
               style: TextStyle(
-                  color: message.isMe ? Colors.white : AuraTheme.textPrimary,
-                  fontSize: 14),
+                color: message.isMe ? Colors.white : AuraTheme.textPrimary,
+                fontSize: 14,
+              ),
             ),
           ),
+          // Space Mono timestamp
+          const SizedBox(height: 3),
+          Text(
+            '[${message.timeAgo}]',
+            style: const TextStyle(
+              fontFamily: 'SpaceMono',
+              fontSize: 7,
+              color: AuraTheme.textMuted,
+              letterSpacing: 0.3,
+            ),
+          ),
+            ], // Column children
+          ), // Column
           if (message.isMe) const SizedBox(width: 8),
-        ],
-      ),
-    );
+            ], // Row children
+          ), // Row
+        ], // Column children
+      ), // Column
+    ); // Padding
   }
 }
 
@@ -918,12 +1038,10 @@ class _PhotoBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!message.isMe) ...[
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: message.senderColor.withOpacity(0.15),
-              child: Text(message.senderInitial,
-                  style: TextStyle(color: message.senderColor,
-                      fontSize: 11, fontWeight: FontWeight.w700)),
+            _SpeakingAvatar(
+              initial: message.senderInitial,
+              color: message.senderColor,
+              isSpeaking: false,
             ),
             const SizedBox(width: 8),
           ],
@@ -967,90 +1085,135 @@ class _SongShareBubble extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!message.isMe) ...[
-            CircleAvatar(
-              radius: 14,
-              backgroundColor: message.senderColor.withOpacity(0.15),
-              child: Text(message.senderInitial,
-                  style: TextStyle(color: message.senderColor,
-                      fontSize: 11, fontWeight: FontWeight.w700)),
+            _SpeakingAvatar(
+              initial: message.senderInitial,
+              color: message.senderColor,
+              isSpeaking: message.senderName == 'Maya',
             ),
             const SizedBox(width: 8),
           ],
           Container(
-            width: 220,
+            width: 230,
             decoration: BoxDecoration(
               color: AuraTheme.card,
               borderRadius: BorderRadius.circular(16),
-              border: const Border(left: BorderSide(color: AuraTheme.accent, width: 3)),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.all(12),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 40, height: 40,
-                        decoration: BoxDecoration(
-                          color: AuraTheme.accent.withOpacity(0.15),
-                          borderRadius: BorderRadius.circular(8),
-                        ),
-                        child: const Icon(Icons.music_note, color: AuraTheme.accent, size: 20),
-                      ),
-                      const SizedBox(width: 10),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(message.songTitle ?? '',
-                                style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 12),
-                                maxLines: 1, overflow: TextOverflow.ellipsis),
-                            Text(message.artistName ?? '',
-                                style: const TextStyle(
-                                    color: AuraTheme.textMuted, fontSize: 11)),
-                          ],
-                        ),
-                      ),
-                      GestureDetector(
-                        onTap: onTogglePlay,
-                        child: Container(
-                          width: 28, height: 28,
-                          decoration: const BoxDecoration(
-                              color: AuraTheme.accent, shape: BoxShape.circle),
-                          child: Icon(
-                              isPlaying ? Icons.pause : Icons.play_arrow,
-                              color: Colors.white, size: 16),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(
-                    color: AuraTheme.accent.withOpacity(0.08),
-                    borderRadius: const BorderRadius.only(
-                        bottomLeft: Radius.circular(13),
-                        bottomRight: Radius.circular(13)),
-                  ),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.music_note, color: AuraTheme.accent, size: 12),
-                      const SizedBox(width: 4),
-                      const Text('sharing vibe',
-                          style: TextStyle(color: AuraTheme.accent,
-                              fontSize: 11, fontWeight: FontWeight.w600)),
-                      const Spacer(),
-                      const Icon(Icons.local_fire_department_rounded,
-                          color: AuraTheme.textMuted, size: 12),
-                      const SizedBox(width: 2),
-                      const Text('fire',
-                          style: TextStyle(color: AuraTheme.textMuted, fontSize: 10)),
-                    ],
-                  ),
+              border: Border.all(
+                color: const Color(0xFFFF6B00).withOpacity(0.35),
+                width: 1,
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF6B00).withOpacity(0.08),
+                  blurRadius: 12,
                 ),
               ],
             ),
+            child: Column(children: [
+              Padding(
+                padding: const EdgeInsets.all(12),
+                child: Row(children: [
+                  // Album art placeholder with fire glow
+                  Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      gradient: const LinearGradient(
+                        colors: [Color(0xFF2A1500), Color(0xFF1A0A00)],
+                      ),
+                      borderRadius: BorderRadius.circular(10),
+                      border: Border.all(
+                        color: const Color(0xFFFF6B00).withOpacity(0.4),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: const Color(0xFFFF6B00).withOpacity(0.2),
+                          blurRadius: 8,
+                        ),
+                      ],
+                    ),
+                    child: const Icon(Icons.music_note_rounded,
+                        color: Color(0xFFFF8C42), size: 22),
+                  ),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(message.songTitle ?? '',
+                            style: const TextStyle(
+                                fontWeight: FontWeight.w700, fontSize: 12),
+                            maxLines: 1, overflow: TextOverflow.ellipsis),
+                        Text(message.artistName ?? '',
+                            style: const TextStyle(
+                                color: AuraTheme.textMuted, fontSize: 11)),
+                      ],
+                    ),
+                  ),
+                  GestureDetector(
+                    onTap: onTogglePlay,
+                    child: Container(
+                      width: 30, height: 30,
+                      decoration: BoxDecoration(
+                        gradient: const LinearGradient(
+                          colors: [Color(0xFFFF6B00), Color(0xFFFF4500)],
+                        ),
+                        shape: BoxShape.circle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: const Color(0xFFFF6B00).withOpacity(0.4),
+                            blurRadius: 8,
+                          ),
+                        ],
+                      ),
+                      child: Icon(
+                        isPlaying ? Icons.pause_rounded : Icons.play_arrow_rounded,
+                        color: Colors.white, size: 16,
+                      ),
+                    ),
+                  ),
+                ]),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0x22FF6B00), Color(0x11FF4500)],
+                  ),
+                  borderRadius: const BorderRadius.only(
+                    bottomLeft: Radius.circular(15),
+                    bottomRight: Radius.circular(15),
+                  ),
+                ),
+                child: Row(children: [
+                  ShaderMask(
+                    shaderCallback: (b) => const LinearGradient(
+                      colors: [Color(0xFFFF6B00), Color(0xFFFFB347)],
+                    ).createShader(b),
+                    child: const Icon(Icons.local_fire_department_rounded,
+                        color: Colors.white, size: 12),
+                  ),
+                  const SizedBox(width: 4),
+                  const Text(
+                    'SHARING_VIBE',
+                    style: TextStyle(
+                      fontFamily: 'SpaceMono',
+                      color: Color(0xFFFF8C42),
+                      fontSize: 8,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.5,
+                    ),
+                  ),
+                  const Spacer(),
+                  Text(
+                    message.timeAgo,
+                    style: const TextStyle(
+                      fontFamily: 'SpaceMono',
+                      color: AuraTheme.textMuted,
+                      fontSize: 8,
+                    ),
+                  ),
+                ]),
+              ),
+            ]),
           ),
           if (message.isMe) const SizedBox(width: 8),
         ],
@@ -1094,7 +1257,12 @@ class _InputBarState extends State<_InputBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: AuraTheme.card,
+      decoration: BoxDecoration(
+        color: AuraTheme.card.withOpacity(0.95),
+        border: const Border(
+          top: BorderSide(color: Color(0x22FF6B00), width: 1),
+        ),
+      ),
       padding: EdgeInsets.only(
         left: 8, right: 8, top: 8,
         bottom: MediaQuery.of(context).padding.bottom + 8,
@@ -1108,15 +1276,15 @@ class _InputBarState extends State<_InputBar> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
-                  _AttachBtn(icon: Icons.headphones_rounded, label: 'Party',
+                  _AttachBtn(icon: Icons.headphones_rounded, label: 'PARTY',
                       color: const Color(0xFFFF8C42), onTap: widget.onPartyTap),
-                  _AttachBtn(icon: Icons.music_note_rounded, label: 'Music',
+                  _AttachBtn(icon: Icons.music_note_rounded, label: 'MUSIC',
                       color: const Color(0xFFA18CD1), onTap: widget.onSongTap),
-                  _AttachBtn(icon: Icons.photo_rounded, label: 'Photo',
+                  _AttachBtn(icon: Icons.photo_rounded, label: 'PHOTO',
                       color: const Color(0xFF6C63FF), onTap: widget.onPhotoTap),
-                  _AttachBtn(icon: Icons.mic_rounded, label: 'Voice',
+                  _AttachBtn(icon: Icons.mic_rounded, label: 'VOICE',
                       color: const Color(0xFF00D2A8), onTap: widget.onVoiceNoteTap),
-                  _AttachBtn(icon: Icons.call_rounded, label: 'Call',
+                  _AttachBtn(icon: Icons.call_rounded, label: 'CALL',
                       color: const Color(0xFF4CAF50), onTap: widget.onVoiceCallTap),
                   _AttachBtn(icon: Icons.person_rounded, label: 'DM',
                       color: const Color(0xFFFF6B9D), onTap: widget.onDMTap),
@@ -1124,46 +1292,82 @@ class _InputBarState extends State<_InputBar> {
               ),
             ),
           ],
-          Row(
-            children: [
-              IconButton(
-                icon: AnimatedRotation(
-                  turns: _expanded ? 0.125 : 0,
-                  duration: const Duration(milliseconds: 200),
+          Row(children: [
+            IconButton(
+              icon: AnimatedRotation(
+                turns: _expanded ? 0.125 : 0,
+                duration: const Duration(milliseconds: 200),
+                child: ShaderMask(
+                  shaderCallback: (b) => const LinearGradient(
+                    colors: [Color(0xFFFF6B00), Color(0xFFFFB347)],
+                  ).createShader(b),
                   child: const Icon(Icons.add_circle_outline_rounded,
-                      color: AuraTheme.accent),
+                      color: Colors.white),
                 ),
-                onPressed: () => setState(() => _expanded = !_expanded),
               ),
-              Expanded(
-                child: TextField(
-                  controller: widget.controller,
-                  decoration: InputDecoration(
-                    hintText: 'say something...',
-                    filled: true,
-                    fillColor: AuraTheme.surface,
-                    contentPadding:
-                        const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(24),
-                      borderSide: BorderSide.none,
+              onPressed: () => setState(() => _expanded = !_expanded),
+            ),
+            Expanded(
+              child: TextField(
+                controller: widget.controller,
+                style: const TextStyle(color: AuraTheme.textPrimary, fontSize: 14),
+                decoration: InputDecoration(
+                  hintText: 'TRANSMIT_TO_CAMPFIRE...',
+                  hintStyle: const TextStyle(
+                    fontFamily: 'SpaceMono',
+                    color: AuraTheme.textMuted,
+                    fontSize: 10,
+                    letterSpacing: 0.5,
+                  ),
+                  filled: true,
+                  fillColor: AuraTheme.surface,
+                  contentPadding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: const Color(0xFFFF6B00).withOpacity(0.2),
+                      width: 1,
                     ),
                   ),
-                  onSubmitted: (_) => widget.onSend(),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(24),
+                    borderSide: BorderSide(
+                      color: const Color(0xFFFF6B00).withOpacity(0.5),
+                      width: 1.5,
+                    ),
+                  ),
                 ),
+                onSubmitted: (_) => widget.onSend(),
               ),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: widget.onSend,
-                child: Container(
-                  width: 40, height: 40,
-                  decoration: const BoxDecoration(
-                      color: AuraTheme.accent, shape: BoxShape.circle),
-                  child: const Icon(Icons.send, color: Colors.white, size: 18),
+            ),
+            const SizedBox(width: 8),
+            GestureDetector(
+              onTap: widget.onSend,
+              child: Container(
+                width: 42, height: 42,
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFFFF6B00), Color(0xFFFF4500)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  shape: BoxShape.circle,
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFFFF6B00).withOpacity(0.4),
+                      blurRadius: 10, offset: const Offset(0, 2),
+                    ),
+                  ],
                 ),
+                child: const Icon(Icons.send_rounded, color: Colors.white, size: 17),
               ),
-            ],
-          ),
+            ),
+          ]),
         ],
       ),
     );
@@ -1190,15 +1394,308 @@ class _AttachBtn extends StatelessWidget {
             decoration: BoxDecoration(
               color: color.withOpacity(0.12),
               shape: BoxShape.circle,
+              border: Border.all(color: color.withOpacity(0.25)),
             ),
-            child: Icon(icon, color: color, size: 22),
+            child: Icon(icon, color: color, size: 20),
           ),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(fontSize: 10, color: AuraTheme.textMuted)),
+          Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'SpaceMono',
+              fontSize: 7,
+              color: AuraTheme.textMuted,
+              letterSpacing: 0.3,
+            ),
+          ),
         ],
       ),
     );
   }
+}
+
+// ─── Fire particle background ──────────────────────────────────────────────────
+
+class _FireBackground extends StatefulWidget {
+  @override
+  State<_FireBackground> createState() => _FireBackgroundState();
+}
+
+class _FireBackgroundState extends State<_FireBackground>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  final _embers = _buildChatEmbers(18);
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this, duration: const Duration(seconds: 16),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _ctrl,
+    builder: (_, __) => CustomPaint(
+      painter: _NebulaPainter(t: _ctrl.value, embers: _embers),
+    ),
+  );
+}
+
+List<_ChatEmber> _buildChatEmbers(int n) {
+  final rng = math.Random(7);
+  const colors = [Color(0xFFFF6B00), Color(0xFFFF8C42), Color(0xFFFFB347)];
+  return List.generate(n, (_) => _ChatEmber(
+    x: rng.nextDouble(),
+    y0: 0.6 + rng.nextDouble() * 0.4,
+    size: 0.8 + rng.nextDouble() * 1.6,
+    speed: 0.04 + rng.nextDouble() * 0.08,
+    drift: 0.006 + rng.nextDouble() * 0.01,
+    phase: rng.nextDouble() * math.pi * 2,
+    color: colors[rng.nextInt(colors.length)],
+  ));
+}
+
+class _ChatEmber {
+  final double x, y0, size, speed, drift, phase;
+  final Color color;
+  const _ChatEmber({
+    required this.x, required this.y0, required this.size,
+    required this.speed, required this.drift, required this.phase,
+    required this.color,
+  });
+}
+
+class _NebulaPainter extends CustomPainter {
+  final double t;
+  final List<_ChatEmber> embers;
+  _NebulaPainter({required this.t, required this.embers});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    // ── Drifting nebula blobs ───────────────────────────────────────────
+    final blobDefs = [
+      (
+        Offset(
+          size.width * (0.12 + 0.14 * math.sin(t * math.pi * 2.0)),
+          size.height * (0.72 + 0.09 * math.cos(t * math.pi * 1.4)),
+        ),
+        size.width * 0.48,
+        const Color(0xFFFF6B00),
+        0.075,
+      ),
+      (
+        Offset(
+          size.width * (0.82 + 0.10 * math.cos(t * math.pi * 1.7)),
+          size.height * (0.82 + 0.07 * math.sin(t * math.pi * 2.2)),
+        ),
+        size.width * 0.38,
+        const Color(0xFFFF4500),
+        0.060,
+      ),
+      (
+        Offset(
+          size.width * (0.45 + 0.18 * math.sin(t * math.pi * 0.9)),
+          size.height * (0.55 + 0.14 * math.cos(t * math.pi * 1.1)),
+        ),
+        size.width * 0.32,
+        const Color(0xFFFFB347),
+        0.042,
+      ),
+      (
+        Offset(
+          size.width * (0.2 + 0.1 * math.cos(t * math.pi * 2.5)),
+          size.height * (0.3 + 0.12 * math.sin(t * math.pi * 1.8)),
+        ),
+        size.width * 0.28,
+        const Color(0xFFFF6B00),
+        0.028,
+      ),
+    ];
+
+    for (final (center, radius, color, opacity) in blobDefs) {
+      final gradient = RadialGradient(
+        colors: [color.withOpacity(opacity), Colors.transparent],
+      );
+      final paint = Paint()
+        ..shader = gradient.createShader(
+          Rect.fromCircle(center: center, radius: radius),
+        );
+      canvas.drawCircle(center, radius, paint);
+    }
+
+    // ── Ember particles on top ──────────────────────────────────────────
+    for (final e in embers) {
+      final progress = (t * e.speed + e.y0) % 1.0;
+      final y = size.height * (1.0 - progress);
+      final x = size.width * (e.x + e.drift * math.sin(t * 2 * math.pi + e.phase));
+      final fade = progress < 0.15
+          ? progress / 0.15
+          : progress > 0.8
+              ? (1.0 - progress) / 0.2
+              : 1.0;
+      final paint = Paint()
+        ..color = e.color.withOpacity(0.35 * fade)
+        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 2.5);
+      canvas.drawCircle(Offset(x, y), e.size * fade, paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_NebulaPainter old) => old.t != t;
+}
+
+// ─── Speaker strip ─────────────────────────────────────────────────────────────
+
+class _SpeakerStrip extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 54,
+      decoration: BoxDecoration(
+        color: AuraTheme.card.withOpacity(0.6),
+        border: const Border(
+          bottom: BorderSide(color: Color(0x15FF6B00), width: 1),
+        ),
+      ),
+      child: ListView.builder(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        itemCount: _groupMembers.length,
+        itemBuilder: (_, i) {
+          final m = _groupMembers[i];
+          return Padding(
+            padding: const EdgeInsets.only(right: 10),
+            child: _SpeakingAvatar(
+              initial: m.initial,
+              color: m.color,
+              isSpeaking: m.isActive,
+              size: 36,
+              name: m.name,
+            ),
+          );
+        },
+      ),
+    );
+  }
+}
+
+// ─── Speaking avatar with glow ring ───────────────────────────────────────────
+
+class _SpeakingAvatar extends StatefulWidget {
+  final String initial;
+  final Color color;
+  final bool isSpeaking;
+  final double size;
+  final String? name;
+  const _SpeakingAvatar({
+    required this.initial,
+    required this.color,
+    this.isSpeaking = false,
+    this.size = 28,
+    this.name,
+  });
+
+  @override
+  State<_SpeakingAvatar> createState() => _SpeakingAvatarState();
+}
+
+class _SpeakingAvatarState extends State<_SpeakingAvatar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this, duration: const Duration(milliseconds: 1200),
+    );
+    if (widget.isSpeaking) _ctrl.repeat(reverse: true);
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.isSpeaking) {
+      return _avatar();
+    }
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        AnimatedBuilder(
+          animation: _ctrl,
+          builder: (_, child) => Container(
+            width: widget.size + 8,
+            height: widget.size + 8,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                  color: const Color(0xFFFF6B00)
+                      .withOpacity(0.15 + 0.28 * _ctrl.value),
+                  blurRadius: 10 + 10 * _ctrl.value,
+                  spreadRadius: 3 * _ctrl.value,
+                ),
+              ],
+            ),
+            child: Center(child: child),
+          ),
+          child: _avatar(),
+        ),
+        const SizedBox(height: 3),
+        // Waveform bars
+        _WaveformBars(color: const Color(0xFFFF6B00)),
+        if (widget.name != null) ...[
+          const SizedBox(height: 2),
+          Text(
+            widget.name!,
+            style: const TextStyle(
+              fontFamily: 'SpaceMono',
+              fontSize: 7,
+              color: Color(0xFFFF8C42),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _avatar() => Container(
+    width: widget.size,
+    height: widget.size,
+    decoration: BoxDecoration(
+      color: widget.color.withOpacity(0.15),
+      shape: BoxShape.circle,
+      border: Border.all(
+        color: widget.isSpeaking
+            ? const Color(0xFFFF6B00).withOpacity(0.6)
+            : widget.color.withOpacity(0.3),
+        width: widget.isSpeaking ? 1.5 : 1,
+      ),
+    ),
+    child: Center(
+      child: Text(
+        widget.initial,
+        style: TextStyle(
+          color: widget.color,
+          fontSize: widget.size * 0.38,
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+    ),
+  );
 }
 
 // ─── Listening Party Bubble ───────────────────────────────────────────────────
@@ -1557,4 +2054,57 @@ class _SongPickerSheetState extends State<_SongPickerSheet> {
       ),
     );
   }
+}
+
+// ── Animated waveform bars (for speaking avatars) ─────────────────────────────
+
+class _WaveformBars extends StatefulWidget {
+  final Color color;
+  const _WaveformBars({required this.color});
+
+  @override
+  State<_WaveformBars> createState() => _WaveformBarsState();
+}
+
+class _WaveformBarsState extends State<_WaveformBars>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 700),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _ctrl,
+    builder: (_, __) => Row(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.end,
+      children: List.generate(5, (i) {
+        final h = 3.0 +
+            7.0 *
+                ((math.sin(_ctrl.value * math.pi * 2 + i * 1.1) + 1) / 2);
+        return Container(
+          width: 2,
+          height: h,
+          margin: const EdgeInsets.symmetric(horizontal: 0.5),
+          decoration: BoxDecoration(
+            color: widget.color.withOpacity(0.75),
+            borderRadius: BorderRadius.circular(1),
+          ),
+        );
+      }),
+    ),
+  );
 }

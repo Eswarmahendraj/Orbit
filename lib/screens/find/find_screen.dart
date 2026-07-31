@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import '../../services/audio_player_service.dart';
 import '../../theme/aura_theme.dart';
 import '../../services/social_service.dart';
 import '../profile/other_profile_screen.dart';
@@ -82,7 +83,6 @@ class _FindScreenState extends State<FindScreen>
   late AnimationController _radarCtrl;
   List<Map<String, dynamic>> _songResults = [];
   bool _loadingSongs = false;
-  final _player = AudioPlayer();
   String? _playingUrl;
 
   // Default suggested content
@@ -187,7 +187,7 @@ class _FindScreenState extends State<FindScreen>
     _tabController.dispose();
     _radarCtrl.dispose();
     _searchController.dispose();
-    _player.dispose();
+    AudioPlayerService.i.stopIfOwner('find_screen');
     super.dispose();
   }
 
@@ -211,13 +211,12 @@ class _FindScreenState extends State<FindScreen>
   Future<void> _togglePlay(String? url) async {
     if (url == null) return;
     if (_playingUrl == url) {
-      await _player.pause();
+      await AudioPlayerService.i.pause();
       setState(() => _playingUrl = null);
     } else {
       setState(() => _playingUrl = url);
       try {
-        await _player.setUrl(url);
-        await _player.play();
+        await AudioPlayerService.i.play(url, owner: 'find_screen');
       } catch (_) {
         setState(() => _playingUrl = null);
       }
@@ -655,14 +654,25 @@ class _PersonTileState extends State<_PersonTile> {
 
   @override
   Widget build(BuildContext context) {
+    final c = widget.person.color;
     return Container(
       margin: const EdgeInsets.only(bottom: 10),
-      padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: AuraTheme.card,
         borderRadius: BorderRadius.circular(16),
+        gradient: LinearGradient(
+          colors: [c.withOpacity(0.35), c.withOpacity(0.12)],
+          begin: Alignment.centerLeft,
+          end: Alignment.centerRight,
+        ),
       ),
-      child: Row(
+      padding: const EdgeInsets.all(1.5),
+      child: Container(
+        padding: const EdgeInsets.all(11),
+        decoration: BoxDecoration(
+          color: AuraTheme.card.withOpacity(0.92),
+          borderRadius: BorderRadius.circular(14.5),
+        ),
+        child: Row(
         children: [
           GestureDetector(
             onTap: () => Navigator.push(
@@ -726,6 +736,7 @@ class _PersonTileState extends State<_PersonTile> {
             ),
           ),
         ],
+      ),
       ),
     );
   }

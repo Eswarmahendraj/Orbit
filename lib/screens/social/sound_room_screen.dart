@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:just_audio/just_audio.dart';
+import '../../services/audio_player_service.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
 import '../../services/spotify_service.dart';
@@ -364,7 +365,7 @@ class _SoundRoomScreenState extends State<SoundRoomScreen> {
   final _db = FirebaseFirestore.instance;
   final _state = OrbitState();
   String? get _uid => FirebaseAuth.instance.currentUser?.uid;
-  final _player = AudioPlayer();
+  AudioPlayer get _player => AudioPlayerService.i.player;
   bool _isPlaying = false;
   StreamSubscription<DocumentSnapshot>? _roomSub;
   Map<String, dynamic> _roomData = {};
@@ -385,7 +386,7 @@ class _SoundRoomScreenState extends State<SoundRoomScreen> {
   void dispose() {
     _leaveRoom();
     _roomSub?.cancel();
-    _player.dispose();
+    AudioPlayerService.i.stopIfOwner('sound_room');
     super.dispose();
   }
 
@@ -412,14 +413,13 @@ class _SoundRoomScreenState extends State<SoundRoomScreen> {
       await _db.collection('sound_rooms').doc(widget.roomId)
           .update({'isLive': false});
     }
-    await _player.stop();
+    await AudioPlayerService.i.stopIfOwner('sound_room');
   }
 
   Future<void> _playPreview(String? url) async {
     if (url == null || url.isEmpty) return;
     try {
-      await _player.setUrl(url);
-      await _player.play();
+      await AudioPlayerService.i.play(url, owner: 'sound_room');
       setState(() => _isPlaying = true);
     } catch (_) {}
   }

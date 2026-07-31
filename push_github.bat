@@ -7,7 +7,7 @@ echo Removing stale locks...
 del /f /q .git\index.lock 2>nul
 del /f /q .git\HEAD.lock  2>nul
 
-echo Running flutter pub get (adds speech_to_text)...
+echo Running flutter pub get...
 flutter pub get
 
 echo.
@@ -18,14 +18,22 @@ git add lib\screens\ai\voice_playlist_screen.dart
 git add lib\screens\ai\ai_caption_screen.dart
 git add lib\screens\social\vibe_check_ai_screen.dart
 git add lib\screens\reels\pulse_screen.dart
+git add lib\screens\reels\meme_studio_screen.dart
+git add lib\screens\reels\remix_drop_screen.dart
+git add lib\screens\reels\trending_sounds_screen.dart
+git add lib\screens\find\find_screen.dart
+git add lib\screens\profile\profile_screen.dart
 git add pubspec.yaml
 git add pubspec.lock
 
 git status --short
 echo.
 
+git add lib\screens\onboarding\onboarding_screen.dart
+git add lib\screens\home\home_screen.dart
+
 echo Committing...
-git commit -m "feat: Claude AI integration — Vibe Check, Voice Playlist, AI Captions"
+git commit -m "feat: cinematic onboarding, Drop comments, empty states, story viewer"
 
 echo.
 echo Pushing via PowerShell (proxy bypass)...

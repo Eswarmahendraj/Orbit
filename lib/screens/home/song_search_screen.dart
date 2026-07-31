@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:just_audio/just_audio.dart';
+import '../../services/audio_player_service.dart';
 import '../../theme/aura_theme.dart';
 
 // ── Song Search Result ─────────────────────────────────────────────────────────
@@ -40,7 +41,7 @@ class SongSearchScreen extends StatefulWidget {
 
 class _SongSearchScreenState extends State<SongSearchScreen> {
   final _ctrl = TextEditingController();
-  final _player = AudioPlayer();
+  AudioPlayer get _player => AudioPlayerService.i.player;
   final _focusNode = FocusNode();
 
   List<SongSearchResult> _results = [];
@@ -73,7 +74,7 @@ class _SongSearchScreenState extends State<SongSearchScreen> {
   @override
   void dispose() {
     _ctrl.dispose();
-    _player.dispose();
+    AudioPlayerService.i.stopIfOwner('song_search');
     _focusNode.dispose();
     _debounce?.cancel();
     super.dispose();
@@ -124,8 +125,7 @@ class _SongSearchScreenState extends State<SongSearchScreen> {
     } else {
       setState(() => _playingUrl = song.previewUrl);
       try {
-        await _player.setUrl(song.previewUrl!);
-        await _player.play();
+        await AudioPlayerService.i.play(song.previewUrl!, owner: 'song_search');
       } catch (_) {
         setState(() => _playingUrl = null);
       }

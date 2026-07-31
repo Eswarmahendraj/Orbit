@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:just_audio/just_audio.dart';
+import '../../services/audio_player_service.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
 
@@ -75,7 +76,7 @@ class _DailyDropScreenState extends State<DailyDropScreen>
   late AnimationController _pulseCtrl;
   late Animation<double> _pulseAnim;
 
-  AudioPlayer? _player;
+  AudioPlayer? _player; // unused; kept for type reference
   bool _isPlaying = false;
   bool _isJoined = false;
 
@@ -107,7 +108,7 @@ class _DailyDropScreenState extends State<DailyDropScreen>
   @override
   void dispose() {
     _pulseCtrl.dispose();
-    _player?.dispose();
+    AudioPlayerService.i.stopIfOwner('daily_drop');
     super.dispose();
   }
 
@@ -119,10 +120,8 @@ class _DailyDropScreenState extends State<DailyDropScreen>
     // Play preview if available
     final url = _todaySong['previewUrl'] as String?;
     if (url != null) {
-      _player = AudioPlayer();
       try {
-        await _player!.setUrl(url);
-        _player!.play();
+        await AudioPlayerService.i.play(url, owner: 'daily_drop');
         setState(() => _isPlaying = true);
       } catch (_) {}
     }

@@ -6,6 +6,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
+import '../../services/audio_player_service.dart';
 import 'dart:convert';
 import '../../models/orbit_state.dart';
 import '../../services/now_playing_service.dart';
@@ -28,6 +29,7 @@ import '../social/vybe_map_screen.dart';
 import '../settings/settings_screen.dart';
 import '../home/vibe_picker_sheet.dart';
 import 'era_picker_sheet.dart';
+import 'weekly_wrapped_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -39,7 +41,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _ringAnim;
-  final _player = AudioPlayer();
+  AudioPlayer get _player => AudioPlayerService.i.player;
   bool _isPlaying = false;
   String? _previewUrl;
 
@@ -80,8 +82,8 @@ class _ProfileScreenState extends State<ProfileScreen>
   @override
   void dispose() {
     _ringAnim.dispose();
-    _player.dispose();
-    _pinnedPlayer?.dispose();
+    AudioPlayerService.i.stopIfOwner('profile_main');
+    AudioPlayerService.i.stopIfOwner('profile_pinned');
     _spotifyPollTimer?.cancel();
     super.dispose();
   }
@@ -700,15 +702,14 @@ class _ProfileScreenState extends State<ProfileScreen>
 
   Future<void> _togglePlay() async {
     if (_isPlaying) {
-      await _player.pause();
+      await AudioPlayerService.i.pause();
       setState(() => _isPlaying = false);
       return;
     }
     setState(() => _isPlaying = true);
     if (_previewUrl != null) {
       try {
-        await _player.setUrl(_previewUrl!);
-        await _player.play();
+        await AudioPlayerService.i.play(_previewUrl!, owner: 'profile_main');
       } catch (_) {
         if (mounted) setState(() => _isPlaying = false);
       }
@@ -1248,21 +1249,18 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   bool _pinnedPlaying = false;
-  AudioPlayer? _pinnedPlayer;
 
   Future<void> _playOrPausePinned(OrbitState state) async {
-    _pinnedPlayer ??= AudioPlayer();
     if (_pinnedPlaying) {
-      await _pinnedPlayer!.pause();
+      await AudioPlayerService.i.pause();
       setState(() => _pinnedPlaying = false);
     } else {
       final url = state.pinnedPreviewUrl;
       if (url.isEmpty) return;
       try {
-        await _pinnedPlayer!.setUrl(url);
-        await _pinnedPlayer!.play();
+        await AudioPlayerService.i.play(url, owner: 'profile_pinned');
         setState(() => _pinnedPlaying = true);
-        _pinnedPlayer!.playerStateStream.listen((s) {
+        AudioPlayerService.i.player.playerStateStream.listen((s) {
           if (s.processingState == ProcessingState.completed && mounted) {
             setState(() => _pinnedPlaying = false);
           }
@@ -1559,6 +1557,39 @@ class _ProfileScreenState extends State<ProfileScreen>
                     'pinned song'),
               ),
             ]),
+            const SizedBox(height: 12),
+            GestureDetector(
+              onTap: () {
+                HapticFeedback.selectionClick();
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => const WeeklyWrappedScreen()));
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(vertical: 10),
+                decoration: BoxDecoration(
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF7C3AED), Color(0xFF06B6D4)],
+                  ),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: const [
+                    Text('✦', style: TextStyle(color: Colors.white, fontSize: 12)),
+                    SizedBox(width: 6),
+                    Text('weekly wrapped',
+                        style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w700,
+                            fontSize: 12,
+                            letterSpacing: 0.5)),
+                    SizedBox(width: 6),
+                    Icon(Icons.arrow_forward_ios_rounded, color: Colors.white, size: 10),
+                  ],
+                ),
+              ),
+            ),
           ],
         ),
       ),
@@ -2817,7 +2848,7 @@ class _PinSongSheetState extends State<_PinSongSheet> {
   Timer? _debounce;
 
   // Preview player
-  final _previewPlayer = AudioPlayer();
+  AudioPlayer get _previewPlayer => AudioPlayerService.i.player;
   int? _playingIndex;
   bool _previewLoading = false;
 
@@ -2898,16 +2929,14 @@ class _PinSongSheetState extends State<_PinSongSheet> {
 
     if (_playingIndex == index) {
       // Pause
-      await _previewPlayer.pause();
+      await AudioPlayerService.i.pause();
       setState(() => _playingIndex = null);
       return;
     }
 
-    await _previewPlayer.stop();
     setState(() { _playingIndex = index; _previewLoading = true; });
     try {
-      await _previewPlayer.setUrl(url);
-      await _previewPlayer.play();
+      await AudioPlayerService.i.play(url, owner: 'profile_pin_sheet');
       _previewPlayer.playerStateStream.listen((s) {
         if (s.processingState == ProcessingState.completed && mounted) {
           setState(() { _playingIndex = null; _previewLoading = false; });
@@ -2921,7 +2950,7 @@ class _PinSongSheetState extends State<_PinSongSheet> {
   void dispose() {
     _debounce?.cancel();
     _ctrl.dispose();
-    _previewPlayer.dispose();
+    AudioPlayerService.i.stopIfOwner('profile_pin_sheet');
     super.dispose();
   }
 

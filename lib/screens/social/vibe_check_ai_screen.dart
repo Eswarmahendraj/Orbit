@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import '../../theme/aura_theme.dart';
 import '../../services/ai_service.dart';
 import '../../config/api_config.dart';
+import '../settings/settings_screen.dart';
 
 // ── Mood option model ─────────────────────────────────────────────────────────
 class _Mood {
@@ -287,16 +288,29 @@ class _VibeCheckAiScreenState extends State<VibeCheckAiScreen>
 
         // ── API key notice (shown only if not configured) ────────────
         if (!ApiConfig.isConfigured)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
-            child: Row(children: [
-              const Icon(Icons.info_outline_rounded, size: 12, color: Colors.amber),
-              const SizedBox(width: 6),
-              Expanded(child: Text(
-                'Add your Claude API key in lib/config/api_config.dart to enable real AI',
-                style: TextStyle(color: Colors.amber.withOpacity(0.7), fontSize: 10),
-              )),
-            ]),
+          GestureDetector(
+            onTap: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const SettingsScreen())),
+            child: Padding(
+              padding: const EdgeInsets.fromLTRB(20, 8, 20, 0),
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.amber.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(color: Colors.amber.withOpacity(0.3)),
+                ),
+                child: Row(children: [
+                  const Icon(Icons.key_rounded, size: 13, color: Colors.amber),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text(
+                    'Add your Claude API key to enable real AI — tap to open Settings → AI Features',
+                    style: TextStyle(color: Colors.amber, fontSize: 11, height: 1.4),
+                  )),
+                  const Icon(Icons.arrow_forward_ios_rounded, size: 10, color: Colors.amber),
+                ]),
+              ),
+            ),
           ),
 
         // ── Error message ────────────────────────────────────────────

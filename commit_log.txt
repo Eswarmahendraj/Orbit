@@ -1,0 +1,64 @@
+=== START 22-07-2026 17:05:07.43 === 
+Removing locks... 
+Could Not Find D:\AURA_App\.git\HEAD.lock
+Lock removal done 
+Adding files... 
+warning: in the working copy of 'build/web/assets/shaders/ink_sparkle.frag', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/assets/shaders/stretch_effect.frag', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/canvaskit.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/canvaskit.js.symbols', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/chromium/canvaskit.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/chromium/canvaskit.js.symbols', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/experimental_webparagraph/canvaskit.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/experimental_webparagraph/canvaskit.js.symbols', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/skwasm.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/skwasm.js.symbols', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/skwasm_heavy.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/skwasm_heavy.js.symbols', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/wimp.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/canvaskit/wimp.js.symbols', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/firebase-messaging-sw.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/flutter.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/flutter_bootstrap.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/index.html', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/main.dart.js', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'build/web/manifest.json', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/main.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/screens/home/home_screen.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/theme/aura_theme.dart', LF will be replaced by CRLF the next time Git touches it
+warning: in the working copy of 'lib/widgets/web_scaffold.dart', LF will be replaced by CRLF the next time Git touches it
+ADD_EXIT:0 
+ M android/app/src/main/java/io/flutter/plugins/GeneratedPluginRegistrant.java
+M  build/web/flutter_bootstrap.js
+M  build/web/main.dart.js
+M  lib/main.dart
+M  lib/screens/home/home_screen.dart
+M  lib/theme/aura_theme.dart
+M  lib/widgets/web_scaffold.dart
+ M pubspec.lock
+?? build_and_push_web.ps1
+?? build_log.txt
+?? build_orbit_ui.ps1
+?? commit_log.txt
+?? commit_push_only.ps1
+?? do_commit.bat
+?? fix_push_readme.ps1
+?? orbit_build.bat
+?? push_battle.ps1
+?? push_battle2.ps1
+?? push_deep_orbit.ps1
+?? push_helper.py
+?? push_now.ps1
+?? push_readme.bat
+?? push_readme.ps1
+?? push_web.ps1
+?? push_wrapped_periods.ps1
+Committing... 
+[main 9a315af] feat: Deep Orbit UI dark theme
+ 6 files changed, 74450 insertions(+), 74379 deletions(-)
+COMMIT_EXIT:0 
+Pushing via PowerShell... 
+To https://github.com/Eswarmahendraj/Orbit.git
+   9ca504d..9a315af  main -> main
+PUSH_EXIT:0 
+=== DONE === 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:http/http.dart' as http;
+import '../../services/audio_player_service.dart';
 import 'dart:convert';
 import '../../theme/aura_theme.dart';
 import 'campfire_screen.dart';
@@ -13,7 +14,7 @@ class CollabPlaylistScreen extends StatefulWidget {
 }
 
 class _CollabPlaylistScreenState extends State<CollabPlaylistScreen> {
-  final _player = AudioPlayer();
+  AudioPlayer get _player => AudioPlayerService.i.player;
   int? _playingIdx;
   bool _showSearch = false;
   final _ctrl = TextEditingController();
@@ -57,15 +58,14 @@ class _CollabPlaylistScreenState extends State<CollabPlaylistScreen> {
     setState(() => _playingIdx = idx);
     if (url != null) {
       try {
-        await _player.setUrl(url);
-        await _player.play();
+        await AudioPlayerService.i.play(url, owner: 'collab_playlist');
       } catch (_) {}
     }
   }
 
   @override
   void dispose() {
-    _player.dispose();
+    AudioPlayerService.i.stopIfOwner('collab_playlist');
     _ctrl.dispose();
     super.dispose();
   }

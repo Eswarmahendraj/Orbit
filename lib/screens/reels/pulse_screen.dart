@@ -5,6 +5,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:just_audio/just_audio.dart';
+import '../../services/audio_player_service.dart';
 import 'package:http/http.dart' as http;
 import 'package:video_player/video_player.dart';
 import '../../theme/aura_theme.dart';
@@ -15,6 +16,7 @@ import '../pulse/song_battle_sheet.dart';
 import '../reels/create_pulse_screen.dart';
 import '../social/orbit_moment_screen.dart';
 import 'meme_studio_screen.dart';
+import 'music_moments_screen.dart';
 import 'remix_drop_screen.dart';
 import 'trending_sounds_screen.dart';
 import '../../services/ai_service.dart';
@@ -412,7 +414,7 @@ class PulseScreen extends StatefulWidget {
 }
 
 class _PulseScreenState extends State<PulseScreen> {
-  final _player = AudioPlayer();
+  AudioPlayer get _player => AudioPlayerService.i.player;
   final _pageCtrl = PageController();
   int _tab = 0;           // 0=For You, 1=Orbit, 2=Drops
   int _currentIndex = 0;
@@ -444,7 +446,7 @@ class _PulseScreenState extends State<PulseScreen> {
   @override
   void dispose() {
     _playSeq++;
-    _player.dispose();
+    AudioPlayerService.i.stopIfOwner('pulse_screen');
     _pageCtrl.dispose();
     super.dispose();
   }
@@ -487,9 +489,7 @@ class _PulseScreenState extends State<PulseScreen> {
       }
       if (seq != _playSeq || !mounted) return; // cancelled during fetch
       if (url != null && url.isNotEmpty) {
-        await _player.setUrl(url);
-        await _player.setLoopMode(LoopMode.one);
-        await _player.play();
+        await AudioPlayerService.i.play(url, owner: 'pulse_screen', loop: true);
       }
     } catch (_) {}
   }
@@ -680,6 +680,31 @@ class _PulseScreenState extends State<PulseScreen> {
                     ),
                     child: const Center(
                       child: Text('📸', style: TextStyle(fontSize: 20)),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                GestureDetector(
+                  onTap: () {
+                    final card = _seedCards[_currentIndex];
+                    Navigator.push(context, MaterialPageRoute(
+                        builder: (_) => MusicMomentsScreen(
+                          song: card.song,
+                          artist: card.artist,
+                          previewUrl: card.previewUrl,
+                          artUrl: card.artUrl,
+                        )));
+                  },
+                  child: Container(
+                    width: 44, height: 44,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border: Border.all(
+                          color: Colors.white.withOpacity(0.25), width: 1.5),
+                    ),
+                    child: const Center(
+                      child: Text('🎬', style: TextStyle(fontSize: 20)),
                     ),
                   ),
                 ),
@@ -1065,6 +1090,18 @@ class _PulseCardWidgetState extends State<_PulseCardWidget>
                 label: 'Add',
                 onTap: () => Navigator.push(context,
                     MaterialPageRoute(builder: (_) => const CreatePulseScreen())),
+              ),
+              const SizedBox(height: 20),
+              _ActionBtn(
+                child: const Text('↩', style: TextStyle(fontSize: 24)),
+                label: 'Echo',
+                onTap: () => Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => MusicMomentsScreen(
+                      song: card.song,
+                      artist: card.artist,
+                      previewUrl: card.previewUrl,
+                      artUrl: card.artUrl,
+                    ))),
               ),
               const SizedBox(height: 20),
               // Animated vinyl disc
@@ -2352,7 +2389,7 @@ class _DropCardState extends State<_DropCard>
       context: ctx,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _CommentsSheet(drop: drop),
+      builder: (_) => _DropCommentsSheet(drop: drop),
     );
   }
 
@@ -3168,13 +3205,13 @@ class _Comment {
   });
 }
 
-class _CommentsSheet extends StatefulWidget {
+class _DropCommentsSheet extends StatefulWidget {
   final _Drop drop;
-  const _CommentsSheet({required this.drop});
-  @override State<_CommentsSheet> createState() => _CommentsSheetState();
+  const _DropCommentsSheet({required this.drop});
+  @override State<_DropCommentsSheet> createState() => _DropCommentsSheetState();
 }
 
-class _CommentsSheetState extends State<_CommentsSheet> {
+class _DropCommentsSheetState extends State<_DropCommentsSheet> {
   final _ctrl = TextEditingController();
   final _focusNode = FocusNode();
   String? _replyingTo;
