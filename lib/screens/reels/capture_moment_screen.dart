@@ -136,7 +136,7 @@ class _CaptureMomentScreenState extends State<CaptureMomentScreen> {
         uid: uid,
         username: '@${_state.username.isNotEmpty ? _state.username : 'you'}',
         displayName: _state.displayName.isNotEmpty ? _state.displayName : 'You',
-        avatarEmoji: _state.avatarEmoji.isNotEmpty ? _state.avatarEmoji : '🎵',
+        avatarEmoji: _state.moodEmoji.isNotEmpty ? _state.moodEmoji : '🎵',
         song: widget.song,
         artist: widget.artist,
         previewUrl: widget.previewUrl,
