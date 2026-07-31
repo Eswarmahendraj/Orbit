@@ -200,7 +200,7 @@ class _CaptureMomentScreenState extends State<CaptureMomentScreen> {
           ),
           const SizedBox(width: 12),
           const Text('music moment',
-              style: TextStyle(color: AuraTheme.text, fontSize: 18,
+              style: TextStyle(color: AuraTheme.textPrimary, fontSize: 18,
                   fontWeight: FontWeight.w700)),
         ]),
       ),
@@ -212,7 +212,7 @@ class _CaptureMomentScreenState extends State<CaptureMomentScreen> {
 
       // Instruction
       const Text('capture your reaction',
-          style: TextStyle(color: AuraTheme.text, fontSize: 22,
+          style: TextStyle(color: AuraTheme.textPrimary, fontSize: 22,
               fontWeight: FontWeight.w800)),
       const SizedBox(height: 6),
       const Text('10 seconds. no edits. just the vibe.',
@@ -274,7 +274,7 @@ class _CaptureMomentScreenState extends State<CaptureMomentScreen> {
           ),
           const SizedBox(width: 12),
           const Text('preview',
-              style: TextStyle(color: AuraTheme.text, fontSize: 18,
+              style: TextStyle(color: AuraTheme.textPrimary, fontSize: 18,
                   fontWeight: FontWeight.w700)),
           const Spacer(),
           GestureDetector(
@@ -402,7 +402,7 @@ class _CaptureMomentScreenState extends State<CaptureMomentScreen> {
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: TextField(
           controller: _captionCtrl,
-          style: const TextStyle(color: AuraTheme.text, fontSize: 14),
+          style: const TextStyle(color: AuraTheme.textPrimary, fontSize: 14),
           maxLength: 100,
           maxLines: 2,
           decoration: InputDecoration(
@@ -461,7 +461,7 @@ class _SongPill extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(song, style: const TextStyle(color: AuraTheme.text,
+            Text(song, style: const TextStyle(color: AuraTheme.textPrimary,
                 fontSize: 13, fontWeight: FontWeight.w600),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             Text(artist, style: const TextStyle(
