@@ -5,6 +5,7 @@ import 'package:just_audio/just_audio.dart';
 import '../../services/audio_player_service.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import '../../models/orbit_state.dart';
+import 'vibe_match_card.dart';
 import '../../theme/aura_theme.dart';
 import '../../services/album_theme_service.dart';
 import '../home/dm_screen.dart';
@@ -864,3 +865,4 @@ class _SyncLevelBadge extends StatelessWidget {
     );
   }
 }
+
