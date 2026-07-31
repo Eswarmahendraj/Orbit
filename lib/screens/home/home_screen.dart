@@ -1509,7 +1509,7 @@ class _PostCardState extends State<_PostCard>
     with SingleTickerProviderStateMixin {
   bool _playing = false;
   bool _showBurst = false;
-  String get _ownerKey => 'home_post_${widget.post.id}';
+  String get _ownerKey => 'home_post_${widget.post.handle}';
   Color? _albumColor; // Extracted from album art
 
   late final AnimationController _burstCtrl;
