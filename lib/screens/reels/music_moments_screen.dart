@@ -175,7 +175,7 @@ class _MusicMomentsScreenState extends State<MusicMomentsScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('echo chain',
-                    style: TextStyle(color: AuraTheme.text, fontSize: 18,
+                    style: TextStyle(color: AuraTheme.textPrimary, fontSize: 18,
                         fontWeight: FontWeight.w800)),
                 Text(
                   '${widget.song} · ${widget.artist}',
@@ -293,7 +293,7 @@ class _SongHeader extends StatelessWidget {
         Expanded(child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(song, style: const TextStyle(color: AuraTheme.text,
+            Text(song, style: const TextStyle(color: AuraTheme.textPrimary,
                 fontSize: 15, fontWeight: FontWeight.w700),
                 maxLines: 1, overflow: TextOverflow.ellipsis),
             Text(artist, style: const TextStyle(
@@ -395,7 +395,7 @@ class _MomentTileState extends State<_MomentTile> {
               children: [
                 Row(children: [
                   Text(m.displayName,
-                      style: const TextStyle(color: AuraTheme.text,
+                      style: const TextStyle(color: AuraTheme.textPrimary,
                           fontSize: 13, fontWeight: FontWeight.w600)),
                   if (widget.isOriginal) ...[
                     const SizedBox(width: 6),
@@ -501,7 +501,7 @@ class _MomentTileState extends State<_MomentTile> {
             ]),
           ] else if (m.caption.isNotEmpty) ...[
             const SizedBox(height: 6),
-            Text(m.caption, style: const TextStyle(color: AuraTheme.text,
+            Text(m.caption, style: const TextStyle(color: AuraTheme.textPrimary,
                 fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
           ],
 
@@ -555,3 +555,4 @@ String _timeAgo(DateTime dt) {
   if (diff.inHours < 24) return '${diff.inHours}h';
   return '${diff.inDays}d';
 }
+
