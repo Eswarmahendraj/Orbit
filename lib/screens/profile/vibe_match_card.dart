@@ -184,7 +184,7 @@ class _VibeMatchSheet extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             'You & ${theirName.split(' ').first}',
-            style: TextStyle(color: theme.textSecondary, fontSize: 14),
+            style: TextStyle(color: AuraTheme.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 28),
 
@@ -234,7 +234,7 @@ class _VibeMatchSheet extends StatelessWidget {
               child: Text(
                 'You two are from different musical worlds — could be exciting!',
                 style: TextStyle(
-                    color: theme.textSecondary, fontSize: 14),
+                    color: AuraTheme.textSecondary, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -254,7 +254,7 @@ class _SectionHeader extends StatelessWidget {
         alignment: Alignment.centerLeft,
         child: Text(label,
             style: TextStyle(
-                color: theme.textSecondary,
+                color: AuraTheme.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 letterSpacing: 0.5)),
