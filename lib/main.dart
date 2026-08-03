@@ -28,6 +28,17 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Ensure every user has a Firebase UID so Firestore, battles, reactions etc. work.
+  // Anonymous auth is silent — no sign-in screen needed.
+  if (FirebaseAuth.instance.currentUser == null) {
+    try {
+      await FirebaseAuth.instance.signInAnonymously();
+    } catch (_) {
+      // No internet / auth service down — continue anyway, features degrade gracefully
+    }
+  }
+
   await ApiConfig.loadKey();    // restore saved Claude API key
   await OrbitState().load();
   await SpotifyService().load(); // restore saved Spotify tokens

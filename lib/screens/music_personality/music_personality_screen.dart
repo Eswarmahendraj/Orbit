@@ -1,10 +1,10 @@
 import 'dart:math' as math;
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
-import '../../services/audio_player_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Music Personality Type — Model
@@ -320,15 +320,14 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
   Future<void> _load() async {
     final state = Provider.of<OrbitState>(context, listen: false);
     final svc = MusicPersonalityService();
-    MusicPersonality? p = await svc.getPersonality(state.uid);
+    MusicPersonality? p = await svc.getPersonality(FirebaseAuth.instance.currentUser?.uid ?? '');
     if (p == null) {
-      final player = AudioPlayerService();
       p = await svc.generatePersonality(
-        uid: state.uid,
+        uid: FirebaseAuth.instance.currentUser?.uid ?? '',
         mood: state.mood ?? '',
         moodEmoji: state.moodEmoji ?? '',
-        nowPlayingTitle: player.currentTitle,
-        nowPlayingArtist: player.currentArtist,
+        nowPlayingTitle: state.vibeSong,
+        nowPlayingArtist: state.vibeArtist,
       );
     }
     if (mounted) {
@@ -342,16 +341,15 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
 
   Future<void> _regenerate() async {
     final state = Provider.of<OrbitState>(context, listen: false);
-    final player = AudioPlayerService();
     setState(() => _regenerating = true);
     _controller.reverse();
     await Future.delayed(const Duration(milliseconds: 300));
     final p = await MusicPersonalityService().regenerate(
-      uid: state.uid,
+      uid: FirebaseAuth.instance.currentUser?.uid ?? '',
       mood: state.mood ?? '',
       moodEmoji: state.moodEmoji ?? '',
-      nowPlayingTitle: player.currentTitle,
-      nowPlayingArtist: player.currentArtist,
+      nowPlayingTitle: state.vibeSong,
+      nowPlayingArtist: state.vibeArtist,
     );
     if (mounted) {
       setState(() {
@@ -364,16 +362,15 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
     return Scaffold(
-      backgroundColor: theme.background,
+      backgroundColor: AuraTheme.background,
       appBar: AppBar(
-        backgroundColor: theme.background,
+        backgroundColor: AuraTheme.background,
         elevation: 0,
         title: Text(
           'Music Personality',
           style: TextStyle(
-              color: theme.textPrimary,
+              color: AuraTheme.textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.w800),
         ),
@@ -382,24 +379,24 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
             TextButton.icon(
               onPressed: _regenerate,
               icon: Icon(Icons.refresh_rounded,
-                  color: theme.accent, size: 18),
+                  color: AuraTheme.accent, size: 18),
               label: Text(
                 'Retry',
                 style: TextStyle(
-                    color: theme.accent, fontWeight: FontWeight.w700),
+                    color: AuraTheme.accent, fontWeight: FontWeight.w700),
               ),
             ),
         ],
       ),
       body: _loading
-          ? _buildLoading(theme)
+          ? _buildLoading()
           : _personality == null
-              ? _buildEmpty(theme)
-              : _buildContent(theme),
+              ? _buildEmpty()
+              : _buildContent(),
     );
   }
 
-  Widget _buildLoading(AuraTheme theme) {
+  Widget _buildLoading() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -408,7 +405,7 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
             width: 56,
             height: 56,
             child: CircularProgressIndicator(
-              color: theme.accent,
+              color: AuraTheme.accent,
               strokeWidth: 3,
             ),
           ),
@@ -416,7 +413,7 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
           Text(
             'Analyzing your sound...',
             style: TextStyle(
-                color: theme.textSecondary,
+                color: AuraTheme.textSecondary,
                 fontSize: 16,
                 fontWeight: FontWeight.w600),
           ),
@@ -425,7 +422,7 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
     );
   }
 
-  Widget _buildEmpty(AuraTheme theme) {
+  Widget _buildEmpty() {
     return Center(
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -436,13 +433,13 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
           const SizedBox(height: 16),
           Text(
             'Could not generate personality',
-            style: TextStyle(color: theme.textSecondary, fontSize: 15),
+            style: TextStyle(color: AuraTheme.textSecondary, fontSize: 15),
           ),
           const SizedBox(height: 16),
           ElevatedButton(
             onPressed: _load,
             style: ElevatedButton.styleFrom(
-              backgroundColor: theme.accent,
+              backgroundColor: AuraTheme.accent,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(12)),
@@ -454,7 +451,7 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
     );
   }
 
-  Widget _buildContent(AuraTheme theme) {
+  Widget _buildContent() {
     final p = _personality!;
     return AnimatedBuilder(
       animation: _controller,
@@ -478,7 +475,7 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
             Text(
               'About Your Type',
               style: TextStyle(
-                  color: theme.textSecondary,
+                  color: AuraTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.6),
@@ -488,13 +485,13 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
               width: double.infinity,
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: theme.cardBackground,
+                color: AuraTheme.card,
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
                 p.description,
                 style: TextStyle(
-                    color: theme.textPrimary,
+                    color: AuraTheme.textPrimary,
                     fontSize: 15,
                     height: 1.65),
               ),
@@ -505,7 +502,7 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
             Text(
               'Your Traits',
               style: TextStyle(
-                  color: theme.textSecondary,
+                  color: AuraTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.6),
@@ -514,7 +511,7 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
             Wrap(
               spacing: 10,
               runSpacing: 10,
-              children: p.traits.map((t) => _TraitChip(trait: t, theme: theme, gradient: p.gradient)).toList(),
+              children: p.traits.map((t) => _TraitChip(trait: t, gradient: p.gradient)).toList(),
             ),
             const SizedBox(height: 24),
 
@@ -522,7 +519,7 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
             Text(
               'All Personality Types',
               style: TextStyle(
-                  color: theme.textSecondary,
+                  color: AuraTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.6),
@@ -531,7 +528,6 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
             ..._kPersonalities.map((pt) => _TypeRow(
                   template: pt,
                   isMe: pt.key == p.typeKey,
-                  theme: theme,
                 )),
 
             const SizedBox(height: 24),
@@ -546,16 +542,16 @@ class _MusicPersonalityScreenState extends State<MusicPersonalityScreen>
                         width: 16,
                         height: 16,
                         child: CircularProgressIndicator(
-                            strokeWidth: 2, color: theme.accent))
+                            strokeWidth: 2, color: AuraTheme.accent))
                     : Icon(Icons.shuffle_rounded,
-                        color: theme.accent, size: 18),
+                        color: AuraTheme.accent, size: 18),
                 label: Text(
                   _regenerating ? 'Analyzing...' : 'Discover a New Type',
                   style: TextStyle(
-                      color: theme.accent, fontWeight: FontWeight.w700),
+                      color: AuraTheme.accent, fontWeight: FontWeight.w700),
                 ),
                 style: OutlinedButton.styleFrom(
-                  side: BorderSide(color: theme.accent.withOpacity(0.5)),
+                  side: BorderSide(color: AuraTheme.accent.withOpacity(0.5)),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
                   padding: const EdgeInsets.symmetric(vertical: 14),
@@ -683,10 +679,9 @@ class _PersonalityHeroCard extends StatelessWidget {
 
 class _TraitChip extends StatelessWidget {
   final String trait;
-  final AuraTheme theme;
   final List<Color> gradient;
   const _TraitChip(
-      {required this.trait, required this.theme, required this.gradient});
+      {required this.trait, required this.gradient});
 
   @override
   Widget build(BuildContext context) {
@@ -696,7 +691,7 @@ class _TraitChip extends StatelessWidget {
         gradient: LinearGradient(
             colors: gradient.isNotEmpty
                 ? gradient
-                : [theme.accent, theme.accentSecondary]),
+                : [AuraTheme.accent, AuraTheme.purple]),
         borderRadius: BorderRadius.circular(20),
       ),
       child: Text(
@@ -718,9 +713,8 @@ class _TraitChip extends StatelessWidget {
 class _TypeRow extends StatelessWidget {
   final _PersonalityTemplate template;
   final bool isMe;
-  final AuraTheme theme;
   const _TypeRow(
-      {required this.template, required this.isMe, required this.theme});
+      {required this.template, required this.isMe});
 
   @override
   Widget build(BuildContext context) {
@@ -729,11 +723,11 @@ class _TypeRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
         color: isMe
-            ? theme.accent.withOpacity(0.12)
-            : theme.cardBackground,
+            ? AuraTheme.accent.withOpacity(0.12)
+            : AuraTheme.card,
         borderRadius: BorderRadius.circular(14),
         border: isMe
-            ? Border.all(color: theme.accent.withOpacity(0.4), width: 1.5)
+            ? Border.all(color: AuraTheme.accent.withOpacity(0.4), width: 1.5)
             : null,
       ),
       child: Row(
@@ -762,14 +756,14 @@ class _TypeRow extends StatelessWidget {
                 Text(
                   template.title,
                   style: TextStyle(
-                      color: theme.textPrimary,
+                      color: AuraTheme.textPrimary,
                       fontSize: 14,
                       fontWeight: FontWeight.w700),
                 ),
                 Text(
                   template.subheadline,
                   style: TextStyle(
-                      color: theme.textMuted,
+                      color: AuraTheme.textMuted,
                       fontSize: 12),
                 ),
               ],
@@ -780,7 +774,7 @@ class _TypeRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                   horizontal: 10, vertical: 4),
               decoration: BoxDecoration(
-                color: theme.accent,
+                color: AuraTheme.accent,
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Text(

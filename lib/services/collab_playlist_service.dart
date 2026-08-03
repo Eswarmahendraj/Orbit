@@ -102,11 +102,13 @@ class CollabPlaylistService {
         .orderBy('createdAt', descending: true)
         .snapshots()
         .map((s) =>
-            s.docs.map((d) => CollabPlaylist.fromFirestore(d)).toList());
+            s.docs.map((d) => CollabPlaylist.fromFirestore(d)).toList())
+        .handleError((_) => <CollabPlaylist>[]);
   }
 
   Stream<CollabPlaylist?> playlistStream(String playlistId) {
     return _col.doc(playlistId).snapshots().map(
-        (d) => d.exists ? CollabPlaylist.fromFirestore(d) : null);
+        (d) => d.exists ? CollabPlaylist.fromFirestore(d) : null)
+        .handleError((_) => null);
   }
 }

@@ -1,16 +1,13 @@
 import 'dart:async';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../models/orbit_state.dart';
 import '../../theme/aura_theme.dart';
-import '../../services/audio_player_service.dart';
 import 'live_room_service.dart';
 import 'live_room_model.dart';
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Live Rooms Discovery Screen
-// ─────────────────────────────────────────────────────────────────────────────
 class LiveRoomsScreen extends StatefulWidget {
   const LiveRoomsScreen({super.key});
 
@@ -24,21 +21,20 @@ class _LiveRoomsScreenState extends State<LiveRoomsScreen> {
   @override
   Widget build(BuildContext context) {
     final state = context.watch<OrbitState>();
-    final theme = AuraTheme.current;
 
     return Scaffold(
-      backgroundColor: theme.background,
+      backgroundColor: AuraTheme.background,
       appBar: AppBar(
-        backgroundColor: theme.background,
+        backgroundColor: AuraTheme.background,
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new_rounded,
-              color: theme.textPrimary, size: 20),
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: AuraTheme.textPrimary, size: 20),
           onPressed: () => Navigator.pop(context),
         ),
-        title: Text('Live Rooms',
+        title: const Text('Live Rooms',
             style: TextStyle(
-                color: theme.textPrimary,
+                color: AuraTheme.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w700)),
         actions: [
@@ -48,17 +44,17 @@ class _LiveRoomsScreenState extends State<LiveRoomsScreen> {
               margin: const EdgeInsets.only(right: 16),
               padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  colors: [theme.accent, theme.accentSecondary],
+                gradient: const LinearGradient(
+                  colors: [AuraTheme.accent, AuraTheme.purple],
                 ),
                 borderRadius: BorderRadius.circular(20),
               ),
-              child: Row(
+              child: const Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  const Icon(Icons.add_rounded, color: Colors.white, size: 16),
-                  const SizedBox(width: 4),
-                  const Text('Start Room',
+                  Icon(Icons.add_rounded, color: Colors.white, size: 16),
+                  SizedBox(width: 4),
+                  Text('Start Room',
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 13,
@@ -73,13 +69,12 @@ class _LiveRoomsScreenState extends State<LiveRoomsScreen> {
         stream: _service.activeRoomsStream(),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
-            return Center(
-                child: CircularProgressIndicator(color: theme.accent));
+            return const Center(
+                child: CircularProgressIndicator(color: AuraTheme.accent));
           }
           final rooms = snap.data ?? [];
           if (rooms.isEmpty) {
             return _EmptyRoomsView(
-              theme: theme,
               onStart: () => _showCreateRoomSheet(context, state),
             );
           }
@@ -88,7 +83,6 @@ class _LiveRoomsScreenState extends State<LiveRoomsScreen> {
             itemCount: rooms.length,
             itemBuilder: (context, i) => _RoomCard(
               room: rooms[i],
-              theme: theme,
               onTap: () => _joinRoom(context, rooms[i], state),
             ),
           );
@@ -103,7 +97,7 @@ class _LiveRoomsScreenState extends State<LiveRoomsScreen> {
       MaterialPageRoute(
         builder: (_) => LiveRoomActiveScreen(
           room: room,
-          isHost: room.hostUid == state.uid,
+          isHost: room.hostUid == (FirebaseAuth.instance.currentUser?.uid ?? ''),
         ),
       ),
     );
@@ -119,16 +113,11 @@ class _LiveRoomsScreenState extends State<LiveRoomsScreen> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Room Card
-// ─────────────────────────────────────────────────────────────────────────────
 class _RoomCard extends StatelessWidget {
   final LiveRoom room;
-  final AuraTheme theme;
   final VoidCallback onTap;
 
-  const _RoomCard(
-      {required this.room, required this.theme, required this.onTap});
+  const _RoomCard({required this.room, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -138,16 +127,15 @@ class _RoomCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 14),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: theme.cardBackground,
+          color: AuraTheme.card,
           borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: theme.divider.withOpacity(0.5)),
+          border: Border.all(color: const Color(0xFF1E1E30)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                // Live indicator
                 Container(
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -173,48 +161,52 @@ class _RoomCard extends StatelessWidget {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: theme.accent.withOpacity(0.15),
+                    color: Color(0x26FF6B00),
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: Text(room.genre,
-                      style: TextStyle(
-                          color: theme.accent,
+                      style: const TextStyle(
+                          color: AuraTheme.accent,
                           fontSize: 11,
                           fontWeight: FontWeight.w600)),
                 ),
                 const Spacer(),
-                Icon(Icons.people_rounded, color: theme.textMuted, size: 14),
+                const Icon(Icons.people_rounded,
+                    color: AuraTheme.textMuted, size: 14),
                 const SizedBox(width: 4),
                 Text('${room.listenerCount}',
-                    style: TextStyle(
-                        color: theme.textMuted,
+                    style: const TextStyle(
+                        color: AuraTheme.textMuted,
                         fontSize: 13,
                         fontWeight: FontWeight.w500)),
               ],
             ),
             const SizedBox(height: 12),
             Text(room.title,
-                style: TextStyle(
-                    color: theme.textPrimary,
+                style: const TextStyle(
+                    color: AuraTheme.textPrimary,
                     fontSize: 16,
                     fontWeight: FontWeight.w700)),
             const SizedBox(height: 6),
             Row(
               children: [
                 Text('${room.hostEmoji} ${room.hostName}',
-                    style: TextStyle(
-                        color: theme.textSecondary,
+                    style: const TextStyle(
+                        color: AuraTheme.textSecondary,
                         fontSize: 13,
                         fontWeight: FontWeight.w500)),
                 const SizedBox(width: 8),
-                Text('·', style: TextStyle(color: theme.textMuted)),
+                const Text('·',
+                    style: TextStyle(color: AuraTheme.textMuted)),
                 const SizedBox(width: 8),
-                Icon(Icons.music_note_rounded, color: theme.accent, size: 14),
+                const Icon(Icons.music_note_rounded,
+                    color: AuraTheme.accent, size: 14),
                 const SizedBox(width: 4),
                 Expanded(
                   child: Text(
                     '${room.currentSongTitle} — ${room.currentArtist}',
-                    style: TextStyle(color: theme.accent, fontSize: 13),
+                    style: const TextStyle(
+                        color: AuraTheme.accent, fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -227,9 +219,6 @@ class _RoomCard extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Active Room Screen
-// ─────────────────────────────────────────────────────────────────────────────
 class LiveRoomActiveScreen extends StatefulWidget {
   final LiveRoom room;
   final bool isHost;
@@ -249,7 +238,6 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
 
   late AnimationController _pulseController;
   final List<_FloatingReaction> _floatingReactions = [];
-  Timer? _cleanupTimer;
 
   final List<String> _reactionEmojis = ['🔥', '💜', '🎵', '⚡', '😭', '🙌'];
 
@@ -260,11 +248,8 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
       vsync: this,
       duration: const Duration(seconds: 2),
     )..repeat();
-
-    // Join room
-    final state =
-        Provider.of<OrbitState>(context, listen: false);
-    _service.joinRoom(widget.room.id, state.uid ?? '');
+    final state = Provider.of<OrbitState>(context, listen: false);
+    _service.joinRoom(widget.room.id, FirebaseAuth.instance.currentUser?.uid ?? '');
   }
 
   @override
@@ -272,10 +257,8 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
     _pulseController.dispose();
     _msgController.dispose();
     _scrollController.dispose();
-    _cleanupTimer?.cancel();
-    final state =
-        Provider.of<OrbitState>(context, listen: false);
-    _service.leaveRoom(widget.room.id, state.uid ?? '');
+    final state = Provider.of<OrbitState>(context, listen: false);
+    _service.leaveRoom(widget.room.id, FirebaseAuth.instance.currentUser?.uid ?? '');
     if (widget.isHost) _service.closeRoom(widget.room.id);
     super.dispose();
   }
@@ -284,12 +267,11 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
     final state = Provider.of<OrbitState>(context, listen: false);
     _service.sendReaction(
       roomId: widget.room.id,
-      uid: state.uid ?? '',
+      uid: FirebaseAuth.instance.currentUser?.uid ?? '',
       displayName: state.displayName,
       userEmoji: state.moodEmoji,
       reactionEmoji: emoji,
     );
-    // Add floating reaction locally
     setState(() {
       _floatingReactions.add(_FloatingReaction(
         emoji: emoji,
@@ -298,11 +280,8 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
       ));
     });
     Future.delayed(const Duration(seconds: 2), () {
-      if (mounted) {
-        setState(() {
-          _floatingReactions.removeWhere(
-              (r) => r.id == _floatingReactions.first.id);
-        });
+      if (mounted && _floatingReactions.isNotEmpty) {
+        setState(() => _floatingReactions.removeAt(0));
       }
     });
   }
@@ -312,7 +291,7 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
     final state = Provider.of<OrbitState>(context, listen: false);
     _service.sendMessage(
       roomId: widget.room.id,
-      uid: state.uid ?? '',
+      uid: FirebaseAuth.instance.currentUser?.uid ?? '',
       displayName: state.displayName,
       userEmoji: state.moodEmoji,
       text: _msgController.text.trim(),
@@ -322,43 +301,37 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
-
     return StreamBuilder<LiveRoom?>(
       stream: _service.roomStream(widget.room.id),
       builder: (context, roomSnap) {
         final room = roomSnap.data ?? widget.room;
 
         return Scaffold(
-          backgroundColor: theme.background,
+          backgroundColor: AuraTheme.background,
           body: Stack(
             children: [
-              // Background gradient
               Container(
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   gradient: LinearGradient(
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
-                    colors: [
-                      theme.accent.withOpacity(0.15),
-                      theme.background,
-                    ],
+                    colors: [Color(0x26FF6B00), AuraTheme.background],
                   ),
                 ),
               ),
-
               SafeArea(
                 child: Column(
                   children: [
-                    // ── Header ───────────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
                       child: Row(
                         children: [
                           GestureDetector(
                             onTap: () => Navigator.pop(context),
-                            child: Icon(Icons.keyboard_arrow_down_rounded,
-                                color: theme.textPrimary, size: 28),
+                            child: const Icon(
+                                Icons.keyboard_arrow_down_rounded,
+                                color: AuraTheme.textPrimary,
+                                size: 28),
                           ),
                           const Spacer(),
                           Container(
@@ -383,12 +356,12 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Icon(Icons.people_rounded,
-                              color: theme.textMuted, size: 16),
+                          const Icon(Icons.people_rounded,
+                              color: AuraTheme.textMuted, size: 16),
                           const SizedBox(width: 4),
                           Text('${room.listenerCount}',
-                              style: TextStyle(
-                                  color: theme.textMuted, fontSize: 13)),
+                              style: const TextStyle(
+                                  color: AuraTheme.textMuted, fontSize: 13)),
                           const SizedBox(width: 8),
                           if (widget.isHost)
                             GestureDetector(
@@ -396,19 +369,16 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                                 await _service.closeRoom(widget.room.id);
                                 if (mounted) Navigator.pop(context);
                               },
-                              child: Icon(Icons.stop_circle_rounded,
+                              child: const Icon(Icons.stop_circle_rounded,
                                   color: Colors.red, size: 24),
                             ),
                         ],
                       ),
                     ),
-
-                    // ── Now Playing ──────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.all(24),
                       child: Column(
                         children: [
-                          // Album art circle with pulse
                           AnimatedBuilder(
                             animation: _pulseController,
                             builder: (_, child) {
@@ -423,8 +393,8 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                               height: 140,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                gradient: LinearGradient(
-                                  colors: [theme.accent, theme.accentSecondary],
+                                gradient: const LinearGradient(
+                                  colors: [AuraTheme.accent, AuraTheme.purple],
                                 ),
                                 image: room.artUrl != null
                                     ? DecorationImage(
@@ -441,33 +411,34 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                           ),
                           const SizedBox(height: 16),
                           Text(room.title,
-                              style: TextStyle(
-                                  color: theme.textPrimary,
+                              style: const TextStyle(
+                                  color: AuraTheme.textPrimary,
                                   fontSize: 18,
                                   fontWeight: FontWeight.w700)),
                           const SizedBox(height: 4),
                           Text(
                               '${room.hostEmoji} ${room.hostName} is DJing',
-                              style: TextStyle(
-                                  color: theme.textSecondary, fontSize: 13)),
+                              style: const TextStyle(
+                                  color: AuraTheme.textSecondary,
+                                  fontSize: 13)),
                           const SizedBox(height: 8),
                           Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 12, vertical: 6),
                             decoration: BoxDecoration(
-                              color: theme.accent.withOpacity(0.12),
+                              color: AuraTheme.accent.withOpacity(0.12),
                               borderRadius: BorderRadius.circular(20),
                             ),
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                Icon(Icons.music_note_rounded,
-                                    color: theme.accent, size: 14),
+                                const Icon(Icons.music_note_rounded,
+                                    color: AuraTheme.accent, size: 14),
                                 const SizedBox(width: 6),
                                 Text(
                                     '${room.currentSongTitle} — ${room.currentArtist}',
-                                    style: TextStyle(
-                                        color: theme.accent,
+                                    style: const TextStyle(
+                                        color: AuraTheme.accent,
                                         fontSize: 13,
                                         fontWeight: FontWeight.w600)),
                               ],
@@ -476,8 +447,6 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                         ],
                       ),
                     ),
-
-                    // ── Reaction bar ─────────────────────────────────────────
                     Padding(
                       padding: const EdgeInsets.symmetric(horizontal: 16),
                       child: Row(
@@ -488,26 +457,20 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                                   child: Container(
                                     width: 46,
                                     height: 46,
-                                    decoration: BoxDecoration(
-                                      color: theme.cardBackground,
+                                    decoration: const BoxDecoration(
+                                      color: AuraTheme.card,
                                       shape: BoxShape.circle,
-                                      border: Border.all(
-                                          color: theme.divider.withOpacity(0.4)),
                                     ),
                                     child: Center(
                                       child: Text(e,
-                                          style:
-                                              const TextStyle(fontSize: 22)),
+                                          style: const TextStyle(fontSize: 22)),
                                     ),
                                   ),
                                 ))
                             .toList(),
                       ),
                     ),
-
                     const SizedBox(height: 12),
-
-                    // ── Messages ─────────────────────────────────────────────
                     Expanded(
                       child: StreamBuilder<List<LiveRoomMessage>>(
                         stream: _service.messagesStream(widget.room.id),
@@ -527,17 +490,15 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 8),
                             itemCount: msgs.length,
-                            itemBuilder: (_, i) => _MessageBubble(
-                                msg: msgs[i], theme: theme),
+                            itemBuilder: (_, i) =>
+                                _MessageBubble(msg: msgs[i]),
                           );
                         },
                       ),
                     ),
-
-                    // ── Chat input ───────────────────────────────────────────
                     Container(
                       padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
-                      color: theme.background,
+                      color: AuraTheme.background,
                       child: Row(
                         children: [
                           Expanded(
@@ -545,19 +506,21 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                               padding: const EdgeInsets.symmetric(
                                   horizontal: 16, vertical: 10),
                               decoration: BoxDecoration(
-                                color: theme.cardBackground,
+                                color: AuraTheme.card,
                                 borderRadius: BorderRadius.circular(24),
-                                border: Border.all(
-                                    color: theme.divider.withOpacity(0.4)),
+                                border: const Border.fromBorderSide(
+                                  BorderSide(color: Color(0xFF1E1E30)),
+                                ),
                               ),
                               child: TextField(
                                 controller: _msgController,
-                                style: TextStyle(
-                                    color: theme.textPrimary, fontSize: 14),
-                                decoration: InputDecoration(
+                                style: const TextStyle(
+                                    color: AuraTheme.textPrimary,
+                                    fontSize: 14),
+                                decoration: const InputDecoration(
                                   hintText: 'Say something...',
-                                  hintStyle:
-                                      TextStyle(color: theme.textMuted),
+                                  hintStyle: TextStyle(
+                                      color: AuraTheme.textMuted),
                                   border: InputBorder.none,
                                   isDense: true,
                                   contentPadding: EdgeInsets.zero,
@@ -572,10 +535,10 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                             child: Container(
                               width: 42,
                               height: 42,
-                              decoration: BoxDecoration(
+                              decoration: const BoxDecoration(
                                 gradient: LinearGradient(colors: [
-                                  theme.accent,
-                                  theme.accentSecondary
+                                  AuraTheme.accent,
+                                  AuraTheme.purple,
                                 ]),
                                 shape: BoxShape.circle,
                               ),
@@ -589,9 +552,8 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
                   ],
                 ),
               ),
-
-              // ── Floating reactions ────────────────────────────────────────
-              ..._floatingReactions.map((r) => _FloatingReactionWidget(r: r)),
+              ..._floatingReactions
+                  .map((r) => _FloatingReactionWidget(r: r)),
             ],
           ),
         );
@@ -600,14 +562,9 @@ class _LiveRoomActiveScreenState extends State<LiveRoomActiveScreen>
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Message Bubble
-// ─────────────────────────────────────────────────────────────────────────────
 class _MessageBubble extends StatelessWidget {
   final LiveRoomMessage msg;
-  final AuraTheme theme;
-
-  const _MessageBubble({required this.msg, required this.theme});
+  const _MessageBubble({required this.msg});
 
   @override
   Widget build(BuildContext context) {
@@ -620,12 +577,12 @@ class _MessageBubble extends StatelessWidget {
             Text(msg.emoji, style: const TextStyle(fontSize: 12)),
             const SizedBox(width: 4),
             Text(msg.displayName,
-                style:
-                    TextStyle(color: theme.textMuted, fontSize: 11)),
+                style: const TextStyle(
+                    color: AuraTheme.textMuted, fontSize: 11)),
             const SizedBox(width: 4),
             Text('reacted ${msg.text}',
-                style:
-                    TextStyle(color: theme.textMuted, fontSize: 11)),
+                style: const TextStyle(
+                    color: AuraTheme.textMuted, fontSize: 11)),
           ],
         ),
       );
@@ -643,15 +600,15 @@ class _MessageBubble extends StatelessWidget {
                 children: [
                   TextSpan(
                     text: '${msg.displayName}  ',
-                    style: TextStyle(
-                        color: theme.accent,
+                    style: const TextStyle(
+                        color: AuraTheme.accent,
                         fontSize: 13,
                         fontWeight: FontWeight.w600),
                   ),
                   TextSpan(
                     text: msg.text,
-                    style: TextStyle(
-                        color: theme.textPrimary, fontSize: 13),
+                    style: const TextStyle(
+                        color: AuraTheme.textPrimary, fontSize: 13),
                   ),
                 ],
               ),
@@ -663,9 +620,6 @@ class _MessageBubble extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Create Room Sheet
-// ─────────────────────────────────────────────────────────────────────────────
 class _CreateRoomSheet extends StatefulWidget {
   final OrbitState state;
   const _CreateRoomSheet({required this.state});
@@ -684,8 +638,6 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
-    final audio = AudioPlayerService();
 
     return Container(
       padding: EdgeInsets.only(
@@ -693,9 +645,9 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
           left: 24,
           right: 24,
           top: 24),
-      decoration: BoxDecoration(
-        color: theme.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: const BoxDecoration(
+        color: AuraTheme.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -706,27 +658,26 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
               width: 36,
               height: 4,
               decoration: BoxDecoration(
-                color: theme.divider,
+                color: const Color(0xFF1E1E30),
                 borderRadius: BorderRadius.circular(2),
               ),
             ),
           ),
           const SizedBox(height: 20),
-          Text('Start a Live Room',
+          const Text('Start a Live Room',
               style: TextStyle(
-                  color: theme.textPrimary,
+                  color: AuraTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 20),
-          // Title
           TextField(
             controller: _titleController,
-            style: TextStyle(color: theme.textPrimary),
+            style: const TextStyle(color: AuraTheme.textPrimary),
             decoration: InputDecoration(
               hintText: 'Room name (e.g. "Sunday Morning Feels")',
-              hintStyle: TextStyle(color: theme.textMuted),
+              hintStyle: const TextStyle(color: AuraTheme.textMuted),
               filled: true,
-              fillColor: theme.cardBackground,
+              fillColor: AuraTheme.card,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
                 borderSide: BorderSide.none,
@@ -734,10 +685,9 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          // Genre chips
-          Text('Vibe',
+          const Text('Vibe',
               style: TextStyle(
-                  color: theme.textSecondary,
+                  color: AuraTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600)),
           const SizedBox(height: 8),
@@ -751,35 +701,35 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
                         labelStyle: TextStyle(
                           color: _selectedGenre == g
                               ? Colors.white
-                              : theme.textSecondary,
+                              : AuraTheme.textSecondary,
                           fontSize: 12,
                         ),
                         backgroundColor: _selectedGenre == g
-                            ? theme.accent
-                            : theme.cardBackground,
+                            ? AuraTheme.accent
+                            : AuraTheme.card,
                       ),
                     ))
                 .toList(),
           ),
           const SizedBox(height: 20),
-          // Current song info
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: theme.cardBackground,
+              color: AuraTheme.card,
               borderRadius: BorderRadius.circular(12),
             ),
             child: Row(
               children: [
-                Icon(Icons.music_note_rounded, color: theme.accent, size: 16),
+                const Icon(Icons.music_note_rounded,
+                    color: AuraTheme.accent, size: 16),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
-                    audio.currentTitle != null
-                        ? '${audio.currentTitle} — ${audio.currentArtist}'
+                    widget.state.vibeSong.isNotEmpty
+                        ? '${widget.state.vibeSong} — ${widget.state.vibeArtist}'
                         : 'No song playing — start one first',
-                    style: TextStyle(
-                        color: theme.textSecondary, fontSize: 13),
+                    style: const TextStyle(
+                        color: AuraTheme.textSecondary, fontSize: 13),
                     overflow: TextOverflow.ellipsis,
                   ),
                 ),
@@ -787,16 +737,15 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
             ),
           ),
           const SizedBox(height: 24),
-          // Create button
           SizedBox(
             width: double.infinity,
             child: GestureDetector(
-              onTap: _loading ? null : () => _createRoom(context, audio),
+              onTap: _loading ? null : () => _createRoom(context),
               child: Container(
                 padding: const EdgeInsets.symmetric(vertical: 16),
                 decoration: BoxDecoration(
-                  gradient: LinearGradient(
-                      colors: [theme.accent, theme.accentSecondary]),
+                  gradient: const LinearGradient(
+                      colors: [AuraTheme.accent, AuraTheme.purple]),
                   borderRadius: BorderRadius.circular(14),
                 ),
                 child: Center(
@@ -817,19 +766,18 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
     );
   }
 
-  Future<void> _createRoom(
-      BuildContext context, AudioPlayerService audio) async {
+  Future<void> _createRoom(BuildContext context) async {
     if (_titleController.text.trim().isEmpty) return;
     setState(() => _loading = true);
     try {
       final roomId = await _service.createRoom(
-        hostUid: widget.state.uid ?? '',
+        hostUid: FirebaseAuth.instance.currentUser?.uid ?? '',
         hostName: widget.state.displayName,
         hostEmoji: widget.state.moodEmoji,
         title: _titleController.text.trim(),
-        currentSongTitle: audio.currentTitle ?? 'No song',
-        currentArtist: audio.currentArtist ?? '',
-        artUrl: audio.currentArtUrl,
+        currentSongTitle: widget.state.vibeSong.isNotEmpty ? widget.state.vibeSong : 'No song',
+        currentArtist: widget.state.vibeArtist,
+        artUrl: widget.state.vibeArtUrl,
         genre: _selectedGenre,
       );
       if (!mounted) return;
@@ -840,15 +788,15 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
           builder: (_) => LiveRoomActiveScreen(
             room: LiveRoom(
               id: roomId,
-              hostUid: widget.state.uid ?? '',
+              hostUid: FirebaseAuth.instance.currentUser?.uid ?? '',
               hostName: widget.state.displayName,
               hostEmoji: widget.state.moodEmoji,
               title: _titleController.text.trim(),
-              currentSongTitle: audio.currentTitle ?? 'No song',
-              currentArtist: audio.currentArtist ?? '',
-              artUrl: audio.currentArtUrl,
-              listenerUids: [widget.state.uid ?? ''],
-              reactions: {},
+              currentSongTitle: widget.state.vibeSong.isNotEmpty ? widget.state.vibeSong : 'No song',
+              currentArtist: widget.state.vibeArtist,
+              artUrl: widget.state.vibeArtUrl,
+              listenerUids: [FirebaseAuth.instance.currentUser?.uid ?? ''],
+              reactions: <String, dynamic>{},
               isActive: true,
               createdAt: DateTime.now(),
               genre: _selectedGenre,
@@ -863,14 +811,9 @@ class _CreateRoomSheetState extends State<_CreateRoomSheet> {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Empty state
-// ─────────────────────────────────────────────────────────────────────────────
 class _EmptyRoomsView extends StatelessWidget {
-  final AuraTheme theme;
   final VoidCallback onStart;
-
-  const _EmptyRoomsView({required this.theme, required this.onStart});
+  const _EmptyRoomsView({required this.onStart});
 
   @override
   Widget build(BuildContext context) {
@@ -878,16 +821,17 @@ class _EmptyRoomsView extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Text('🎙️', style: const TextStyle(fontSize: 64)),
+          const Text('🎙️', style: TextStyle(fontSize: 64)),
           const SizedBox(height: 16),
-          Text('No live rooms right now',
+          const Text('No live rooms right now',
               style: TextStyle(
-                  color: theme.textPrimary,
+                  color: AuraTheme.textPrimary,
                   fontSize: 18,
                   fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
-          Text('Be the first to start one!',
-              style: TextStyle(color: theme.textSecondary, fontSize: 14)),
+          const Text('Be the first to start one!',
+              style: TextStyle(
+                  color: AuraTheme.textSecondary, fontSize: 14)),
           const SizedBox(height: 24),
           GestureDetector(
             onTap: onStart,
@@ -895,8 +839,8 @@ class _EmptyRoomsView extends StatelessWidget {
               padding:
                   const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: BoxDecoration(
-                gradient: LinearGradient(
-                    colors: [theme.accent, theme.accentSecondary]),
+                gradient: const LinearGradient(
+                    colors: [AuraTheme.accent, AuraTheme.purple]),
                 borderRadius: BorderRadius.circular(24),
               ),
               child: const Text('Start a Room',
@@ -912,14 +856,10 @@ class _EmptyRoomsView extends StatelessWidget {
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Floating reaction
-// ─────────────────────────────────────────────────────────────────────────────
 class _FloatingReaction {
   final String emoji;
-  final double x; // 0.0–1.0 horizontal position
+  final double x;
   final int id;
-
   _FloatingReaction({required this.emoji, required this.x, required this.id});
 }
 

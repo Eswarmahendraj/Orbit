@@ -43,12 +43,9 @@ class _VibeMatchBadgeState extends State<VibeMatchBadge>
   }
 
   Future<void> _load() async {
-    // Try cache first
-    var result =
-        await _service.getCachedMatch(widget.myUid, widget.theirUid);
+    var result = await _service.getCachedMatch(widget.myUid, widget.theirUid);
     if (result == null) {
-      result =
-          await _service.computeMatch(widget.myUid, widget.theirUid);
+      result = await _service.computeMatch(widget.myUid, widget.theirUid);
       await _service.cacheMatch(widget.myUid, widget.theirUid, result);
     }
     if (mounted) setState(() { _result = result; _loading = false; });
@@ -56,8 +53,6 @@ class _VibeMatchBadgeState extends State<VibeMatchBadge>
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
-
     if (_loading) {
       return AnimatedBuilder(
         animation: _shimmer,
@@ -65,7 +60,7 @@ class _VibeMatchBadgeState extends State<VibeMatchBadge>
           width: 100,
           height: 32,
           decoration: BoxDecoration(
-            color: theme.cardBackground,
+            color: AuraTheme.card,
             borderRadius: BorderRadius.circular(20),
           ),
         ),
@@ -73,10 +68,10 @@ class _VibeMatchBadgeState extends State<VibeMatchBadge>
     }
 
     final r = _result!;
-    final color = _scoreColor(r.score, theme);
+    final color = _scoreColor(r.score);
 
     return GestureDetector(
-      onTap: () => _showBreakdown(context, r, theme),
+      onTap: () => _showBreakdown(context, r),
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
@@ -102,39 +97,32 @@ class _VibeMatchBadgeState extends State<VibeMatchBadge>
     );
   }
 
-  Color _scoreColor(int score, AuraTheme theme) {
+  Color _scoreColor(int score) {
     if (score >= 70) return Colors.orange;
-    if (score >= 50) return theme.accent;
+    if (score >= 50) return AuraTheme.accent;
     if (score >= 30) return Colors.blue;
-    return theme.textMuted;
+    return AuraTheme.textMuted;
   }
 
-  void _showBreakdown(
-      BuildContext context, VibeMatchResult r, AuraTheme theme) {
+  void _showBreakdown(BuildContext context, VibeMatchResult r) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       builder: (_) => _VibeMatchSheet(
         result: r,
         theirName: widget.theirName,
-        theme: theme,
       ),
     );
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Full breakdown sheet
-// ─────────────────────────────────────────────────────────────────────────────
 class _VibeMatchSheet extends StatelessWidget {
   final VibeMatchResult result;
   final String theirName;
-  final AuraTheme theme;
 
   const _VibeMatchSheet({
     required this.result,
     required this.theirName,
-    required this.theme,
   });
 
   @override
@@ -142,30 +130,26 @@ class _VibeMatchSheet extends StatelessWidget {
     final color = result.score >= 70
         ? Colors.orange
         : result.score >= 50
-            ? theme.accent
+            ? AuraTheme.accent
             : Colors.blue;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
-      decoration: BoxDecoration(
-        color: theme.background,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      decoration: const BoxDecoration(
+        color: AuraTheme.background,
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // Handle
           Container(
             width: 36, height: 4,
             decoration: BoxDecoration(
-                color: theme.divider,
+                color: const Color(0xFF1E1E30),
                 borderRadius: BorderRadius.circular(2)),
           ),
           const SizedBox(height: 24),
-
-          // Big score
-          Text(result.emoji,
-              style: const TextStyle(fontSize: 56)),
+          Text(result.emoji, style: const TextStyle(fontSize: 56)),
           const SizedBox(height: 12),
           Text(
             '${result.score}%',
@@ -176,65 +160,54 @@ class _VibeMatchSheet extends StatelessWidget {
           ),
           Text(
             result.label,
-            style: TextStyle(
-                color: theme.textPrimary,
+            style: const TextStyle(
+                color: AuraTheme.textPrimary,
                 fontSize: 20,
                 fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 6),
           Text(
             'You & ${theirName.split(' ').first}',
-            style: TextStyle(color: AuraTheme.textSecondary, fontSize: 14),
+            style: const TextStyle(color: AuraTheme.textSecondary, fontSize: 14),
           ),
           const SizedBox(height: 28),
-
-          // Score bar
           ClipRRect(
             borderRadius: BorderRadius.circular(8),
             child: LinearProgressIndicator(
               value: result.score / 100,
               minHeight: 10,
-              backgroundColor: theme.cardBackground,
+              backgroundColor: AuraTheme.card,
               valueColor: AlwaysStoppedAnimation(color),
             ),
           ),
           const SizedBox(height: 24),
-
-          // Common artists
           if (result.commonArtists.isNotEmpty) ...[
-            _SectionHeader(label: 'Artists you both love', theme: theme),
+            const _SectionHeader(label: 'Artists you both love'),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               children: result.commonArtists
-                  .map((a) => _Chip(label: a, theme: theme, color: color))
+                  .map((a) => _Chip(label: a, color: color))
                   .toList(),
             ),
             const SizedBox(height: 16),
           ],
-
-          // Common genres
           if (result.commonGenres.isNotEmpty) ...[
-            _SectionHeader(label: 'Shared genres', theme: theme),
+            const _SectionHeader(label: 'Shared genres'),
             const SizedBox(height: 10),
             Wrap(
               spacing: 8,
               children: result.commonGenres
-                  .map((g) => _Chip(
-                      label: g,
-                      theme: theme,
-                      color: theme.accentSecondary))
+                  .map((g) => _Chip(label: g, color: AuraTheme.purple))
                   .toList(),
             ),
           ],
-
           if (result.commonArtists.isEmpty && result.commonGenres.isEmpty)
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
               child: Text(
                 'You two are from different musical worlds — could be exciting!',
-                style: TextStyle(
-                    color: AuraTheme.textSecondary, fontSize: 14),
+                style: TextStyle(color: AuraTheme.textSecondary, fontSize: 14),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -246,14 +219,13 @@ class _VibeMatchSheet extends StatelessWidget {
 
 class _SectionHeader extends StatelessWidget {
   final String label;
-  final AuraTheme theme;
-  const _SectionHeader({required this.label, required this.theme});
+  const _SectionHeader({required this.label});
 
   @override
   Widget build(BuildContext context) => Align(
         alignment: Alignment.centerLeft,
         child: Text(label,
-            style: TextStyle(
+            style: const TextStyle(
                 color: AuraTheme.textSecondary,
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
@@ -263,15 +235,12 @@ class _SectionHeader extends StatelessWidget {
 
 class _Chip extends StatelessWidget {
   final String label;
-  final AuraTheme theme;
   final Color color;
-  const _Chip(
-      {required this.label, required this.theme, required this.color});
+  const _Chip({required this.label, required this.color});
 
   @override
   Widget build(BuildContext context) => Container(
-        padding:
-            const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           color: color.withOpacity(0.12),
           borderRadius: BorderRadius.circular(20),

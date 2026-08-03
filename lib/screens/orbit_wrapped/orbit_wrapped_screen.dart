@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'dart:ui' as ui;
@@ -6,9 +7,9 @@ import 'package:provider/provider.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// Orbit Wrapped â Annual Year-in-Review
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
+// Orbit Wrapped — Annual Year-in-Review
+// ─────────────────────────────────────────────────────────────────────────────
 
 class WrappedStats {
   final int totalMoments;
@@ -34,9 +35,9 @@ class WrappedStats {
   });
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 // Stats Loader
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 
 Future<WrappedStats> _loadWrappedStats(String uid) async {
   final db = FirebaseFirestore.instance;
@@ -64,7 +65,7 @@ Future<WrappedStats> _loadWrappedStats(String uid) async {
   final personalityTitle =
       personalitySnap.data()?['title'] as String? ?? 'Music Lover';
   final personalityEmoji =
-      personalitySnap.data()?['emoji'] as String? ?? 'ðµ';
+      personalitySnap.data()?['emoji'] as String? ?? '🎵';
 
   // Vibe matches made (cached docs where this user is uid)
   final vibeSnap = await db
@@ -106,9 +107,9 @@ Future<WrappedStats> _loadWrappedStats(String uid) async {
   );
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 // Screen
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 
 class OrbitWrappedScreen extends StatefulWidget {
   const OrbitWrappedScreen({super.key});
@@ -148,7 +149,8 @@ class _OrbitWrappedScreenState extends State<OrbitWrappedScreen>
 
   Future<void> _load() async {
     final state = Provider.of<OrbitState>(context, listen: false);
-    final stats = await _loadWrappedStats(state.uid);
+    final uid = FirebaseAuth.instance.currentUser?.uid ?? '';
+    final stats = await _loadWrappedStats(uid);
     if (mounted) {
       setState(() {
         _stats = stats;
@@ -175,21 +177,20 @@ class _OrbitWrappedScreenState extends State<OrbitWrappedScreen>
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
 
     if (_loading) {
       return Scaffold(
-        backgroundColor: theme.background,
+        backgroundColor: AuraTheme.background,
         body: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              CircularProgressIndicator(color: theme.accent),
+              CircularProgressIndicator(color: AuraTheme.accent),
               const SizedBox(height: 16),
               Text(
                 'Building your ${DateTime.now().year} Wrapped...',
                 style: TextStyle(
-                    color: theme.textSecondary,
+                    color: AuraTheme.textSecondary,
                     fontSize: 15,
                     fontWeight: FontWeight.w600),
               ),
@@ -313,9 +314,9 @@ class _OrbitWrappedScreenState extends State<OrbitWrappedScreen>
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// Slide 1 â Intro
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
+// Slide 1 — Intro
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _IntroSlide extends StatelessWidget {
   final WrappedStats stats;
@@ -336,7 +337,7 @@ class _IntroSlide extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text('ð', style: TextStyle(fontSize: 64)),
+            const Text('🌙', style: TextStyle(fontSize: 64)),
             const SizedBox(height: 24),
             Text(
               'orbit',
@@ -377,9 +378,9 @@ class _IntroSlide extends StatelessWidget {
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// Slide 2 â Top Artist
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
+// Slide 2 — Top Artist
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _TopArtistSlide extends StatelessWidget {
   final WrappedStats stats;
@@ -430,7 +431,7 @@ class _TopArtistSlide extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    const Text('ðµ', style: TextStyle(fontSize: 28)),
+                    const Text('🎵', style: TextStyle(fontSize: 28)),
                     const SizedBox(width: 12),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -463,9 +464,9 @@ class _TopArtistSlide extends StatelessWidget {
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// Slide 3 â Personality
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
+// Slide 3 — Personality
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _PersonalitySlide extends StatelessWidget {
   final WrappedStats stats;
@@ -510,7 +511,7 @@ class _PersonalitySlide extends StatelessWidget {
               ),
               const SizedBox(height: 32),
               Text(
-                'This is who you are as a listener.\nOwn it. ð®',
+                'This is who you are as a listener.\nOwn it. 🔮',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.8),
                   fontSize: 16,
@@ -526,9 +527,9 @@ class _PersonalitySlide extends StatelessWidget {
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// Slide 4 â Moments & Activity
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
+// Slide 4 — Moments & Activity
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _MomentsSlide extends StatelessWidget {
   final WrappedStats stats;
@@ -570,17 +571,17 @@ class _MomentsSlide extends StatelessWidget {
               ),
               const SizedBox(height: 28),
               _StatRow(
-                  emoji: 'ð¤',
+                  emoji: '🎤',
                   value: '${stats.totalMoments}',
                   label: 'Music Moments shared'),
               const SizedBox(height: 16),
               _StatRow(
-                  emoji: 'ð',
+                  emoji: '🔖',
                   value: '${stats.totalTimestamps}',
                   label: 'Song moments bookmarked'),
               const SizedBox(height: 16),
               _StatRow(
-                  emoji: 'ðµ',
+                  emoji: '🎵',
                   value: '${stats.playlistsCreated}',
                   label: 'Collab playlists started'),
             ],
@@ -627,9 +628,9 @@ class _StatRow extends StatelessWidget {
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// Slide 5 â Connections
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
+// Slide 5 — Connections
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ConnectionsSlide extends StatelessWidget {
   final WrappedStats stats;
@@ -651,7 +652,7 @@ class _ConnectionsSlide extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('ð', style: TextStyle(fontSize: 64)),
+              const Text('💞', style: TextStyle(fontSize: 64)),
               const SizedBox(height: 20),
               Text(
                 'Music brings people together',
@@ -675,7 +676,7 @@ class _ConnectionsSlide extends StatelessWidget {
               const SizedBox(height: 24),
               Text(
                 'You connected with ${stats.vibeMatchesMade} people '
-                'over music this year. That\'s your orbit. ð',
+                'over music this year. That\'s your orbit. 🌟',
                 style: TextStyle(
                   color: Colors.white.withOpacity(0.8),
                   fontSize: 16,
@@ -691,9 +692,9 @@ class _ConnectionsSlide extends StatelessWidget {
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-// Slide 6 â Share Card
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
+// Slide 6 — Share Card
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ShareSlide extends StatelessWidget {
   final WrappedStats stats;
@@ -736,7 +737,7 @@ class _ShareSlide extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          const Text('ð',
+                          const Text('🌙',
                               style: TextStyle(fontSize: 22)),
                           const SizedBox(width: 8),
                           Text(
@@ -819,7 +820,7 @@ class _ShareSlide extends StatelessWidget {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: const Row(children: [
-              Text('ð  '),
+              Text('🎉  '),
               Text('Wrapped card ready to share!',
                   style: TextStyle(fontWeight: FontWeight.w600)),
             ]),

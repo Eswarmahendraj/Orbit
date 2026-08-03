@@ -9,15 +9,14 @@ class LiveRoomService {
         .where('isActive', isEqualTo: true)
         .orderBy('createdAt', descending: true)
         .snapshots()
-        .map((snap) => snap.docs.map(LiveRoom.fromDoc).toList())
-        .handleError((_) => <LiveRoom>[]);
+        .map((snap) => snap.docs.map(LiveRoom.fromDoc).toList());
   }
 
   Stream<LiveRoom?> roomStream(String roomId) {
     return _rooms.doc(roomId).snapshots().map((doc) {
       if (!doc.exists) return null;
       return LiveRoom.fromDoc(doc);
-    }).handleError((_) => null);
+    });
   }
 
   Stream<List<LiveRoomMessage>> messagesStream(String roomId) {
@@ -27,8 +26,7 @@ class LiveRoomService {
         .orderBy('timestamp')
         .limitToLast(50)
         .snapshots()
-        .map((snap) => snap.docs.map(LiveRoomMessage.fromDoc).toList())
-        .handleError((_) => <LiveRoomMessage>[]);
+        .map((snap) => snap.docs.map(LiveRoomMessage.fromDoc).toList());
   }
 
   Future<String> createRoom({

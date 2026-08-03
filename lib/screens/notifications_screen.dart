@@ -109,7 +109,8 @@ class OrbitNotifService {
         .orderBy('createdAt', descending: true)
         .limit(50)
         .snapshots()
-        .map((s) => s.docs.map(OrbitNotif.fromFirestore).toList());
+        .map((s) => s.docs.map(OrbitNotif.fromFirestore).toList())
+        .handleError((_) => <OrbitNotif>[]);
   }
 
   Stream<int> unreadCountStream(String uid) {
@@ -117,7 +118,8 @@ class OrbitNotifService {
         .where('uid', isEqualTo: uid)
         .where('isRead', isEqualTo: false)
         .snapshots()
-        .map((s) => s.size);
+        .map((s) => s.size)
+        .handleError((_) => 0);
   }
 
   // ── Actions ────────────────────────────────────────────────────────────────

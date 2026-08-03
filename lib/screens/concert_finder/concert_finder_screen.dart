@@ -5,9 +5,9 @@ import 'package:provider/provider.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 // Concert Model
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ConcertEvent {
   final String id;
@@ -59,7 +59,7 @@ class ConcertEvent {
     if (priceRanges != null && priceRanges.isNotEmpty) {
       final min = priceRanges.first['min'];
       final max = priceRanges.first['max'];
-      priceRange = '\$${min?.toStringAsFixed(0)} â \$${max?.toStringAsFixed(0)}';
+      priceRange = '\$${min?.toStringAsFixed(0)} – \$${max?.toStringAsFixed(0)}';
     }
 
     DateTime? date;
@@ -85,9 +85,9 @@ class ConcertEvent {
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 // Concert Finder Service
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ConcertFinderService {
   static const String _apiKey = 'YOUR_TICKETMASTER_API_KEY';
@@ -128,16 +128,16 @@ class ConcertFinderService {
           venue: 'The Fillmore',
           city: 'San Francisco, CA',
           date: DateTime.now().add(const Duration(days: 14)),
-          priceRange: '\$35 â \$75',
+          priceRange: '\$35 – \$75',
         ),
         ConcertEvent(
           id: 'demo2',
-          name: '$artist â World Tour',
+          name: '$artist — World Tour',
           artist: artist,
           venue: 'Madison Square Garden',
           city: 'New York, NY',
           date: DateTime.now().add(const Duration(days: 28)),
-          priceRange: '\$55 â \$120',
+          priceRange: '\$55 – \$120',
         ),
         ConcertEvent(
           id: 'demo3',
@@ -146,14 +146,14 @@ class ConcertFinderService {
           venue: 'The Wiltern',
           city: 'Los Angeles, CA',
           date: DateTime.now().add(const Duration(days: 45)),
-          priceRange: '\$40 â \$90',
+          priceRange: '\$40 – \$90',
         ),
       ];
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 // Screen
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 
 class ConcertFinderScreen extends StatefulWidget {
   const ConcertFinderScreen({super.key});
@@ -219,39 +219,38 @@ class _ConcertFinderScreenState extends State<ConcertFinderScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
 
     return Scaffold(
-      backgroundColor: theme.background,
+      backgroundColor: AuraTheme.background,
       appBar: AppBar(
-        backgroundColor: theme.background,
+        backgroundColor: AuraTheme.background,
         elevation: 0,
         title: Text(
           'Concert Finder',
           style: TextStyle(
-              color: theme.textPrimary,
+              color: AuraTheme.textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.w800),
         ),
       ),
       body: Column(
         children: [
-          // ââ Search Bar ââââââââââââââââââââââââââââââââââââââââââââââââââââ
+          // ── Search Bar ────────────────────────────────────────────────────
           Padding(
             padding: const EdgeInsets.fromLTRB(18, 4, 18, 12),
             child: TextField(
               controller: _searchCtrl,
-              style: TextStyle(color: theme.textPrimary, fontSize: 15),
+              style: TextStyle(color: AuraTheme.textPrimary, fontSize: 15),
               onSubmitted: _search,
               decoration: InputDecoration(
                 hintText: 'Search an artist...',
-                hintStyle: TextStyle(color: theme.textMuted),
+                hintStyle: TextStyle(color: AuraTheme.textMuted),
                 prefixIcon: Icon(Icons.search_rounded,
-                    color: theme.textMuted, size: 20),
+                    color: AuraTheme.textMuted, size: 20),
                 suffixIcon: _searchCtrl.text.isNotEmpty
                     ? IconButton(
                         icon: Icon(Icons.clear_rounded,
-                            color: theme.textMuted, size: 18),
+                            color: AuraTheme.textMuted, size: 18),
                         onPressed: () {
                           _searchCtrl.clear();
                           setState(() {
@@ -262,7 +261,7 @@ class _ConcertFinderScreenState extends State<ConcertFinderScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: theme.cardBackground,
+                fillColor: AuraTheme.card,
                 contentPadding: const EdgeInsets.symmetric(vertical: 0),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
@@ -277,24 +276,24 @@ class _ConcertFinderScreenState extends State<ConcertFinderScreen> {
             child: _loading
                 ? Center(
                     child:
-                        CircularProgressIndicator(color: theme.accent))
+                        CircularProgressIndicator(color: AuraTheme.accent))
                 : _events.isNotEmpty
-                    ? _buildResults(theme)
-                    : _buildSuggestions(theme),
+                    ? _buildResults()
+                    : _buildSuggestions(),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildSuggestions(AuraTheme theme) {
+  Widget _buildSuggestions() {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 18),
       children: [
         Text(
           'From your music taste',
           style: TextStyle(
-              color: theme.textMuted,
+              color: AuraTheme.textMuted,
               fontSize: 12,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.6),
@@ -313,21 +312,21 @@ class _ConcertFinderScreenState extends State<ConcertFinderScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 14, vertical: 9),
                       decoration: BoxDecoration(
-                        color: theme.cardBackground,
+                        color: AuraTheme.card,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(
-                            color: theme.divider.withOpacity(0.5)),
+                            color: const Color(0xFF1E1E30).withOpacity(0.5)),
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.mic_rounded,
-                              color: theme.accent, size: 14),
+                              color: AuraTheme.accent, size: 14),
                           const SizedBox(width: 6),
                           Text(
                             a,
                             style: TextStyle(
-                                color: theme.textPrimary,
+                                color: AuraTheme.textPrimary,
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600),
                           ),
@@ -341,7 +340,7 @@ class _ConcertFinderScreenState extends State<ConcertFinderScreen> {
     );
   }
 
-  Widget _buildResults(AuraTheme theme) {
+  Widget _buildResults() {
     return ListView(
       padding: const EdgeInsets.symmetric(horizontal: 18),
       children: [
@@ -350,7 +349,7 @@ class _ConcertFinderScreenState extends State<ConcertFinderScreen> {
             Text(
               '${_events.length} shows found for "$_searchedArtist"',
               style: TextStyle(
-                  color: theme.textMuted,
+                  color: AuraTheme.textMuted,
                   fontSize: 12,
                   fontWeight: FontWeight.w600),
             ),
@@ -360,13 +359,13 @@ class _ConcertFinderScreenState extends State<ConcertFinderScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: theme.accent.withOpacity(0.15),
+                  color: AuraTheme.accent.withOpacity(0.15),
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   'Demo',
                   style: TextStyle(
-                      color: theme.accent,
+                      color: AuraTheme.accent,
                       fontSize: 10,
                       fontWeight: FontWeight.w700),
                 ),
@@ -375,27 +374,26 @@ class _ConcertFinderScreenState extends State<ConcertFinderScreen> {
           ],
         ),
         const SizedBox(height: 12),
-        ..._events.map((e) => _ConcertCard(event: e, theme: theme)),
+        ..._events.map((e) => _ConcertCard(event: e)),
       ],
     );
   }
 }
 
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 // Concert Card
-// âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+// ─────────────────────────────────────────────────────────────────────────────
 
 class _ConcertCard extends StatelessWidget {
   final ConcertEvent event;
-  final AuraTheme theme;
-  const _ConcertCard({required this.event, required this.theme});
+  const _ConcertCard({required this.event});
 
   @override
   Widget build(BuildContext context) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
       decoration: BoxDecoration(
-        color: theme.cardBackground,
+        color: AuraTheme.card,
         borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
@@ -426,7 +424,7 @@ class _ConcertCard extends StatelessWidget {
                 Text(
                   event.name,
                   style: TextStyle(
-                      color: theme.textPrimary,
+                      color: AuraTheme.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w800),
                 ),
@@ -434,13 +432,13 @@ class _ConcertCard extends StatelessWidget {
                 Row(
                   children: [
                     Icon(Icons.location_on_rounded,
-                        color: theme.textMuted, size: 13),
+                        color: AuraTheme.textMuted, size: 13),
                     const SizedBox(width: 4),
                     Expanded(
                       child: Text(
-                        '${event.venue} Â· ${event.city}',
+                        '${event.venue} · ${event.city}',
                         style: TextStyle(
-                            color: theme.textSecondary, fontSize: 12),
+                            color: AuraTheme.textSecondary, fontSize: 12),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -452,12 +450,12 @@ class _ConcertCard extends StatelessWidget {
                   Row(
                     children: [
                       Icon(Icons.calendar_today_rounded,
-                          color: theme.textMuted, size: 13),
+                          color: AuraTheme.textMuted, size: 13),
                       const SizedBox(width: 4),
                       Text(
                         _formatDate(event.date!),
                         style: TextStyle(
-                            color: theme.textSecondary, fontSize: 12),
+                            color: AuraTheme.textSecondary, fontSize: 12),
                       ),
                     ],
                   ),
@@ -492,13 +490,13 @@ class _ConcertCard extends StatelessWidget {
                                 'Opening tickets for ${event.name}',
                                 style: const TextStyle(color: Colors.white),
                               ),
-                              backgroundColor: AuraTheme.current.accent,
+                              backgroundColor: AuraTheme.accent,
                               behavior: SnackBarBehavior.floating,
                             ),
                           );
                         },
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.accent,
+                          backgroundColor: AuraTheme.accent,
                           foregroundColor: Colors.white,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(
@@ -516,8 +514,8 @@ class _ConcertCard extends StatelessWidget {
                       ElevatedButton(
                         onPressed: null,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: theme.cardBackground,
-                          foregroundColor: theme.textMuted,
+                          backgroundColor: AuraTheme.card,
+                          foregroundColor: AuraTheme.textMuted,
                           elevation: 0,
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 8),
@@ -544,13 +542,13 @@ class _ConcertCard extends StatelessWidget {
         height: 100,
         decoration: BoxDecoration(
           gradient: LinearGradient(
-              colors: [theme.cardBackground, theme.background]),
+              colors: [AuraTheme.card, AuraTheme.background]),
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(18)),
         ),
         alignment: Alignment.center,
         child: Icon(Icons.music_note_rounded,
-            color: theme.textMuted, size: 32),
+            color: AuraTheme.textMuted, size: 32),
       );
 
   String _formatDate(DateTime dt) {

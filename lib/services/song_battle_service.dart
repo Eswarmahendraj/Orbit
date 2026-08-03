@@ -207,7 +207,8 @@ class SongBattleService {
         .where('challengerId', isEqualTo: uid)
         .where('status', whereIn: ['pending', 'active'])
         .snapshots()
-        .map((s) => s.docs.map(SongBattle.fromFirestore).toList());
+        .map((s) => s.docs.map(SongBattle.fromFirestore).toList())
+        .handleError((_) => <SongBattle>[]);
   }
 
   /// Battles where I am the opponent and already active
@@ -219,7 +220,8 @@ class SongBattleService {
         .where('opponentId', isEqualTo: uid)
         .where('status', isEqualTo: 'active')
         .snapshots()
-        .map((s) => s.docs.map(SongBattle.fromFirestore).toList());
+        .map((s) => s.docs.map(SongBattle.fromFirestore).toList())
+        .handleError((_) => <SongBattle>[]);
   }
 
   /// Pending invites where I'm the opponent
@@ -231,20 +233,22 @@ class SongBattleService {
         .where('opponentId', isEqualTo: uid)
         .where('status', isEqualTo: 'pending')
         .snapshots()
-        .map((s) => s.docs.map(SongBattle.fromFirestore).toList());
+        .map((s) => s.docs.map(SongBattle.fromFirestore).toList())
+        .handleError((_) => <SongBattle>[]);
   }
 
-  /// Active battles involving me (for showing in Pulse)
+  /// Active battles — shown in Pulse to all authenticated users
   Stream<List<SongBattle>> activeBattlesStream() {
-    final uid = _uid;
-    if (uid == null) return const Stream.empty();
+    // No uid guard: with anonymous auth every user has a uid, and Pulse
+    // shows ALL active battles (not just ones involving the current user).
     return _db
         .collection('song_battles')
         .where('status', isEqualTo: 'active')
         .orderBy('createdAt', descending: true)
         .limit(20)
         .snapshots()
-        .map((s) => s.docs.map(SongBattle.fromFirestore).toList());
+        .map((s) => s.docs.map(SongBattle.fromFirestore).toList())
+        .handleError((_) => <SongBattle>[]);  // never crash on permission errors
   }
 
   /// Single battle stream

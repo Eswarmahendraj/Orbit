@@ -1,10 +1,10 @@
 import 'dart:ui' as ui;
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:provider/provider.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
-import '../../services/audio_player_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Lyrics Quote Card Screen
@@ -37,20 +37,18 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
     final state = Provider.of<OrbitState>(context);
-    final player = AudioPlayerService();
     final hasLyric = _lyricsCtrl.text.trim().isNotEmpty;
 
     return Scaffold(
-      backgroundColor: theme.background,
+      backgroundColor: AuraTheme.background,
       appBar: AppBar(
-        backgroundColor: theme.background,
+        backgroundColor: AuraTheme.background,
         elevation: 0,
         title: Text(
           'Lyrics Quote Card',
           style: TextStyle(
-              color: theme.textPrimary,
+              color: AuraTheme.textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.w800),
         ),
@@ -61,7 +59,7 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
               child: Text(
                 'Share',
                 style: TextStyle(
-                    color: theme.accent, fontWeight: FontWeight.w700),
+                    color: AuraTheme.accent, fontWeight: FontWeight.w700),
               ),
             ),
         ],
@@ -78,13 +76,13 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
                 lyric: hasLyric
                     ? _lyricsCtrl.text.trim()
                     : 'Enter a lyric below...',
-                songTitle: player.currentTitle.isNotEmpty
-                    ? player.currentTitle
+                songTitle: state.vibeSong.isNotEmpty
+                    ? state.vibeSong
                     : 'Song Title',
-                artist: player.currentArtist.isNotEmpty
-                    ? player.currentArtist
+                artist: state.vibeArtist.isNotEmpty
+                    ? state.vibeArtist
                     : 'Artist',
-                artUrl: player.currentArtUrl,
+                artUrl: state.vibeArtUrl,
                 gradient: _gradients[_selectedStyle],
                 displayName: state.displayName,
               ),
@@ -95,7 +93,7 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
             Text(
               'Card Style',
               style: TextStyle(
-                  color: theme.textSecondary,
+                  color: AuraTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5),
@@ -146,14 +144,14 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
             const SizedBox(height: 24),
 
             // ── Now Playing Banner ─────────────────────────────────────────
-            if (player.currentTitle.isNotEmpty) ...[
+            if (state.vibeSong.isNotEmpty) ...[
               GestureDetector(
                 onTap: () {
                   // Pre-fill with song info placeholder
                   if (_lyricsCtrl.text.isEmpty) {
                     setState(() {
                       _lyricsCtrl.text =
-                          '${player.currentTitle} — tap to type your lyric';
+                          '${state.vibeSong} — tap to type your lyric';
                       _lyricsCtrl.selection = TextSelection(
                         baseOffset: 0,
                         extentOffset: _lyricsCtrl.text.length,
@@ -164,10 +162,10 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
                 child: Container(
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: theme.cardBackground,
+                    color: AuraTheme.card,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                        color: theme.accent.withOpacity(0.3)),
+                        color: AuraTheme.accent.withOpacity(0.3)),
                   ),
                   child: Row(
                     children: [
@@ -175,11 +173,11 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
                         width: 42,
                         height: 42,
                         decoration: BoxDecoration(
-                          color: theme.accent.withOpacity(0.15),
+                          color: AuraTheme.accent.withOpacity(0.15),
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Icon(Icons.graphic_eq_rounded,
-                            color: theme.accent, size: 20),
+                            color: AuraTheme.accent, size: 20),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -189,31 +187,31 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
                             Text(
                               'Now Playing',
                               style: TextStyle(
-                                  color: theme.textMuted,
+                                  color: AuraTheme.textMuted,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              player.currentTitle,
+                              state.vibeSong,
                               style: TextStyle(
-                                  color: theme.textPrimary,
+                                  color: AuraTheme.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              player.currentArtist,
+                              state.vibeArtist,
                               style: TextStyle(
-                                  color: theme.textSecondary,
+                                  color: AuraTheme.textSecondary,
                                   fontSize: 12),
                             ),
                           ],
                         ),
                       ),
                       Icon(Icons.arrow_forward_ios_rounded,
-                          color: theme.textMuted, size: 14),
+                          color: AuraTheme.textMuted, size: 14),
                     ],
                   ),
                 ),
@@ -225,7 +223,7 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
             Text(
               'Lyric',
               style: TextStyle(
-                  color: theme.textSecondary,
+                  color: AuraTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5),
@@ -236,15 +234,15 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
               maxLines: 5,
               maxLength: 200,
               style: TextStyle(
-                  color: theme.textPrimary, fontSize: 15, height: 1.5),
+                  color: AuraTheme.textPrimary, fontSize: 15, height: 1.5),
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Paste a lyric that hits different...',
-                hintStyle: TextStyle(color: theme.textMuted),
+                hintStyle: TextStyle(color: AuraTheme.textMuted),
                 filled: true,
-                fillColor: theme.cardBackground,
+                fillColor: AuraTheme.card,
                 counterStyle:
-                    TextStyle(color: theme.textMuted, fontSize: 11),
+                    TextStyle(color: AuraTheme.textMuted, fontSize: 11),
                 contentPadding: const EdgeInsets.all(16),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -266,10 +264,10 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
                       fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.accent,
+                  backgroundColor: AuraTheme.accent,
                   foregroundColor: Colors.white,
                   disabledBackgroundColor:
-                      theme.cardBackground,
+                      AuraTheme.card,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -301,7 +299,7 @@ class _LyricsQuoteScreenState extends State<LyricsQuoteScreen> {
                     style: TextStyle(fontWeight: FontWeight.w600)),
               ],
             ),
-            backgroundColor: AuraTheme.current.accent,
+            backgroundColor: AuraTheme.accent,
             behavior: SnackBarBehavior.floating,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12)),

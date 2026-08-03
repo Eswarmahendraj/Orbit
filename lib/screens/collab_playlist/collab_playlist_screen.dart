@@ -1,8 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
-import '../../services/audio_player_service.dart';
 import '../../models/collab_playlist_model.dart';
 import '../../services/collab_playlist_service.dart';
 
@@ -14,35 +14,34 @@ class CollabPlaylistScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
     final state = Provider.of<OrbitState>(context);
 
     return Scaffold(
-      backgroundColor: theme.background,
+      backgroundColor: AuraTheme.background,
       appBar: AppBar(
-        backgroundColor: theme.background,
+        backgroundColor: AuraTheme.background,
         elevation: 0,
         title: Text(
           'Collab Playlists',
           style: TextStyle(
-              color: theme.textPrimary,
+              color: AuraTheme.textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.w800),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.add_rounded, color: theme.accent, size: 28),
+            icon: Icon(Icons.add_rounded, color: AuraTheme.accent, size: 28),
             onPressed: () =>
-                _showCreateSheet(context, state, theme),
+                _showCreateSheet(context, state),
           ),
         ],
       ),
       body: StreamBuilder<List<CollabPlaylist>>(
-        stream: CollabPlaylistService().myPlaylistsStream(state.uid),
+        stream: CollabPlaylistService().myPlaylistsStream(FirebaseAuth.instance.currentUser?.uid ?? ''),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return Center(
-                child: CircularProgressIndicator(color: theme.accent));
+                child: CircularProgressIndicator(color: AuraTheme.accent));
           }
 
           final playlists = snap.data ?? [];
@@ -57,7 +56,7 @@ class CollabPlaylistScreen extends StatelessWidget {
                   Text(
                     'No collab playlists yet',
                     style: TextStyle(
-                        color: theme.textPrimary,
+                        color: AuraTheme.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w700),
                   ),
@@ -65,7 +64,7 @@ class CollabPlaylistScreen extends StatelessWidget {
                   Text(
                     'Tap + to start building one with friends',
                     style:
-                        TextStyle(color: theme.textSecondary, fontSize: 14),
+                        TextStyle(color: AuraTheme.textSecondary, fontSize: 14),
                     textAlign: TextAlign.center,
                   ),
                 ],
@@ -78,8 +77,7 @@ class CollabPlaylistScreen extends StatelessWidget {
             itemCount: playlists.length,
             itemBuilder: (_, i) => _PlaylistCard(
               playlist: playlists[i],
-              myUid: state.uid,
-              theme: theme,
+              myUid: FirebaseAuth.instance.currentUser?.uid ?? '',
             ),
           );
         },
@@ -88,12 +86,12 @@ class CollabPlaylistScreen extends StatelessWidget {
   }
 
   void _showCreateSheet(
-      BuildContext context, OrbitState state, AuraTheme theme) {
+      BuildContext context, OrbitState state) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _CreatePlaylistSheet(state: state, theme: theme),
+      builder: (_) => _CreatePlaylistSheet(state: state),
     );
   }
 }
@@ -104,12 +102,10 @@ class CollabPlaylistScreen extends StatelessWidget {
 class _PlaylistCard extends StatelessWidget {
   final CollabPlaylist playlist;
   final String myUid;
-  final AuraTheme theme;
 
   const _PlaylistCard({
     required this.playlist,
     required this.myUid,
-    required this.theme,
   });
 
   @override
@@ -130,9 +126,9 @@ class _PlaylistCard extends StatelessWidget {
         margin: const EdgeInsets.only(bottom: 12),
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: theme.cardBackground,
+          color: AuraTheme.card,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: theme.divider),
+          border: Border.all(color: const Color(0xFF1E1E30)),
         ),
         child: Row(
           children: [
@@ -142,7 +138,7 @@ class _PlaylistCard extends StatelessWidget {
               height: 56,
               decoration: BoxDecoration(
                 gradient: LinearGradient(
-                  colors: [theme.accent, theme.accentSecondary],
+                  colors: [AuraTheme.accent, AuraTheme.purple],
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
@@ -160,7 +156,7 @@ class _PlaylistCard extends StatelessWidget {
                   Text(
                     playlist.name,
                     style: TextStyle(
-                        color: theme.textPrimary,
+                        color: AuraTheme.textPrimary,
                         fontSize: 16,
                         fontWeight: FontWeight.w700),
                   ),
@@ -168,17 +164,17 @@ class _PlaylistCard extends StatelessWidget {
                   Text(
                     '${playlist.trackCount} tracks · ${playlist.memberUids.length} members',
                     style:
-                        TextStyle(color: theme.textSecondary, fontSize: 13),
+                        TextStyle(color: AuraTheme.textSecondary, fontSize: 13),
                   ),
                   const SizedBox(height: 2),
                   Text(
                     isOwner ? 'You created this' : 'by ${playlist.ownerName}',
-                    style: TextStyle(color: theme.textMuted, fontSize: 12),
+                    style: TextStyle(color: AuraTheme.textMuted, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            Icon(Icons.chevron_right_rounded, color: theme.textMuted),
+            Icon(Icons.chevron_right_rounded, color: AuraTheme.textMuted),
           ],
         ),
       ),
@@ -201,7 +197,6 @@ class CollabPlaylistActiveScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
     final state = Provider.of<OrbitState>(context);
 
     return StreamBuilder<CollabPlaylist?>(
@@ -210,29 +205,29 @@ class CollabPlaylistActiveScreen extends StatelessWidget {
         final playlist = snap.data;
 
         return Scaffold(
-          backgroundColor: theme.background,
+          backgroundColor: AuraTheme.background,
           appBar: AppBar(
-            backgroundColor: theme.background,
+            backgroundColor: AuraTheme.background,
             elevation: 0,
             title: Text(
               playlist?.name ?? 'Collab Playlist',
               style: TextStyle(
-                  color: theme.textPrimary,
+                  color: AuraTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w800),
             ),
             actions: [
               if (playlist != null)
                 IconButton(
-                  icon: Icon(Icons.add_rounded, color: theme.accent, size: 28),
+                  icon: Icon(Icons.add_rounded, color: AuraTheme.accent, size: 28),
                   onPressed: () => _showAddTrackSheet(
-                      context, state, theme, playlist),
+                      context, state, playlist),
                 ),
             ],
           ),
           body: playlist == null
               ? Center(
-                  child: CircularProgressIndicator(color: theme.accent))
+                  child: CircularProgressIndicator(color: AuraTheme.accent))
               : playlist.tracks.isEmpty
                   ? Center(
                       child: Column(
@@ -244,7 +239,7 @@ class CollabPlaylistActiveScreen extends StatelessWidget {
                           Text(
                             'No tracks yet',
                             style: TextStyle(
-                                color: theme.textPrimary,
+                                color: AuraTheme.textPrimary,
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700),
                           ),
@@ -252,20 +247,19 @@ class CollabPlaylistActiveScreen extends StatelessWidget {
                           Text(
                             'Tap + to add the first song!',
                             style: TextStyle(
-                                color: theme.textSecondary,
+                                color: AuraTheme.textSecondary,
                                 fontSize: 14),
                           ),
                         ],
                       ),
                     )
-                  : _buildTrackList(context, state, theme, playlist),
+                  : _buildTrackList(context, state, playlist),
         );
       },
     );
   }
 
-  Widget _buildTrackList(BuildContext context, OrbitState state,
-      AuraTheme theme, CollabPlaylist playlist) {
+  Widget _buildTrackList(BuildContext context, OrbitState state, CollabPlaylist playlist) {
     // Sort by votes descending
     final sorted = List<CollabTrack>.from(playlist.tracks)
       ..sort((a, b) => b.votes.compareTo(a.votes));
@@ -280,12 +274,12 @@ class CollabPlaylistActiveScreen extends StatelessWidget {
             child: Row(
               children: [
                 Icon(Icons.people_rounded,
-                    color: theme.textMuted, size: 16),
+                    color: AuraTheme.textMuted, size: 16),
                 const SizedBox(width: 6),
                 Text(
                   '${playlist.memberUids.length} members · sorted by votes',
                   style:
-                      TextStyle(color: theme.textMuted, fontSize: 12),
+                      TextStyle(color: AuraTheme.textMuted, fontSize: 12),
                 ),
               ],
             ),
@@ -296,7 +290,6 @@ class CollabPlaylistActiveScreen extends StatelessWidget {
           track: track,
           myUid: myUid,
           isOwner: playlist.ownerUid == myUid,
-          theme: theme,
           rank: i,
           onVote: () => CollabPlaylistService().voteTrack(
             playlistId: playlistId,
@@ -314,15 +307,13 @@ class CollabPlaylistActiveScreen extends StatelessWidget {
     );
   }
 
-  void _showAddTrackSheet(BuildContext context, OrbitState state,
-      AuraTheme theme, CollabPlaylist playlist) {
+  void _showAddTrackSheet(BuildContext context, OrbitState state, CollabPlaylist playlist) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
       builder: (_) => _AddTrackSheet(
         state: state,
-        theme: theme,
         playlistId: playlistId,
       ),
     );
@@ -337,7 +328,6 @@ class _TrackTile extends StatelessWidget {
   final String myUid;
   final bool isOwner;
   final int rank;
-  final AuraTheme theme;
   final VoidCallback onVote;
   final VoidCallback onRemove;
 
@@ -346,7 +336,6 @@ class _TrackTile extends StatelessWidget {
     required this.myUid,
     required this.isOwner,
     required this.rank,
-    required this.theme,
     required this.onVote,
     required this.onRemove,
   });
@@ -354,7 +343,7 @@ class _TrackTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasVoted = track.hasVoted(myUid);
-    final voteColor = hasVoted ? theme.accent : theme.textMuted;
+    final voteColor = hasVoted ? AuraTheme.accent : AuraTheme.textMuted;
     final isMyTrack = track.addedByUid == myUid;
     final canRemove = isOwner || isMyTrack;
 
@@ -362,11 +351,11 @@ class _TrackTile extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       decoration: BoxDecoration(
-        color: theme.cardBackground,
+        color: AuraTheme.card,
         borderRadius: BorderRadius.circular(14),
         border: Border.all(
           color:
-              hasVoted ? theme.accent.withOpacity(0.3) : theme.divider,
+              hasVoted ? AuraTheme.accent.withOpacity(0.3) : const Color(0xFF1E1E30),
         ),
       ),
       child: Row(
@@ -377,7 +366,7 @@ class _TrackTile extends StatelessWidget {
             child: Text(
               '#$rank',
               style: TextStyle(
-                  color: rank == 1 ? theme.accent : theme.textMuted,
+                  color: rank == 1 ? AuraTheme.accent : AuraTheme.textMuted,
                   fontSize: 13,
                   fontWeight: FontWeight.w700),
             ),
@@ -392,11 +381,11 @@ class _TrackTile extends StatelessWidget {
                 width: 46,
                 height: 46,
                 fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => _artPlaceholder(theme),
+                errorBuilder: (_, __, ___) => _artPlaceholder(),
               ),
             )
           else
-            _artPlaceholder(theme),
+            _artPlaceholder(),
 
           const SizedBox(width: 12),
 
@@ -410,7 +399,7 @@ class _TrackTile extends StatelessWidget {
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                      color: theme.textPrimary,
+                      color: AuraTheme.textPrimary,
                       fontSize: 15,
                       fontWeight: FontWeight.w600),
                 ),
@@ -418,12 +407,12 @@ class _TrackTile extends StatelessWidget {
                 Text(
                   track.artist,
                   style:
-                      TextStyle(color: theme.textSecondary, fontSize: 13),
+                      TextStyle(color: AuraTheme.textSecondary, fontSize: 13),
                 ),
                 const SizedBox(height: 2),
                 Text(
                   isMyTrack ? 'Added by you' : 'by ${track.addedByName}',
-                  style: TextStyle(color: theme.textMuted, fontSize: 11),
+                  style: TextStyle(color: AuraTheme.textMuted, fontSize: 11),
                 ),
               ],
             ),
@@ -468,22 +457,22 @@ class _TrackTile extends StatelessWidget {
             GestureDetector(
               onTap: onRemove,
               child: Icon(Icons.close_rounded,
-                  color: theme.textMuted, size: 18),
+                  color: AuraTheme.textMuted, size: 18),
             ),
         ],
       ),
     );
   }
 
-  Widget _artPlaceholder(AuraTheme theme) => Container(
+  Widget _artPlaceholder() => Container(
         width: 46,
         height: 46,
         decoration: BoxDecoration(
-          color: theme.accent.withOpacity(0.12),
+          color: AuraTheme.accent.withOpacity(0.12),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(Icons.music_note_rounded,
-            color: theme.accent, size: 22),
+            color: AuraTheme.accent, size: 22),
       );
 }
 
@@ -492,10 +481,9 @@ class _TrackTile extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _CreatePlaylistSheet extends StatefulWidget {
   final OrbitState state;
-  final AuraTheme theme;
 
   const _CreatePlaylistSheet(
-      {required this.state, required this.theme});
+      {required this.state});
 
   @override
   State<_CreatePlaylistSheet> createState() =>
@@ -517,7 +505,7 @@ class _CreatePlaylistSheetState extends State<_CreatePlaylistSheet> {
     setState(() => _loading = true);
     try {
       final id = await CollabPlaylistService().createPlaylist(
-        ownerUid: widget.state.uid,
+        ownerUid: FirebaseAuth.instance.currentUser?.uid ?? '',
         ownerName: widget.state.displayName,
         name: _ctrl.text.trim(),
       );
@@ -528,7 +516,7 @@ class _CreatePlaylistSheetState extends State<_CreatePlaylistSheet> {
           MaterialPageRoute(
             builder: (_) => CollabPlaylistActiveScreen(
               playlistId: id,
-              myUid: widget.state.uid,
+              myUid: FirebaseAuth.instance.currentUser?.uid ?? '',
             ),
           ),
         );
@@ -540,14 +528,13 @@ class _CreatePlaylistSheetState extends State<_CreatePlaylistSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.theme;
     return Padding(
       padding:
           EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
         decoration: BoxDecoration(
-          color: theme.background,
+          color: AuraTheme.background,
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(24)),
         ),
@@ -560,7 +547,7 @@ class _CreatePlaylistSheetState extends State<_CreatePlaylistSheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: theme.divider,
+                    color: const Color(0xFF1E1E30),
                     borderRadius: BorderRadius.circular(2)),
               ),
             ),
@@ -568,25 +555,25 @@ class _CreatePlaylistSheetState extends State<_CreatePlaylistSheet> {
             Text(
               'New Collab Playlist',
               style: TextStyle(
-                  color: theme.textPrimary,
+                  color: AuraTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w800),
             ),
             const SizedBox(height: 6),
             Text(
               'Friends can join and add songs together',
-              style: TextStyle(color: theme.textSecondary, fontSize: 14),
+              style: TextStyle(color: AuraTheme.textSecondary, fontSize: 14),
             ),
             const SizedBox(height: 20),
             TextField(
               controller: _ctrl,
               autofocus: true,
-              style: TextStyle(color: theme.textPrimary),
+              style: TextStyle(color: AuraTheme.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Playlist name...',
-                hintStyle: TextStyle(color: theme.textMuted),
+                hintStyle: TextStyle(color: AuraTheme.textMuted),
                 filled: true,
-                fillColor: theme.cardBackground,
+                fillColor: AuraTheme.card,
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
@@ -602,7 +589,7 @@ class _CreatePlaylistSheetState extends State<_CreatePlaylistSheet> {
               child: ElevatedButton(
                 onPressed: _loading ? null : _create,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.accent,
+                  backgroundColor: AuraTheme.accent,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
@@ -634,12 +621,10 @@ class _CreatePlaylistSheetState extends State<_CreatePlaylistSheet> {
 // ─────────────────────────────────────────────────────────────────────────────
 class _AddTrackSheet extends StatefulWidget {
   final OrbitState state;
-  final AuraTheme theme;
   final String playlistId;
 
   const _AddTrackSheet({
     required this.state,
-    required this.theme,
     required this.playlistId,
   });
 
@@ -656,11 +641,10 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
   @override
   void initState() {
     super.initState();
-    final player = AudioPlayerService();
-    if (player.currentTitle.isNotEmpty) {
+    if (widget.state.vibeSong.isNotEmpty) {
       _useNowPlaying = true;
-      _titleCtrl.text = player.currentTitle;
-      _artistCtrl.text = player.currentArtist;
+      _titleCtrl.text = widget.state.vibeSong;
+      _artistCtrl.text = widget.state.vibeArtist;
     }
   }
 
@@ -676,16 +660,15 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
     setState(() => _loading = true);
 
     try {
-      final player = AudioPlayerService();
       final trackId =
-          '${widget.state.uid.substring(0, 8)}_${DateTime.now().millisecondsSinceEpoch}';
+          '${(FirebaseAuth.instance.currentUser?.uid ?? '').substring(0, 8)}_${DateTime.now().millisecondsSinceEpoch}';
 
       final track = CollabTrack(
         id: trackId,
         title: _titleCtrl.text.trim(),
         artist: _artistCtrl.text.trim(),
-        artUrl: _useNowPlaying ? player.currentArtUrl : null,
-        addedByUid: widget.state.uid,
+        artUrl: _useNowPlaying ? widget.state.vibeArtUrl : null,
+        addedByUid: FirebaseAuth.instance.currentUser?.uid ?? '',
         addedByName: widget.state.displayName,
         votes: 0,
         votedByUids: [],
@@ -705,9 +688,7 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.theme;
-    final player = AudioPlayerService();
-    final hasNowPlaying = player.currentTitle.isNotEmpty;
+    final hasNowPlaying = widget.state.vibeSong.isNotEmpty;
 
     return Padding(
       padding:
@@ -715,7 +696,7 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
         decoration: BoxDecoration(
-          color: theme.background,
+          color: AuraTheme.background,
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(24)),
         ),
@@ -728,7 +709,7 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: theme.divider,
+                    color: const Color(0xFF1E1E30),
                     borderRadius: BorderRadius.circular(2)),
               ),
             ),
@@ -736,7 +717,7 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
             Text(
               'Add a Track',
               style: TextStyle(
-                  color: theme.textPrimary,
+                  color: AuraTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w800),
             ),
@@ -749,8 +730,8 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
                   setState(() {
                     _useNowPlaying = !_useNowPlaying;
                     if (_useNowPlaying) {
-                      _titleCtrl.text = player.currentTitle;
-                      _artistCtrl.text = player.currentArtist;
+                      _titleCtrl.text = widget.state.vibeSong;
+                      _artistCtrl.text = widget.state.vibeArtist;
                     } else {
                       _titleCtrl.clear();
                       _artistCtrl.clear();
@@ -762,13 +743,13 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: _useNowPlaying
-                        ? theme.accent.withOpacity(0.12)
-                        : theme.cardBackground,
+                        ? AuraTheme.accent.withOpacity(0.12)
+                        : AuraTheme.card,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _useNowPlaying
-                          ? theme.accent.withOpacity(0.4)
-                          : theme.divider,
+                          ? AuraTheme.accent.withOpacity(0.4)
+                          : const Color(0xFF1E1E30),
                     ),
                   ),
                   child: Row(
@@ -776,8 +757,8 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
                       Icon(
                         Icons.graphic_eq_rounded,
                         color: _useNowPlaying
-                            ? theme.accent
-                            : theme.textMuted,
+                            ? AuraTheme.accent
+                            : AuraTheme.textMuted,
                         size: 20,
                       ),
                       const SizedBox(width: 10),
@@ -788,24 +769,24 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
                             Text(
                               'Now Playing',
                               style: TextStyle(
-                                  color: theme.textMuted,
+                                  color: AuraTheme.textMuted,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600),
                             ),
                             const SizedBox(height: 2),
                             Text(
-                              player.currentTitle,
+                              widget.state.vibeSong,
                               style: TextStyle(
-                                  color: theme.textPrimary,
+                                  color: AuraTheme.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
                             ),
                             Text(
-                              player.currentArtist,
+                              widget.state.vibeArtist,
                               style: TextStyle(
-                                  color: theme.textSecondary,
+                                  color: AuraTheme.textSecondary,
                                   fontSize: 12),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
@@ -818,8 +799,8 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
                             ? Icons.check_circle_rounded
                             : Icons.radio_button_unchecked_rounded,
                         color: _useNowPlaying
-                            ? theme.accent
-                            : theme.textMuted,
+                            ? AuraTheme.accent
+                            : AuraTheme.textMuted,
                       ),
                     ],
                   ),
@@ -827,28 +808,28 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
               ),
               const SizedBox(height: 16),
               Row(children: [
-                Expanded(child: Divider(color: theme.divider)),
+                Expanded(child: Divider(color: const Color(0xFF1E1E30))),
                 Padding(
                   padding: const EdgeInsets.symmetric(horizontal: 12),
                   child: Text(
                     'or type manually',
                     style:
-                        TextStyle(color: theme.textMuted, fontSize: 12),
+                        TextStyle(color: AuraTheme.textMuted, fontSize: 12),
                   ),
                 ),
-                Expanded(child: Divider(color: theme.divider)),
+                Expanded(child: Divider(color: const Color(0xFF1E1E30))),
               ]),
               const SizedBox(height: 16),
             ],
 
             TextField(
               controller: _titleCtrl,
-              style: TextStyle(color: theme.textPrimary),
+              style: TextStyle(color: AuraTheme.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Song title',
-                hintStyle: TextStyle(color: theme.textMuted),
+                hintStyle: TextStyle(color: AuraTheme.textMuted),
                 filled: true,
-                fillColor: theme.cardBackground,
+                fillColor: AuraTheme.card,
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
@@ -860,12 +841,12 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
             const SizedBox(height: 12),
             TextField(
               controller: _artistCtrl,
-              style: TextStyle(color: theme.textPrimary),
+              style: TextStyle(color: AuraTheme.textPrimary),
               decoration: InputDecoration(
                 hintText: 'Artist name',
-                hintStyle: TextStyle(color: theme.textMuted),
+                hintStyle: TextStyle(color: AuraTheme.textMuted),
                 filled: true,
-                fillColor: theme.cardBackground,
+                fillColor: AuraTheme.card,
                 contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16, vertical: 14),
                 border: OutlineInputBorder(
@@ -880,7 +861,7 @@ class _AddTrackSheetState extends State<_AddTrackSheet> {
               child: ElevatedButton(
                 onPressed: _loading ? null : _add,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.accent,
+                  backgroundColor: AuraTheme.accent,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(

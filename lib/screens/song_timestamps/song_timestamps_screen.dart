@@ -1,9 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:provider/provider.dart';
 import '../../theme/aura_theme.dart';
 import '../../models/orbit_state.dart';
-import '../../services/audio_player_service.dart';
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Model
@@ -110,36 +110,35 @@ class SongTimestampsScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = AuraTheme.current;
     final state = Provider.of<OrbitState>(context);
 
     return Scaffold(
-      backgroundColor: theme.background,
+      backgroundColor: AuraTheme.background,
       appBar: AppBar(
-        backgroundColor: theme.background,
+        backgroundColor: AuraTheme.background,
         elevation: 0,
         title: Text(
           'Song Timestamps',
           style: TextStyle(
-              color: theme.textPrimary,
+              color: AuraTheme.textPrimary,
               fontSize: 20,
               fontWeight: FontWeight.w800),
         ),
         actions: [
           IconButton(
             icon: Icon(Icons.bookmark_add_rounded,
-                color: theme.accent, size: 26),
-            onPressed: () => _showAddSheet(context, state, theme),
+                color: AuraTheme.accent, size: 26),
+            onPressed: () => _showAddSheet(context, state),
             tooltip: 'Bookmark moment',
           ),
         ],
       ),
       body: StreamBuilder<List<SongTimestamp>>(
-        stream: SongTimestampService().myTimestampsStream(state.uid),
+        stream: SongTimestampService().myTimestampsStream(FirebaseAuth.instance.currentUser?.uid ?? ''),
         builder: (context, snap) {
           if (snap.connectionState == ConnectionState.waiting) {
             return Center(
-                child: CircularProgressIndicator(color: theme.accent));
+                child: CircularProgressIndicator(color: AuraTheme.accent));
           }
 
           final timestamps = snap.data ?? [];
@@ -154,7 +153,7 @@ class SongTimestampsScreen extends StatelessWidget {
                   Text(
                     'No bookmarks yet',
                     style: TextStyle(
-                        color: theme.textPrimary,
+                        color: AuraTheme.textPrimary,
                         fontSize: 20,
                         fontWeight: FontWeight.w700),
                   ),
@@ -162,7 +161,7 @@ class SongTimestampsScreen extends StatelessWidget {
                   Text(
                     'Bookmark a moment in a song that hits',
                     style: TextStyle(
-                        color: theme.textSecondary, fontSize: 14),
+                        color: AuraTheme.textSecondary, fontSize: 14),
                   ),
                 ],
               ),
@@ -187,15 +186,14 @@ class SongTimestampsScreen extends StatelessWidget {
                 songTitle: parts[0],
                 artist: parts.length > 1 ? parts[1] : '',
                 timestamps: entry.value,
-                theme: theme,
               );
             },
           );
         },
       ),
       floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddSheet(context, state, theme),
-        backgroundColor: theme.accent,
+        onPressed: () => _showAddSheet(context, state),
+        backgroundColor: AuraTheme.accent,
         icon: const Icon(Icons.bookmark_add_rounded, color: Colors.white),
         label: const Text('Bookmark',
             style: TextStyle(
@@ -205,12 +203,12 @@ class SongTimestampsScreen extends StatelessWidget {
   }
 
   void _showAddSheet(
-      BuildContext context, OrbitState state, AuraTheme theme) {
+      BuildContext context, OrbitState state) {
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (_) => _AddTimestampSheet(state: state, theme: theme),
+      builder: (_) => _AddTimestampSheet(state: state),
     );
   }
 }
@@ -222,13 +220,11 @@ class _SongGroup extends StatelessWidget {
   final String songTitle;
   final String artist;
   final List<SongTimestamp> timestamps;
-  final AuraTheme theme;
 
   const _SongGroup({
     required this.songTitle,
     required this.artist,
     required this.timestamps,
-    required this.theme,
   });
 
   @override
@@ -238,9 +234,9 @@ class _SongGroup extends StatelessWidget {
     return Container(
       margin: const EdgeInsets.only(bottom: 16),
       decoration: BoxDecoration(
-        color: theme.cardBackground,
+        color: AuraTheme.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: theme.divider),
+        border: Border.all(color: const Color(0xFF1E1E30)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -259,11 +255,11 @@ class _SongGroup extends StatelessWidget {
                       height: 48,
                       fit: BoxFit.cover,
                       errorBuilder: (_, __, ___) =>
-                          _artPlaceholder(theme),
+                          _artPlaceholder(),
                     ),
                   )
                 else
-                  _artPlaceholder(theme),
+                  _artPlaceholder(),
                 const SizedBox(width: 12),
                 Expanded(
                   child: Column(
@@ -272,14 +268,14 @@ class _SongGroup extends StatelessWidget {
                       Text(
                         songTitle,
                         style: TextStyle(
-                            color: theme.textPrimary,
+                            color: AuraTheme.textPrimary,
                             fontSize: 15,
                             fontWeight: FontWeight.w700),
                       ),
                       Text(
                         artist,
                         style: TextStyle(
-                            color: theme.textSecondary, fontSize: 13),
+                            color: AuraTheme.textSecondary, fontSize: 13),
                       ),
                     ],
                   ),
@@ -288,13 +284,13 @@ class _SongGroup extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 4),
                   decoration: BoxDecoration(
-                    color: theme.accent.withOpacity(0.12),
+                    color: AuraTheme.accent.withOpacity(0.12),
                     borderRadius: BorderRadius.circular(12),
                   ),
                   child: Text(
                     '${timestamps.length} moment${timestamps.length == 1 ? '' : 's'}',
                     style: TextStyle(
-                        color: theme.accent,
+                        color: AuraTheme.accent,
                         fontSize: 12,
                         fontWeight: FontWeight.w600),
                   ),
@@ -303,12 +299,11 @@ class _SongGroup extends StatelessWidget {
             ),
           ),
 
-          Divider(color: theme.divider, height: 1),
+          Divider(color: const Color(0xFF1E1E30), height: 1),
 
           // Timestamps list
           ...timestamps.map((ts) => _TimestampRow(
                 ts: ts,
-                theme: theme,
                 onDelete: () =>
                     SongTimestampService().deleteTimestamp(ts.id),
               )),
@@ -317,15 +312,15 @@ class _SongGroup extends StatelessWidget {
     );
   }
 
-  Widget _artPlaceholder(AuraTheme theme) => Container(
+  Widget _artPlaceholder() => Container(
         width: 48,
         height: 48,
         decoration: BoxDecoration(
-          color: theme.accent.withOpacity(0.12),
+          color: AuraTheme.accent.withOpacity(0.12),
           borderRadius: BorderRadius.circular(8),
         ),
         child: Icon(Icons.music_note_rounded,
-            color: theme.accent, size: 24),
+            color: AuraTheme.accent, size: 24),
       );
 }
 
@@ -334,12 +329,10 @@ class _SongGroup extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _TimestampRow extends StatelessWidget {
   final SongTimestamp ts;
-  final AuraTheme theme;
   final VoidCallback onDelete;
 
   const _TimestampRow({
     required this.ts,
-    required this.theme,
     required this.onDelete,
   });
 
@@ -365,21 +358,21 @@ class _TimestampRow extends StatelessWidget {
               padding: const EdgeInsets.symmetric(
                   horizontal: 10, vertical: 5),
               decoration: BoxDecoration(
-                color: theme.accent.withOpacity(0.12),
+                color: AuraTheme.accent.withOpacity(0.12),
                 borderRadius: BorderRadius.circular(8),
                 border: Border.all(
-                    color: theme.accent.withOpacity(0.3)),
+                    color: AuraTheme.accent.withOpacity(0.3)),
               ),
               child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.bookmark_rounded,
-                      color: theme.accent, size: 12),
+                      color: AuraTheme.accent, size: 12),
                   const SizedBox(width: 4),
                   Text(
                     ts.formattedTime,
                     style: TextStyle(
-                        color: theme.accent,
+                        color: AuraTheme.accent,
                         fontSize: 13,
                         fontWeight: FontWeight.w800,
                         letterSpacing: 0.5),
@@ -395,8 +388,8 @@ class _TimestampRow extends StatelessWidget {
                 ts.note.isEmpty ? 'No note' : ts.note,
                 style: TextStyle(
                     color: ts.note.isEmpty
-                        ? theme.textMuted
-                        : theme.textPrimary,
+                        ? AuraTheme.textMuted
+                        : AuraTheme.textPrimary,
                     fontSize: 14,
                     fontStyle: ts.note.isEmpty
                         ? FontStyle.italic
@@ -409,7 +402,7 @@ class _TimestampRow extends StatelessWidget {
 
             // Swipe hint
             Icon(Icons.chevron_left_rounded,
-                color: theme.textMuted, size: 14),
+                color: AuraTheme.textMuted, size: 14),
           ],
         ),
       ),
@@ -422,9 +415,8 @@ class _TimestampRow extends StatelessWidget {
 // ─────────────────────────────────────────────────────────────────────────────
 class _AddTimestampSheet extends StatefulWidget {
   final OrbitState state;
-  final AuraTheme theme;
 
-  const _AddTimestampSheet({required this.state, required this.theme});
+  const _AddTimestampSheet({required this.state});
 
   @override
   State<_AddTimestampSheet> createState() => _AddTimestampSheetState();
@@ -437,17 +429,15 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
   bool _loading = false;
   bool _useNowPlaying = true;
 
-  late final AudioPlayerService _player;
   final _titleCtrl = TextEditingController();
   final _artistCtrl = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _player = AudioPlayerService();
-    if (_player.currentTitle.isNotEmpty) {
-      _titleCtrl.text = _player.currentTitle;
-      _artistCtrl.text = _player.currentArtist;
+    if (widget.state.vibeSong.isNotEmpty) {
+      _titleCtrl.text = widget.state.vibeSong;
+      _artistCtrl.text = widget.state.vibeArtist;
     } else {
       _useNowPlaying = false;
     }
@@ -471,7 +461,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
 
   Future<void> _save() async {
     final title = _useNowPlaying
-        ? _player.currentTitle
+        ? widget.state.vibeSong
         : _titleCtrl.text.trim();
     if (title.isEmpty) return;
 
@@ -479,12 +469,12 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
     try {
       final ts = SongTimestamp(
         id: '',
-        uid: widget.state.uid,
+        uid: FirebaseAuth.instance.currentUser?.uid ?? '',
         songTitle: title,
         artist: _useNowPlaying
-            ? _player.currentArtist
+            ? widget.state.vibeArtist
             : _artistCtrl.text.trim(),
-        artUrl: _useNowPlaying ? _player.currentArtUrl : null,
+        artUrl: _useNowPlaying ? widget.state.vibeArtUrl : null,
         timestampSeconds: _totalSeconds,
         note: _noteCtrl.text.trim(),
         savedAt: DateTime.now(),
@@ -498,8 +488,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = widget.theme;
-    final hasNowPlaying = _player.currentTitle.isNotEmpty;
+    final hasNowPlaying = widget.state.vibeSong.isNotEmpty;
 
     return Padding(
       padding:
@@ -507,7 +496,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
       child: Container(
         padding: const EdgeInsets.fromLTRB(24, 24, 24, 40),
         decoration: BoxDecoration(
-          color: theme.background,
+          color: AuraTheme.background,
           borderRadius:
               const BorderRadius.vertical(top: Radius.circular(24)),
         ),
@@ -520,7 +509,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                 width: 36,
                 height: 4,
                 decoration: BoxDecoration(
-                    color: theme.divider,
+                    color: const Color(0xFF1E1E30),
                     borderRadius: BorderRadius.circular(2)),
               ),
             ),
@@ -528,7 +517,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
             Text(
               'Bookmark a Moment',
               style: TextStyle(
-                  color: theme.textPrimary,
+                  color: AuraTheme.textPrimary,
                   fontSize: 20,
                   fontWeight: FontWeight.w800),
             ),
@@ -544,21 +533,21 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: _useNowPlaying
-                        ? theme.accent.withOpacity(0.12)
-                        : theme.cardBackground,
+                        ? AuraTheme.accent.withOpacity(0.12)
+                        : AuraTheme.card,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
                       color: _useNowPlaying
-                          ? theme.accent.withOpacity(0.4)
-                          : theme.divider,
+                          ? AuraTheme.accent.withOpacity(0.4)
+                          : const Color(0xFF1E1E30),
                     ),
                   ),
                   child: Row(
                     children: [
                       Icon(Icons.graphic_eq_rounded,
                           color: _useNowPlaying
-                              ? theme.accent
-                              : theme.textMuted,
+                              ? AuraTheme.accent
+                              : AuraTheme.textMuted,
                           size: 20),
                       const SizedBox(width: 10),
                       Expanded(
@@ -568,14 +557,14 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                             Text(
                               'Now Playing',
                               style: TextStyle(
-                                  color: theme.textMuted,
+                                  color: AuraTheme.textMuted,
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600),
                             ),
                             Text(
-                              _player.currentTitle,
+                              widget.state.vibeSong,
                               style: TextStyle(
-                                  color: theme.textPrimary,
+                                  color: AuraTheme.textPrimary,
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600),
                               maxLines: 1,
@@ -589,8 +578,8 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                             ? Icons.check_circle_rounded
                             : Icons.radio_button_unchecked_rounded,
                         color: _useNowPlaying
-                            ? theme.accent
-                            : theme.textMuted,
+                            ? AuraTheme.accent
+                            : AuraTheme.textMuted,
                       ),
                     ],
                   ),
@@ -600,12 +589,12 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                 const SizedBox(height: 12),
                 TextField(
                   controller: _titleCtrl,
-                  style: TextStyle(color: theme.textPrimary),
+                  style: TextStyle(color: AuraTheme.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'Song title',
-                    hintStyle: TextStyle(color: theme.textMuted),
+                    hintStyle: TextStyle(color: AuraTheme.textMuted),
                     filled: true,
-                    fillColor: theme.cardBackground,
+                    fillColor: AuraTheme.card,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
                     border: OutlineInputBorder(
@@ -617,12 +606,12 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                 const SizedBox(height: 8),
                 TextField(
                   controller: _artistCtrl,
-                  style: TextStyle(color: theme.textPrimary),
+                  style: TextStyle(color: AuraTheme.textPrimary),
                   decoration: InputDecoration(
                     hintText: 'Artist',
-                    hintStyle: TextStyle(color: theme.textMuted),
+                    hintStyle: TextStyle(color: AuraTheme.textMuted),
                     filled: true,
-                    fillColor: theme.cardBackground,
+                    fillColor: AuraTheme.card,
                     contentPadding: const EdgeInsets.symmetric(
                         horizontal: 16, vertical: 12),
                     border: OutlineInputBorder(
@@ -639,7 +628,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
             Text(
               'Timestamp',
               style: TextStyle(
-                  color: theme.textSecondary,
+                  color: AuraTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600),
             ),
@@ -651,18 +640,18 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                     controller: _minuteCtrl,
                     keyboardType: TextInputType.number,
                     style: TextStyle(
-                        color: theme.textPrimary,
+                        color: AuraTheme.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700),
                     textAlign: TextAlign.center,
                     decoration: InputDecoration(
                       hintText: '00',
                       hintStyle: TextStyle(
-                          color: theme.textMuted,
+                          color: AuraTheme.textMuted,
                           fontSize: 22,
                           fontWeight: FontWeight.w700),
                       filled: true,
-                      fillColor: theme.cardBackground,
+                      fillColor: AuraTheme.card,
                       contentPadding:
                           const EdgeInsets.symmetric(vertical: 14),
                       border: OutlineInputBorder(
@@ -681,7 +670,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                   child: Text(
                     ':',
                     style: TextStyle(
-                        color: theme.textPrimary,
+                        color: AuraTheme.textPrimary,
                         fontSize: 28,
                         fontWeight: FontWeight.w900),
                   ),
@@ -691,18 +680,18 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                     controller: _secondCtrl,
                     keyboardType: TextInputType.number,
                     style: TextStyle(
-                        color: theme.textPrimary,
+                        color: AuraTheme.textPrimary,
                         fontSize: 22,
                         fontWeight: FontWeight.w700),
                     textAlign: TextAlign.center,
                     decoration: InputDecoration(
                       hintText: '00',
                       hintStyle: TextStyle(
-                          color: theme.textMuted,
+                          color: AuraTheme.textMuted,
                           fontSize: 22,
                           fontWeight: FontWeight.w700),
                       filled: true,
-                      fillColor: theme.cardBackground,
+                      fillColor: AuraTheme.card,
                       contentPadding:
                           const EdgeInsets.symmetric(vertical: 14),
                       border: OutlineInputBorder(
@@ -721,7 +710,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
             const SizedBox(height: 4),
             Text(
               'e.g. 2:34 = "the drop at 2 minutes 34 seconds"',
-              style: TextStyle(color: theme.textMuted, fontSize: 11),
+              style: TextStyle(color: AuraTheme.textMuted, fontSize: 11),
             ),
             const SizedBox(height: 16),
 
@@ -729,7 +718,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
             Text(
               'Note (optional)',
               style: TextStyle(
-                  color: theme.textSecondary,
+                  color: AuraTheme.textSecondary,
                   fontSize: 13,
                   fontWeight: FontWeight.w600),
             ),
@@ -738,14 +727,14 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
               controller: _noteCtrl,
               maxLines: 2,
               maxLength: 120,
-              style: TextStyle(color: theme.textPrimary),
+              style: TextStyle(color: AuraTheme.textPrimary),
               decoration: InputDecoration(
                 hintText: 'This is where the chorus drops...',
-                hintStyle: TextStyle(color: theme.textMuted),
+                hintStyle: TextStyle(color: AuraTheme.textMuted),
                 filled: true,
-                fillColor: theme.cardBackground,
+                fillColor: AuraTheme.card,
                 counterStyle:
-                    TextStyle(color: theme.textMuted, fontSize: 11),
+                    TextStyle(color: AuraTheme.textMuted, fontSize: 11),
                 contentPadding: const EdgeInsets.all(14),
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
@@ -766,7 +755,7 @@ class _AddTimestampSheetState extends State<_AddTimestampSheet> {
                       fontSize: 16, fontWeight: FontWeight.w700),
                 ),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: theme.accent,
+                  backgroundColor: AuraTheme.accent,
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
