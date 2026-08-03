@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 import '../models/message_model.dart';
 import 'notification_service.dart';
 
@@ -28,35 +29,39 @@ class ChatService {
     required String content,
     MessageType type = MessageType.text,
   }) async {
+    if (senderId.isEmpty || receiverId.isEmpty) return;
     final chatId = _chatId(senderId, receiverId);
-    await _db
-        .collection('chats')
-        .doc(chatId)
-        .collection('messages')
-        .add({
-      'senderId': senderId,
-      'senderAuraName': senderAuraName,
-      'content': content,
-      'type': type.name,
-      'createdAt': Timestamp.now(),
-      'isDeleted': false,
-      // No timestamp shown to users — stored for ordering only
-    });
-    // Update last message preview in chat metadata
-    await _db.collection('chats').doc(chatId).set({
-      'participants': [senderId, receiverId],
-      'lastMessageAt': Timestamp.now(),
-      'lastSenderId': senderId,
-      'participantNames': {senderId: senderAuraName},
-    }, SetOptions(merge: true));
+    try {
+      await _db
+          .collection('chats')
+          .doc(chatId)
+          .collection('messages')
+          .add({
+        'senderId': senderId,
+        'senderAuraName': senderAuraName,
+        'content': content,
+        'type': type.name,
+        'createdAt': Timestamp.now(),
+        'isDeleted': false,
+      });
+      // Update last message preview in chat metadata
+      await _db.collection('chats').doc(chatId).set({
+        'participants': [senderId, receiverId],
+        'lastMessageAt': Timestamp.now(),
+        'lastSenderId': senderId,
+        'participantNames': {senderId: senderAuraName},
+      }, SetOptions(merge: true));
 
-    // Push notification to recipient
-    NotificationService().sendDmNotification(
-      recipientUid: receiverId,
-      senderName: senderAuraName,
-      messageText: content,
-      dmId: chatId,
-    );
+      // Push notification to recipient
+      NotificationService().sendDmNotification(
+        recipientUid: receiverId,
+        senderName: senderAuraName,
+        messageText: content,
+        dmId: chatId,
+      );
+    } catch (e) {
+      debugPrint('ChatService.sendMessage error: $e');
+    }
   }
 
   // ── Campfire Room Chat ─────────────────────────────────────
@@ -77,18 +82,22 @@ class ChatService {
     required String senderAuraName,
     required String content,
   }) async {
-    await _db
-        .collection('campfireRooms')
-        .doc(roomId)
-        .collection('messages')
-        .add({
-      'senderId': senderId,
-      'senderAuraName': senderAuraName,
-      'content': content,
-      'type': 'text',
-      'createdAt': Timestamp.now(),
-      'isDeleted': false,
-    });
+    try {
+      await _db
+          .collection('campfireRooms')
+          .doc(roomId)
+          .collection('messages')
+          .add({
+        'senderId': senderId,
+        'senderAuraName': senderAuraName,
+        'content': content,
+        'type': 'text',
+        'createdAt': Timestamp.now(),
+        'isDeleted': false,
+      });
+    } catch (e) {
+      debugPrint('ChatService.sendCampfireMessage error: $e');
+    }
   }
 
   // ── Circle Thread (Group Chat) ─────────────────────────────
@@ -97,22 +106,31 @@ class ChatService {
     required String creatorId,
     required List<String> invitedIds,
   }) async {
-    final doc = await _db.collection('circleThreads').add({
-      'name': name,
-      'creatorId': creatorId,
-      'members': [creatorId],
-      'invitedIds': invitedIds,
-      'createdAt': Timestamp.now(),
-      'isActive': true,
-    });
-    return doc.id;
+    try {
+      final doc = await _db.collection('circleThreads').add({
+        'name': name,
+        'creatorId': creatorId,
+        'members': [creatorId],
+        'invitedIds': invitedIds,
+        'createdAt': Timestamp.now(),
+        'isActive': true,
+      });
+      return doc.id;
+    } catch (e) {
+      debugPrint('ChatService.createCircleThread error: $e');
+      return '';
+    }
   }
 
   Future<void> joinCircleThread(String threadId, String userId) async {
-    await _db.collection('circleThreads').doc(threadId).update({
-      'members': FieldValue.arrayUnion([userId]),
-      'invitedIds': FieldValue.arrayRemove([userId]),
-    });
+    try {
+      await _db.collection('circleThreads').doc(threadId).update({
+        'members': FieldValue.arrayUnion([userId]),
+        'invitedIds': FieldValue.arrayRemove([userId]),
+      });
+    } catch (e) {
+      debugPrint('ChatService.joinCircleThread error: $e');
+    }
   }
 
   Stream<List<Message>> getCircleMessages(String threadId) {
@@ -131,25 +149,33 @@ class ChatService {
     required String senderAuraName,
     required String content,
   }) async {
-    await _db
-        .collection('circleThreads')
-        .doc(threadId)
-        .collection('messages')
-        .add({
-      'senderId': senderId,
-      'senderAuraName': senderAuraName,
-      'content': content,
-      'type': 'text',
-      'createdAt': Timestamp.now(),
-      'isDeleted': false,
-    });
+    try {
+      await _db
+          .collection('circleThreads')
+          .doc(threadId)
+          .collection('messages')
+          .add({
+        'senderId': senderId,
+        'senderAuraName': senderAuraName,
+        'content': content,
+        'type': 'text',
+        'createdAt': Timestamp.now(),
+        'isDeleted': false,
+      });
+    } catch (e) {
+      debugPrint('ChatService.sendCircleMessage error: $e');
+    }
   }
 
   Future<void> leaveCircleThread(String threadId, String userId) async {
-    // Silent exit — no notification sent to group
-    await _db.collection('circleThreads').doc(threadId).update({
-      'members': FieldValue.arrayRemove([userId]),
-    });
+    try {
+      // Silent exit — no notification sent to group
+      await _db.collection('circleThreads').doc(threadId).update({
+        'members': FieldValue.arrayRemove([userId]),
+      });
+    } catch (e) {
+      debugPrint('ChatService.leaveCircleThread error: $e');
+    }
   }
 
   // ── Typing Indicator ───────────────────────────────────────
@@ -159,10 +185,14 @@ class ChatService {
     required bool isTyping,
     bool isCampfire = false,
   }) async {
-    final collection = isCampfire ? 'campfireRooms' : 'chats';
-    await _db.collection(collection).doc(chatId).set({
-      'typing': {userId: isTyping},
-    }, SetOptions(merge: true));
+    try {
+      final collection = isCampfire ? 'campfireRooms' : 'chats';
+      await _db.collection(collection).doc(chatId).set({
+        'typing': {userId: isTyping},
+      }, SetOptions(merge: true));
+    } catch (e) {
+      debugPrint('ChatService.setTyping error: $e');
+    }
   }
 
   Stream<Map<String, bool>> getTypingStatus(String chatId,

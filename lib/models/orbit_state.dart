@@ -64,7 +64,8 @@ class OrbitState {
   // Hours remaining on the current vibe song (0 if expired)
   int get vibeHoursLeft {
     if (!vibeActive) return 0;
-    final set = DateTime.tryParse(vibeSetAt)!;
+    final set = DateTime.tryParse(vibeSetAt);
+    if (set == null) return 0;
     final exp = set.add(const Duration(hours: 24));
     return exp.difference(DateTime.now()).inHours;
   }

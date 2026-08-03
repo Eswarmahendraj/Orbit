@@ -116,6 +116,7 @@ class AuraService {
     // If accepted, open a Pocket between the two users
     if (accept) {
       final nudge = await _db.collection('nudges').doc(nudgeId).get();
+      if (!nudge.exists) return;
       final data = nudge.data()!;
       await _db.collection('pockets').add({
         'participants': [data['from'], data['to']],

@@ -23,7 +23,7 @@ class Message {
   });
 
   factory Message.fromFirestore(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+    final d = (doc.data() as Map<String, dynamic>?) ?? {};
     return Message(
       id: doc.id,
       senderId: d['senderId'] ?? '',
@@ -33,7 +33,7 @@ class Message {
         (e) => e.name == (d['type'] ?? 'text'),
         orElse: () => MessageType.text,
       ),
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
+      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isDeleted: d['isDeleted'] ?? false,
     );
   }
@@ -68,14 +68,14 @@ class CampfireRoom {
   });
 
   factory CampfireRoom.fromFirestore(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+    final d = (doc.data() as Map<String, dynamic>?) ?? {};
     return CampfireRoom(
       id: doc.id,
       mood: d['mood'] ?? 'calm',
       interests: List<String>.from(d['interests'] ?? []),
       memberIds: List<String>.from(d['memberIds'] ?? []),
       memberCount: d['memberCount'] ?? 0,
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
+      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       isActive: d['isActive'] ?? true,
     );
   }
@@ -109,7 +109,8 @@ class AuraPost {
   });
 
   factory AuraPost.fromFirestore(DocumentSnapshot doc) {
-    final d = doc.data() as Map<String, dynamic>;
+    final d = (doc.data() as Map<String, dynamic>?) ?? {};
+    final now = DateTime.now();
     return AuraPost(
       id: doc.id,
       authorId: d['authorId'] ?? '',
@@ -123,8 +124,8 @@ class AuraPost {
       ),
       pulseCount: d['pulseCount'] ?? 0,
       viewCount: d['viewCount'] ?? 0,
-      createdAt: (d['createdAt'] as Timestamp).toDate(),
-      expiresAt: (d['expiresAt'] as Timestamp).toDate(),
+      createdAt: (d['createdAt'] as Timestamp?)?.toDate() ?? now,
+      expiresAt: (d['expiresAt'] as Timestamp?)?.toDate() ?? now.add(const Duration(hours: 24)),
     );
   }
 }
