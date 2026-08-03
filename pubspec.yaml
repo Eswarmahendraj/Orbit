@@ -1,5 +1,5 @@
-name: aura
-description: AURA — Ambient Social Presence Platform
+﻿name: aura
+description: AURA â€” Ambient Social Presence Platform
 publish_to: 'none'
 version: 1.0.0+1
 
@@ -55,14 +55,14 @@ dependencies:
   # Album art color extraction
   palette_generator: ^0.3.3
 
-  # Speech-to-text (Voice → Playlist)
+  # Speech-to-text (Voice â†’ Playlist)
   speech_to_text: ^6.6.2
 
   # Spotify OAuth + crypto
   flutter_web_auth_2: ^4.0.0
   crypto: ^3.0.3
 
-  # Apple Music — music_kit removed (iOS 1.3.0 API lacks nowPlayingItem;
+  # Apple Music â€” music_kit removed (iOS 1.3.0 API lacks nowPlayingItem;
   # service is fully stubbed via conditional exports)
 
   # Push notifications
